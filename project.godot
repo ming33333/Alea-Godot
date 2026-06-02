@@ -1,0 +1,28 @@
+; Engine configuration file.
+; Godot 4.x — open this folder as the project root in the Godot editor.
+
+config_version=5
+
+[application]
+
+config/name="Alea"
+config/description="Dice grid puzzle game (Godot port). Web prototype: ../Alea"
+run/main_scene="res://scenes/main_menu.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+
+[autoload]
+
+GameState="*res://scripts/autoload/game_state.gd"
+SceneNav="*res://scripts/autoload/scene_nav.gd"
