@@ -1,0 +1,61 @@
+{
+  "gyms": [
+    {
+      "id": "vanilla",
+      "name": "Vanilla",
+      "subtitle": "Classic Alea",
+      "description": "Standard rules — rerolls give a new random number (1–6). All powers and level limits as usual.",
+      "badge_name": "Vanilla Victor",
+      "badge_emoji": "🎲",
+      "enabled": true
+    },
+    {
+      "id": "orderedReroll",
+      "name": "Step Up",
+      "subtitle": "Ordered rerolls",
+      "description": "Same as Vanilla, but rerolls bump the die by 1 (1→2→…→6→1) instead of rolling random.",
+      "badge_name": "Step Master",
+      "badge_emoji": "📈",
+      "enabled": false
+    },
+    {
+      "id": "countdownOne",
+      "name": "Safari Snap",
+      "subtitle": "3-2-1 · one die",
+      "description": "Every 3rd reroll: 3-2-1 countdown, then one random unlocked die gets a new number. Locked dice are skipped.",
+      "badge_name": "Snap Scout",
+      "badge_emoji": "⚡",
+      "enabled": true
+    },
+    {
+      "id": "countdownAll",
+      "name": "Safari Surge",
+      "subtitle": "3-2-1 · all dice",
+      "description": "Every 3rd reroll: 3-2-1 countdown, then every unlocked die gets a new number. Locked dice stay put.",
+      "badge_name": "Surge Champion",
+      "badge_emoji": "🌊",
+      "enabled": true
+    },
+    {
+      "id": "twoSlots",
+      "name": "Tight Loadout",
+      "subtitle": "2 power slots",
+      "description": "Same rules as Vanilla, but you can only hold 2 powers at once instead of 3.",
+      "badge_name": "Minimalist",
+      "badge_emoji": "🎒",
+      "enabled": true
+    },
+    {
+      "id": "middleStraight",
+      "name": "Head Start",
+      "subtitle": "Middle row straight",
+      "description": "The center row starts locked as 1-2-3-4-5 (a straight). Clear the other four rows to win each level.",
+      "badge_name": "Center Ace",
+      "badge_emoji": "🎯",
+      "enabled": true
+    }
+  ],
+  "default_max_owned_powers": 3,
+  "middle_row_index": 2,
+  "head_start_straight": [1, 2, 3, 4, 5]
+}

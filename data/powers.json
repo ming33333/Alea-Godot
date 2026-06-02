@@ -1,0 +1,83 @@
+{
+  "pattern_map": {
+    "chooseNumber": "5 of a Kind",
+    "switchAnywhere": "Straight",
+    "setAnyNumber": "Full House"
+  },
+  "powers": [
+    {
+      "type": "chooseNumber",
+      "earn_label": "5 of a Kind",
+      "label": "Make 5 of a Kind",
+      "description": "Click any die on an incomplete row, pick 1–6 — the whole row becomes that number (no extra charge for that row)",
+      "permanent": false,
+      "per_level": false
+    },
+    {
+      "type": "switchAnywhere",
+      "earn_label": "Straight",
+      "label": "Switch",
+      "description": "Swap any two unlocked dice",
+      "permanent": false,
+      "per_level": false
+    },
+    {
+      "type": "setAnyNumber",
+      "earn_label": "Full House",
+      "label": "Set Any Die",
+      "description": "Set any die (including locked) to 1–6 — uses 1 reroll",
+      "permanent": false,
+      "per_level": false
+    },
+    {
+      "type": "switchHorizontal",
+      "earn_label": "Always on",
+      "label": "Side Switch",
+      "description": "Swap two adjacent dice left or right — does not lock dice",
+      "permanent": true,
+      "per_level": false
+    },
+    {
+      "type": "verticalJump",
+      "earn_label": "Always on",
+      "label": "Vertical Jump",
+      "description": "Jump over locked rows to swap with the next die in a column — locks both dice",
+      "permanent": true,
+      "per_level": false
+    },
+    {
+      "type": "secondChances",
+      "earn_label": "Always on",
+      "label": "Second Chances",
+      "description": "Each die can be vertically swapped twice before locking",
+      "permanent": true,
+      "per_level": false
+    },
+    {
+      "type": "rerollTrade",
+      "earn_label": "Always on",
+      "label": "Reroll Trade",
+      "description": "Spend 2 rerolls to gain 1 switch (any time)",
+      "permanent": true,
+      "per_level": false
+    },
+    {
+      "type": "switchRows",
+      "earn_label": "1 per level",
+      "label": "Switch Rows",
+      "description": "Swap all dice between any two rows, including completed patterns (1 charge per level)",
+      "permanent": false,
+      "per_level": true
+    }
+  ],
+  "tournament_pickable": [
+    "chooseNumber",
+    "switchAnywhere",
+    "setAnyNumber",
+    "switchRows",
+    "switchHorizontal",
+    "verticalJump",
+    "secondChances",
+    "rerollTrade"
+  ]
+}

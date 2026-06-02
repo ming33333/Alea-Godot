@@ -1,0 +1,46 @@
+{
+  "opponents": [
+    {
+      "id": "luckySeven",
+      "name": "Lucky Seven",
+      "title": "The High Roller",
+      "emoji": "🎰",
+      "description": "A random 7 appears on the board, locked — you cannot reroll it. Straights may include the 7 (e.g. 3-4-5-6-7)."
+    },
+    {
+      "id": "thief",
+      "name": "The Thief",
+      "title": "Pickpocket",
+      "emoji": "🥷",
+      "description": "Steals one of your three chosen powers for this match."
+    },
+    {
+      "id": "straightSpecialist",
+      "name": "Straight Specialist",
+      "title": "The Purist",
+      "emoji": "📏",
+      "description": "Only Straight rows count — five consecutive dice (1–5, 2–6, or 3–7 with a 7)."
+    },
+    {
+      "id": "noThreeRepeats",
+      "name": "No 3peats",
+      "title": "Variety Enforcer",
+      "emoji": "🧩",
+      "description": "You can't complete the same pattern three times in one match (max 2 Straights, max 2 Full Houses, max 2 Five-of-a-Kinds)."
+    },
+    {
+      "id": "rerollChaos",
+      "name": "Reroll Chaos",
+      "title": "Butterfly Effect",
+      "emoji": "🌀",
+      "description": "Every time you reroll, another random unlocked die changes too."
+    },
+    {
+      "id": "blurPerReroll",
+      "name": "Blurred Vision",
+      "title": "Fog of War",
+      "emoji": "🌫️",
+      "description": "Each reroll blurs one random unlocked die — only one is hidden at a time; the previous blur clears when the next is chosen."
+    }
+  ]
+}

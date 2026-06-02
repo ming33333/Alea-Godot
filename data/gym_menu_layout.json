@@ -1,0 +1,7 @@
+{
+  "vanilla": { "x": 18, "y": 38 },
+  "countdownOne": { "x": 42, "y": 22 },
+  "countdownAll": { "x": 72, "y": 36 },
+  "twoSlots": { "x": 28, "y": 68 },
+  "middleStraight": { "x": 68, "y": 72 }
+}

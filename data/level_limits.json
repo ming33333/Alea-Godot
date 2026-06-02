@@ -1,0 +1,12 @@
+{
+  "max_level": 8,
+  "max_hearts": 3,
+  "base_switches": 5,
+  "base_rerolls": 15,
+  "level_up_offer_count": 2,
+  "second_chances_vertical_swaps": 2,
+  "championship_level": 8,
+  "safari_reroll_interval": 3,
+  "safari_countdown_step_ms": 1000,
+  "grid_size": 5
+}

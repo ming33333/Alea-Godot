@@ -1,14 +1,21 @@
 extends Node
-## Autoload placeholder — level, hearts, resources, unlocked powers.
-## Port fields from Alea web prototype (DiceGridGame.tsx) as you implement parity.
 
-var level: int = 1
-var hearts: int = 3
-var switches: int = 0
-var rerolls: int = 0
+const TAG := "GameState"
 
-func reset_run() -> void:
-	level = 1
-	hearts = 3
-	switches = 0
-	rerolls = 0
+var selected_gym_id: String = "vanilla"
+var tournament_loadout: Array = []
+var tournament_opponents: Array = []
+var tournament_opponent_index: int = 0
+var tournament_stolen_power: String = ""
+var show_champion_celebration: bool = false
+
+
+func _ready() -> void:
+	DebugLog.log(TAG, "_ready")
+
+
+func reset_tournament() -> void:
+	tournament_loadout = []
+	tournament_opponents = []
+	tournament_opponent_index = 0
+	tournament_stolen_power = ""

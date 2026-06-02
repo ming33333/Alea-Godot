@@ -24,5 +24,8 @@ renderer/rendering_method="forward_plus"
 
 [autoload]
 
+DebugLog="*res://scripts/autoload/debug_log.gd"
+GameData="*res://scripts/autoload/game_data.gd"
+SaveService="*res://scripts/autoload/save_service.gd"
 GameState="*res://scripts/autoload/game_state.gd"
 SceneNav="*res://scripts/autoload/scene_nav.gd"
