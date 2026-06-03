@@ -52,14 +52,64 @@ max_value = 1.0
 step = 0.05
 value = 1.0
 
+[node name="DiceSoundLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Dice roll sound"
+
+[node name="DiceSoundOption" type="OptionButton" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="SteamNote" type="Label" parent="Margin/VBox"]
 layout_mode = 2
 autowrap_mode = 3
 text = "Steam / GodotSteam: add export presets and Steamworks when ready to ship (Phase 6)."
+
+[node name="CheatSection" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Dev cheats"
+
+[node name="CheatHint" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.68, 0.75, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 3
+text = "Codes in res://data/dev_cheats.json"
+
+[node name="CheatStatus" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+text = "Status"
+
+[node name="CheatRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CheatCodeInput" type="LineEdit" parent="Margin/VBox/CheatRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Enter cheat code"
+secret = true
+
+[node name="CheatApply" type="Button" parent="Margin/VBox/CheatRow"]
+layout_mode = 2
+text = "Unlock"
+
+[node name="CheatLock" type="Button" parent="Margin/VBox"]
+layout_mode = 2
+text = "Lock dev cheats"
 
 [node name="Back" type="Button" parent="Margin/VBox"]
 layout_mode = 2
 text = "Back to menu"
 
 [connection signal="value_changed" from="Margin/VBox/VolumeSlider" to="." method="_on_volume_changed"]
+[connection signal="item_selected" from="Margin/VBox/DiceSoundOption" to="." method="_on_dice_sound_selected"]
+[connection signal="pressed" from="Margin/VBox/CheatRow/CheatApply" to="." method="_on_cheat_apply_pressed"]
+[connection signal="pressed" from="Margin/VBox/CheatLock" to="." method="_on_cheat_lock_pressed"]
+[connection signal="text_submitted" from="Margin/VBox/CheatRow/CheatCodeInput" to="." method="_on_cheat_code_submitted"]
 [connection signal="pressed" from="Margin/VBox/Back" to="." method="_on_back"]

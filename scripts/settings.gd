@@ -1,23 +1,78 @@
 extends Control
 
 @onready var volume_slider: HSlider = %VolumeSlider
+@onready var dice_sound_option: OptionButton = %DiceSoundOption
+@onready var cheat_hint: Label = %CheatHint
+@onready var cheat_status: Label = %CheatStatus
+@onready var cheat_code_input: LineEdit = %CheatCodeInput
+
+var _dice_sound_ids: Array[String] = []
 
 
 func _ready() -> void:
-	var cfg := ConfigFile.new()
-	if cfg.load("user://settings.cfg") == OK:
-		volume_slider.value = cfg.get_value("audio", "master", 1.0)
+	AudioSettings.load_settings()
+	volume_slider.value = AudioSettings.get_master_volume_linear()
+	_populate_dice_sound_options()
+	_refresh_cheat_ui()
+	if not DevCheats.unlock_state_changed.is_connected(_refresh_cheat_ui):
+		DevCheats.unlock_state_changed.connect(_refresh_cheat_ui)
+
+
+func _populate_dice_sound_options() -> void:
+	dice_sound_option.clear()
+	_dice_sound_ids.clear()
+	for sound_id in AudioSettings.DICE_SOUND_ORDER:
+		_dice_sound_ids.append(sound_id)
+		dice_sound_option.add_item(AudioSettings.dice_sound_label(sound_id))
+	var idx: int = _dice_sound_ids.find(AudioSettings.dice_roll_sound_id)
+	if idx < 0:
+		idx = 0
+	dice_sound_option.block_signals(true)
+	dice_sound_option.select(idx)
+	dice_sound_option.block_signals(false)
+
+
+func _refresh_cheat_ui() -> void:
+	cheat_hint.text = DevCheats.get_codes_hint_for_settings()
+	if not DevCheats.hint.is_empty():
+		cheat_hint.text += "\n" + DevCheats.hint
+	cheat_status.text = DevCheats.get_status_text()
 
 
 func _on_volume_changed(v: float) -> void:
-	var cfg := ConfigFile.new()
-	cfg.load("user://settings.cfg")
-	cfg.set_value("audio", "master", v)
-	cfg.save("user://settings.cfg")
-	AudioServer.set_bus_volume_db(
-		AudioServer.get_bus_index("Master"),
-		linear_to_db(v)
-	)
+	AudioSettings.save_master_volume(v)
+
+
+func _on_dice_sound_selected(index: int) -> void:
+	if index < 0 or index >= _dice_sound_ids.size():
+		return
+	var sound_id: String = _dice_sound_ids[index]
+	AudioSettings.save_dice_roll_sound(sound_id)
+	AudioSettings.preview_dice_roll_sound(sound_id)
+
+
+func _on_cheat_apply_pressed() -> void:
+	_try_apply_cheat_code()
+
+
+func _on_cheat_code_submitted(_text: String) -> void:
+	_try_apply_cheat_code()
+
+
+func _try_apply_cheat_code() -> void:
+	var code: String = cheat_code_input.text
+	if DevCheats.try_unlock(code):
+		cheat_status.text = "Unlocked! Dev menu shows in-game (and in editor if enabled)."
+		cheat_code_input.text = ""
+	else:
+		cheat_status.text = "Invalid code. See res://data/dev_cheats.json for valid codes."
+	_refresh_cheat_ui()
+
+
+func _on_cheat_lock_pressed() -> void:
+	DevCheats.lock_cheats()
+	cheat_status.text = "Dev cheats locked."
+	_refresh_cheat_ui()
 
 
 func _on_back() -> void:

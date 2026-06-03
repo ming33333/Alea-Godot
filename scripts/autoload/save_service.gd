@@ -1,5 +1,7 @@
 extends Node
 
+signal badges_changed
+
 const BADGES_KEY := "gym_badges"
 const CHAMPION_KEY := "dice_champion"
 const LAYOUT_KEY := "gym_menu_layout"
@@ -27,31 +29,60 @@ func get_earned_badges() -> Array[String]:
 
 
 func has_badge(gym_id: String) -> bool:
-	return gym_id in get_earned_badges()
+	var gid: String = str(gym_id)
+	for b in get_earned_badges():
+		if b == gid:
+			return true
+	return false
 
 
 func has_all_menu_badges() -> bool:
 	for g in GameData.menu_gym_modes:
-		if not has_badge(g.id):
+		if not has_badge(str(g.get("id", ""))):
 			return false
 	return true
 
 
-func award_gym_badge(gym_id: String) -> bool:
-	var enabled := false
+func _is_valid_menu_gym(gym_id: String) -> bool:
 	for g in GameData.menu_gym_modes:
 		if str(g.get("id", "")) == gym_id:
-			enabled = true
-			break
-	if not enabled:
+			return true
+	return false
+
+
+func force_award_badge(gym_id: String) -> bool:
+	var gid: String = str(gym_id)
+	if not _is_valid_menu_gym(gid):
+		DebugLog.log_error("SaveService", "force_award_badge: invalid gym '%s'" % gid)
 		return false
-	if has_badge(gym_id):
+	if has_badge(gid):
+		DebugLog.log("SaveService", "force_award_badge: already had '%s'" % gid)
+		return true
+	var ids: Array = []
+	for b in get_earned_badges():
+		ids.append(b)
+	ids.append(gid)
+	if not _write(BADGES_KEY, JSON.stringify(ids)):
+		DebugLog.log_error("SaveService", "force_award_badge: write failed")
+		return false
+	badges_changed.emit()
+	DebugLog.log("SaveService", "force_award_badge: awarded '%s'" % gid)
+	return true
+
+
+func award_gym_badge(gym_id: String) -> bool:
+	var gid: String = str(gym_id)
+	if not _is_valid_menu_gym(gid):
+		return false
+	if has_badge(gid):
 		return false
 	var ids: Array = []
 	for b in get_earned_badges():
 		ids.append(b)
-	ids.append(gym_id)
-	_write(BADGES_KEY, JSON.stringify(ids))
+	ids.append(gid)
+	if not _write(BADGES_KEY, JSON.stringify(ids)):
+		return false
+	badges_changed.emit()
 	return true
 
 
@@ -93,8 +124,12 @@ func _read(key: String) -> String:
 	return t
 
 
-func _write(key: String, text: String) -> void:
-	var f := FileAccess.open("user://%s.dat" % key, FileAccess.WRITE)
-	if f:
-		f.store_string(text)
-		f.close()
+func _write(key: String, text: String) -> bool:
+	var path: String = "user://%s.dat" % key
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		push_error("SaveService: could not write %s (err %s)" % [path, FileAccess.get_open_error()])
+		return false
+	f.store_string(text)
+	f.close()
+	return true

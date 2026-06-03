@@ -1,0 +1,10 @@
+{
+  "unlock_codes": [
+    "alea",
+    "devmode",
+    "wrench"
+  ],
+  "always_on_in_editor": true,
+  "persist_unlock": true,
+  "hint": "Enter a code in Settings, or type it on the main menu / in-game."
+}

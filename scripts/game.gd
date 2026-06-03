@@ -9,18 +9,39 @@ const DIE_CELL := preload("res://scenes/die_cell.tscn")
 @onready var rerolls_label: Label = %RerollsLabel
 @onready var gym_label: Label = %GymLabel
 @onready var power_bar: HBoxContainer = %PowerBar
+@onready var power_hint: VBoxContainer = %PowerHint
+@onready var power_hint_label: Label = %PowerHintLabel
+@onready var cancel_power_btn: Button = %CancelPowerBtn
+
+const ACTIVATABLE_POWERS: Array[String] = [
+	"chooseNumber", "switchAnywhere", "setAnyNumber", "switchRows"
+]
 @onready var safari_overlay: Label = %SafariOverlay
-@onready var modal_round: PanelContainer = %ModalRound
-@onready var modal_level_up: PanelContainer = %ModalLevelUp
-@onready var modal_number: PanelContainer = %ModalNumber
-@onready var modal_victory: PanelContainer = %ModalVictory
-@onready var modal_game_over: PanelContainer = %ModalGameOver
-@onready var modal_stuck: PanelContainer = %ModalStuck
-@onready var modal_tournament_win: PanelContainer = %ModalTournamentWin
-@onready var modal_swap: PanelContainer = %ModalSwap
+@onready var modal_round: Control = %ModalRound
+@onready var modal_level_up: Control = %ModalLevelUp
+@onready var modal_number: Control = %ModalNumber
+@onready var modal_victory: Control = %ModalVictory
+@onready var modal_game_over: Control = %ModalGameOver
+@onready var modal_stuck: Control = %ModalStuck
+@onready var modal_tournament_win: Control = %ModalTournamentWin
+@onready var modal_swap: Control = %ModalSwap
 @onready var level_up_options: VBoxContainer = %LevelUpOptions
+@onready var level_up_detail: Label = %LevelUpDetail
+@onready var level_up_keep_powers: Button = %LevelUpKeepPowers
+
+const LEVEL_UP_DETAIL_HINT := "Hover a power to see what it does"
 @onready var number_buttons: HBoxContainer = %NumberButtons
 @onready var swap_options: VBoxContainer = %SwapOptions
+@onready var stuck_title: Label = %StuckTitle
+@onready var stuck_body: Label = %StuckBody
+@onready var stuck_hearts: Label = %StuckHearts
+@onready var game_over_title: Label = %GameOverTitle
+@onready var game_over_body: Label = %GameOverBody
+@onready var restart_btn: Button = %RestartBtn
+@onready var modal_restart_confirm: Control = %ModalRestartConfirm
+@onready var restart_title: Label = %RestartTitle
+@onready var restart_body: Label = %RestartBody
+@onready var restart_hearts: Label = %RestartHearts
 
 var session: RunSession
 var _last_click_time: int = 0
@@ -28,12 +49,19 @@ var _last_click_cell: Vector2i = Vector2i(-1, -1)
 var _click_timer: Timer
 var _safari_timer: Timer
 var _pending_click: Vector2i = Vector2i(-1, -1)
+var _dev_panel: DevCheatsPanel
+var _dev_toggle_btn: Button
+var _dice_roll_player: AudioStreamPlayer
+var _die_cells: Dictionary = {}
+const SINGLE_CLICK_DELAY_SEC := 0.12
+const DOUBLE_CLICK_MS := 350
 
 
 func _ready() -> void:
+	cancel_power_btn.pressed.connect(_on_cancel_power_pressed)
 	_click_timer = Timer.new()
 	_click_timer.one_shot = true
-	_click_timer.wait_time = 0.28
+	_click_timer.wait_time = SINGLE_CLICK_DELAY_SEC
 	_click_timer.timeout.connect(_on_single_click_timeout)
 	add_child(_click_timer)
 	_safari_timer = Timer.new()
@@ -50,11 +78,57 @@ func _ready() -> void:
 		number_buttons.add_child(b)
 	session = RunSession.new()
 	session.state_changed.connect(_refresh_ui)
+	session.dice_rerolled.connect(_on_dice_rerolled)
+	_setup_dice_roll_sfx()
 	if GameState.tournament_opponents.size() > 0:
 		_start_tournament_match()
 	else:
 		session.start_gym_run(GameState.selected_gym_id)
+	_setup_dev_cheats()
 	_refresh_ui()
+
+
+func _setup_dev_cheats() -> void:
+	if not DevCheats.is_active():
+		return
+	_dev_panel = DevCheatsPanel.new()
+	add_child(_dev_panel)
+	_dev_panel.setup(session)
+	_dev_panel.visible = not DevCheats.menu_minimized
+	_dev_toggle_btn = Button.new()
+	_dev_toggle_btn.text = "🔧"
+	_dev_toggle_btn.tooltip_text = "Dev cheats"
+	_dev_toggle_btn.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	_dev_toggle_btn.offset_left = -44.0
+	_dev_toggle_btn.offset_right = -8.0
+	_dev_toggle_btn.offset_top = -28.0
+	_dev_toggle_btn.offset_bottom = 4.0
+	_dev_toggle_btn.pressed.connect(_on_dev_toggle_pressed)
+	add_child(_dev_toggle_btn)
+	if _dev_panel.visible:
+		_dev_toggle_btn.visible = false
+
+
+func _on_dev_toggle_pressed() -> void:
+	if _dev_panel == null:
+		return
+	_dev_panel.visible = true
+	_dev_toggle_btn.visible = false
+	DevCheats.menu_minimized = false
+
+
+func _on_dev_panel_minimized() -> void:
+	if _dev_toggle_btn:
+		_dev_toggle_btn.visible = true
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not DevCheats.is_active():
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		var key := event as InputEventKey
+		if DevCheats.feed_typed_key(key.unicode):
+			get_viewport().set_input_as_handled()
 
 
 func _start_tournament_match() -> void:
@@ -108,40 +182,75 @@ func _refresh_ui() -> void:
 			_safari_timer.start()
 	else:
 		_safari_timer.stop()
-	_build_grid()
+	_sync_grid()
 	_build_power_bar()
+	_update_power_hint()
 	_update_modals()
 
 
-func _build_grid() -> void:
-	for c in grid_container.get_children():
-		c.queue_free()
-	for r in range(session.grid.size()):
-		for c in range(session.grid[r].size()):
+func _die_key(row: int, col: int) -> String:
+	return "%d,%d" % [row, col]
+
+
+func _clear_die_grid() -> void:
+	for child in grid_container.get_children():
+		child.queue_free()
+	_die_cells.clear()
+
+
+func _sync_grid() -> void:
+	if session.grid.is_empty():
+		return
+	var rows: int = session.grid.size()
+	var cols: int = session.grid[0].size()
+	if _die_cells.is_empty():
+		for r in range(rows):
+			for c in range(cols):
+				var btn: DieCell = DIE_CELL.instantiate() as DieCell
+				grid_container.add_child(btn)
+				_die_cells[_die_key(r, c)] = btn
+				btn.pressed.connect(_on_die_pressed.bind(r, c))
+	for r in range(rows):
+		for c in range(cols):
 			var cell: DiceCellData = session.grid[r][c]
-			var btn: DieCell = DIE_CELL.instantiate() as DieCell
-			var key: String = "%d:%d" % [r, c]
-			var blurred: bool = session.blurred_cell_key == key
-			grid_container.add_child(btn)
+			var blur_key: String = "%d:%d" % [r, c]
+			var blurred: bool = session.blurred_cell_key == blur_key
+			var btn: DieCell = _die_cells[_die_key(r, c)] as DieCell
 			btn.setup(r, c, cell, blurred)
-			if r == session.selected_row and c == session.selected_col:
-				btn.modulate = Color(1.0, 0.95, 0.6)
-			btn.pressed.connect(_on_die_pressed.bind(r, c))
+			btn.set_highlight(_cell_highlight(r, c, cell, blurred))
 
 
 func _build_power_bar() -> void:
 	for c in power_bar.get_children():
 		c.queue_free()
+	power_bar.add_theme_constant_override("separation", 14)
 	for t in session.unlocked_powers:
 		var def: Dictionary = GameData.get_power_def(t)
-		var b := Button.new()
 		var ch: int = session.power_charges.get(t, 0)
 		var label: String = def.get("label", t)
 		if PowerLogic.is_pattern_power(t) or t == "switchRows":
 			label += " (%d)" % ch
+		if PowerLogic.is_permanent(t):
+			var tag := Label.new()
+			tag.text = label
+			tag.tooltip_text = str(def.get("description", ""))
+			tag.add_theme_font_size_override("font_size", 11)
+			tag.add_theme_color_override("font_color", Color(0.45, 0.48, 0.55))
+			power_bar.add_child(tag)
+			continue
+		if t not in ACTIVATABLE_POWERS:
+			continue
+		var b := Button.new()
 		b.text = label
 		b.toggle_mode = true
-		b.button_pressed = session.active_power_type == t
+		var active: bool = session.active_power_type == t
+		b.button_pressed = active
+		b.disabled = not _power_can_use(t) and not active
+		b.tooltip_text = str(def.get("description", ""))
+		if active:
+			_style_active_power_button(b, t)
+		else:
+			_style_idle_power_button(b)
 		b.pressed.connect(_on_power_pressed.bind(t))
 		power_bar.add_child(b)
 	if session.unlocked_powers.has("rerollTrade"):
@@ -155,11 +264,261 @@ func _build_power_bar() -> void:
 
 
 func _on_power_pressed(power_type: String) -> void:
+	if power_type not in ACTIVATABLE_POWERS:
+		return
 	if session.active_power_type == power_type:
-		session.active_power_type = ""
+		_clear_active_power()
 	else:
+		if not _power_can_use(power_type):
+			return
 		session.activate_power(power_type)
 	_refresh_ui()
+
+
+func _on_cancel_power_pressed() -> void:
+	_clear_active_power()
+	_refresh_ui()
+
+
+func _clear_active_power() -> void:
+	session.clear_active_power()
+
+
+func _power_can_use(power_type: String) -> bool:
+	if PowerLogic.is_permanent(power_type):
+		return false
+	if power_type == "setAnyNumber":
+		return session.rerolls_left() > 0 and session.power_charges.get(power_type, 0) > 0
+	if PowerLogic.is_pattern_power(power_type) or power_type == "switchRows":
+		return session.power_charges.get(power_type, 0) > 0
+	return true
+
+
+func _update_power_hint() -> void:
+	var active: String = session.active_power_type
+	if active.is_empty() or active not in ACTIVATABLE_POWERS:
+		power_hint.visible = false
+		return
+	power_hint.visible = true
+	power_hint_label.text = _power_hint_text(active)
+	var hint_color: Color = _power_hint_color(active)
+	power_hint_label.add_theme_color_override("font_color", hint_color)
+
+
+func _power_hint_color(power_type: String) -> Color:
+	match power_type:
+		"switchRows":
+			return Color(0.28, 0.28, 0.62)
+		"switchAnywhere":
+			return Color(0.4, 0.28, 0.58)
+		"chooseNumber":
+			return Color(0.15, 0.45, 0.28)
+		"setAnyNumber":
+			return Color(0.75, 0.38, 0.1)
+		_:
+			return Color(0.2, 0.35, 0.55)
+
+
+func _power_hint_text(power_type: String) -> String:
+	match power_type:
+		"switchRows":
+			return (
+				"Switch Rows — tap a die in the first row, "
+				+ "then tap a die in another row (completed rows are OK)"
+			)
+		"switchAnywhere":
+			return (
+				"Switch — tap one die, then another unlocked die to swap (uses 1 charge)"
+			)
+		"chooseNumber":
+			return (
+				"5 of a Kind — tap a die on an incomplete row, then pick 1–6 for the row"
+			)
+		"setAnyNumber":
+			return "Set Any Die — tap any die, then pick 1–6 (uses 1 reroll)"
+		_:
+			return ""
+
+
+func _power_button_colors(power_type: String) -> Dictionary:
+	match power_type:
+		"switchRows":
+			return {
+				"bg": Color(0.82, 0.84, 1.0),
+				"border": Color(0.28, 0.28, 0.78),
+				"shadow": Color(0.25, 0.25, 0.55, 0.45),
+			}
+		"switchAnywhere":
+			return {
+				"bg": Color(0.9, 0.86, 1.0),
+				"border": Color(0.45, 0.28, 0.72),
+				"shadow": Color(0.4, 0.25, 0.55, 0.4),
+			}
+		"chooseNumber":
+			return {
+				"bg": Color(0.84, 0.96, 0.88),
+				"border": Color(0.12, 0.52, 0.32),
+				"shadow": Color(0.15, 0.45, 0.28, 0.4),
+			}
+		"setAnyNumber":
+			return {
+				"bg": Color(1.0, 0.94, 0.86),
+				"border": Color(0.88, 0.4, 0.08),
+				"shadow": Color(0.75, 0.35, 0.08, 0.45),
+			}
+		_:
+			return {
+				"bg": Color(0.9, 0.93, 0.99),
+				"border": Color(0.25, 0.4, 0.68),
+				"shadow": Color(0.2, 0.3, 0.5, 0.35),
+			}
+
+
+func _make_power_stylebox(
+	bg: Color, border: Color, shadow: Color, border_w: int, shadow_size: int
+) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = bg
+	box.border_color = border
+	box.set_border_width_all(border_w)
+	box.set_corner_radius_all(10)
+	box.shadow_color = shadow
+	box.shadow_size = shadow_size
+	box.shadow_offset = Vector2(0, 4)
+	box.set_content_margin_all(10)
+	return box
+
+
+func _style_idle_power_button(btn: Button) -> void:
+	var box := _make_power_stylebox(
+		Color(0.94, 0.95, 0.97),
+		Color(0.72, 0.75, 0.8),
+		Color(0, 0, 0, 0.12),
+		1,
+		2
+	)
+	btn.add_theme_stylebox_override("normal", box)
+	btn.add_theme_stylebox_override("hover", box)
+	btn.add_theme_stylebox_override("pressed", box)
+	btn.add_theme_font_size_override("font_size", 11)
+	btn.scale = Vector2.ONE
+	btn.z_index = 0
+
+
+func _style_active_power_button(btn: Button, power_type: String) -> void:
+	var colors: Dictionary = _power_button_colors(power_type)
+	var box := _make_power_stylebox(
+		colors["bg"],
+		colors["border"],
+		colors["shadow"],
+		4,
+		10
+	)
+	btn.add_theme_stylebox_override("normal", box)
+	btn.add_theme_stylebox_override("hover", box)
+	btn.add_theme_stylebox_override("pressed", box)
+	btn.add_theme_font_size_override("font_size", 14)
+	btn.add_theme_color_override("font_color", Color(0.08, 0.1, 0.16))
+	btn.custom_minimum_size = Vector2(0, 46)
+	btn.scale = Vector2(1.14, 1.14)
+	btn.z_index = 2
+	btn.set_meta("active_power_btn", true)
+	call_deferred("_fit_active_power_btn_pivot", btn)
+
+
+func _fit_active_power_btn_pivot(btn: Button) -> void:
+	if btn.size.x > 1.0 and btn.size.y > 1.0:
+		btn.pivot_offset = btn.size * 0.5
+
+
+func _cell_highlight(
+	row: int, col: int, _cell: DiceCellData, blurred: bool
+) -> DieCell.Highlight:
+	if blurred:
+		return DieCell.Highlight.NONE
+	var active: String = session.active_power_type
+	if active == "switchRows":
+		if session.active_target_row >= 0:
+			if row == session.active_target_row:
+				return DieCell.Highlight.SWITCH_ROWS_PRIMARY
+			return DieCell.Highlight.SWITCH_ROWS_PICKABLE
+		return DieCell.Highlight.SWITCH_ROWS_PICKABLE
+	if active == "chooseNumber":
+		if _row_valid_for_choose_number(row):
+			return DieCell.Highlight.POWER_CHOOSE
+		return DieCell.Highlight.NONE
+	if active == "setAnyNumber":
+		return DieCell.Highlight.POWER_SET_ANY
+	if active == "switchAnywhere":
+		if session.selected_row >= 0:
+			if _can_switch_target(row, col):
+				return DieCell.Highlight.SWITCH_VALID
+			if row == session.selected_row and col == session.selected_col:
+				return DieCell.Highlight.SELECTED
+			return DieCell.Highlight.NONE
+		return DieCell.Highlight.POWER_SWITCH_ANY
+	if row == session.selected_row and col == session.selected_col:
+		return DieCell.Highlight.SELECTED
+	if session.selected_row >= 0 and _can_switch_target(row, col):
+		return DieCell.Highlight.SWITCH_VALID
+	return DieCell.Highlight.NONE
+
+
+func _row_valid_for_choose_number(row: int) -> bool:
+	if session.awarded_rows.has(row):
+		return false
+	var vals: Array = []
+	for c in session.grid[row]:
+		vals.append(c.value)
+	return PatternCheck.check_pattern(vals) == PatternCheck.INCOMPLETE
+
+
+func _can_switch_target(row: int, col: int) -> bool:
+	if session.selected_row < 0:
+		return false
+	if session.active_power_type != "switchAnywhere" and session.switches_left() <= 0:
+		return false
+	if row == session.selected_row and col == session.selected_col:
+		return false
+	var cell: DiceCellData = session.grid[row][col]
+	var sel: DiceCellData = session.grid[session.selected_row][session.selected_col]
+	if session.active_power_type == "switchAnywhere":
+		if cell.locked or sel.locked:
+			return false
+		return true
+	if cell.locked or sel.locked:
+		return false
+	var sw_any: bool = false
+	var side: bool = session.unlocked_powers.has("switchHorizontal")
+	var vjump: bool = session.unlocked_powers.has("verticalJump")
+	var adj_v: bool = (
+		session.selected_col == col
+		and abs(session.selected_row - row) == 1
+	)
+	var adj_h: bool = (
+		session.selected_row == row
+		and abs(session.selected_col - col) == 1
+	)
+	var v_jump: bool = (
+		vjump
+		and session.selected_col == col
+		and PowerLogic.can_vertical_jump(
+			session.grid, session.selected_row, row, col
+		)
+	)
+	return adj_v or sw_any or (side and adj_h) or v_jump
+
+
+func _setup_dice_roll_sfx() -> void:
+	_dice_roll_player = AudioStreamPlayer.new()
+	_dice_roll_player.stream = AudioSettings.get_dice_roll_stream()
+	_dice_roll_player.bus = &"Master"
+	add_child(_dice_roll_player)
+
+
+func _on_dice_rerolled(_row: int, _col: int, _new_value: int) -> void:
+	if _dice_roll_player and _dice_roll_player.stream:
+		_dice_roll_player.play()
 
 
 func _on_die_pressed(row: int, col: int) -> void:
@@ -168,7 +527,7 @@ func _on_die_pressed(row: int, col: int) -> void:
 	var now := Time.get_ticks_msec()
 	if (
 		_last_click_cell == Vector2i(row, col)
-		and now - _last_click_time < 350
+		and now - _last_click_time < DOUBLE_CLICK_MS
 	):
 		_click_timer.stop()
 		_last_click_cell = Vector2i(-1, -1)
@@ -207,6 +566,12 @@ func _update_modals() -> void:
 	modal_stuck.visible = session.current_modal == RunSession.Modal.STUCK
 	modal_tournament_win.visible = session.current_modal == RunSession.Modal.TOURNAMENT_WIN
 	modal_swap.visible = session.current_modal == RunSession.Modal.SWAP_POWER
+	modal_restart_confirm.visible = (
+		session.current_modal == RunSession.Modal.RESTART_CONFIRM
+	)
+	_update_restart_modal()
+	_update_fail_modals()
+	restart_btn.disabled = not session.can_offer_restart()
 	if session.current_modal == RunSession.Modal.LEVEL_UP:
 		_build_level_up()
 	if session.current_modal == RunSession.Modal.SWAP_POWER:
@@ -216,12 +581,96 @@ func _update_modals() -> void:
 func _build_level_up() -> void:
 	for c in level_up_options.get_children():
 		c.queue_free()
+	level_up_detail.text = LEVEL_UP_DETAIL_HINT
+	level_up_keep_powers.visible = true
+	level_up_keep_powers.text = "Keep current powers → Level %d" % (session.level + 1)
 	for t in session.level_up_pool:
 		var def: Dictionary = GameData.get_power_def(t)
+		var power_label: String = str(def.get("label", t))
+		var power_desc: String = str(def.get("description", ""))
+		var earn_label: String = str(def.get("earn_label", ""))
 		var b := Button.new()
-		b.text = "%s\n%s" % [def.get("label", t), def.get("description", "")]
+		b.text = power_label
+		if not earn_label.is_empty() and earn_label != "Always on":
+			b.tooltip_text = "%s\nEarn: %s\n\n%s" % [power_label, earn_label, power_desc]
+		else:
+			b.tooltip_text = "%s\n\n%s" % [power_label, power_desc]
+		b.custom_minimum_size = Vector2(0, 44)
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.pressed.connect(func(): session.choose_level_up_power(t))
 		level_up_options.add_child(b)
+
+
+func _update_restart_modal() -> void:
+	if session.current_modal != RunSession.Modal.RESTART_CONFIRM:
+		return
+	restart_title.text = "Restart level?"
+	var h: int = session.hearts
+	if h <= 1:
+		restart_body.text = (
+			"Restarting this level costs your last heart.\n"
+			+ "You will fail the gym immediately after."
+		)
+		restart_hearts.text = "♥ 1 → gym failed"
+	else:
+		restart_body.text = (
+			"Restart deals a fresh grid on this level.\n"
+			+ "Pattern power charges reset to how they were at the start of this level."
+		)
+		var after: int = h - 1
+		var word: String = "heart" if after == 1 else "hearts"
+		restart_hearts.text = "♥ %d → ♥ %d (%d %s left)" % [h, after, after, word]
+
+
+func _on_restart_pressed() -> void:
+	session.request_restart_confirm()
+
+
+func _on_cancel_restart_pressed() -> void:
+	session.cancel_restart_confirm()
+
+
+func _on_confirm_restart_pressed() -> void:
+	session.confirm_restart_level()
+
+
+func _update_fail_modals() -> void:
+	var lim: Dictionary = session.get_limits()
+	if session.current_modal == RunSession.Modal.STUCK:
+		stuck_title.text = "No moves left"
+		stuck_body.text = (
+			"You have no valid switches or rerolls left (%d/%d switches, %d/%d rerolls).\n"
+			+ "Pattern power charges reset when you restart this level."
+		) % [
+			session.switches_left(),
+			int(lim.get("max_switches", 0)),
+			session.rerolls_left(),
+			int(lim.get("max_rerolls", 0)),
+		]
+		var h: int = session.hearts
+		var heart_word: String = "heart" if h == 1 else "hearts"
+		stuck_hearts.text = (
+			"♥ %d %s remaining — tap Restart level to try again (you already lost 1 heart)"
+			% [h, heart_word]
+		)
+	elif session.current_modal == RunSession.Modal.GAME_OVER:
+		if session.is_tournament:
+			game_over_title.text = "Championship over"
+			var opp: Dictionary = GameData.get_tournament_opponent(
+				session.tournament_opponent_id
+			)
+			game_over_body.text = (
+				"You lost to %s. Return to the menu to try again."
+				% opp.get("name", "your opponent")
+			)
+		else:
+			var gym: Dictionary = GameData.get_gym(session.gym_id)
+			var max_hearts: int = int(GameData.level_limits.get("max_hearts", 3))
+			game_over_title.text = "Gym failed"
+			game_over_body.text = (
+				"You ran out of hearts in %s.\n"
+				+ "You used all %d lives — this gym run is over."
+			) % [gym.get("name", "this gym"), max_hearts]
 
 
 func _build_swap() -> void:
@@ -241,6 +690,10 @@ func _on_back_pressed() -> void:
 
 func _on_continue_round_pressed() -> void:
 	session.continue_after_round()
+
+
+func _on_level_up_keep_powers_pressed() -> void:
+	session.keep_current_powers_at_level_up()
 
 
 func _on_retry_pressed() -> void:

@@ -1,15 +1,34 @@
 ; Engine configuration file.
-; Godot 4.x — open this folder as the project root in the Godot editor.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
+
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
 config/name="Alea"
 config/description="Dice grid puzzle game (Godot port). Web prototype: ../Alea"
 run/main_scene="res://scenes/main_menu.tscn"
-config/features=PackedStringArray("4.3", "Forward Plus")
+config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
+
+[autoload]
+
+AudioSettings="*res://scripts/autoload/audio_settings.gd"
+DebugLog="*res://scripts/autoload/debug_log.gd"
+DevCheats="*res://scripts/autoload/dev_cheats.gd"
+GameData="*res://scripts/autoload/game_data.gd"
+SaveService="*res://scripts/autoload/save_service.gd"
+GameState="*res://scripts/autoload/game_state.gd"
+SceneNav="*res://scripts/autoload/scene_nav.gd"
 
 [display]
 
@@ -17,15 +36,3 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-
-[rendering]
-
-renderer/rendering_method="forward_plus"
-
-[autoload]
-
-DebugLog="*res://scripts/autoload/debug_log.gd"
-GameData="*res://scripts/autoload/game_data.gd"
-SaveService="*res://scripts/autoload/save_service.gd"
-GameState="*res://scripts/autoload/game_state.gd"
-SceneNav="*res://scripts/autoload/scene_nav.gd"

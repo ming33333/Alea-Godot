@@ -1,6 +1,36 @@
-[gd_scene load_steps=2 format=3 uid="uid://c8k2gameplaceholder"]
+[gd_scene load_steps=4 format=3 uid="uid://c8k2gameplaceholder"]
 
 [ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_modal_card"]
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.82, 0.84, 0.88, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.28)
+shadow_size = 12
+shadow_offset = Vector2(0, 4)
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_modal_btn"]
+bg_color = Color(0.75, 0.15, 0.18, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
 
 [node name="Game" type="Control"]
 layout_mode = 3
@@ -47,6 +77,12 @@ theme_override_constants/separation = 12
 [node name="Back" type="Button" parent="Margin/VBox/Header/TopRow"]
 layout_mode = 2
 text = "Menu"
+
+[node name="RestartBtn" type="Button" parent="Margin/VBox/Header/TopRow"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Restart this level (costs 1 heart)"
+text = "Restart"
 
 [node name="GymLabel" type="Label" parent="Margin/VBox/Header/TopRow"]
 unique_name_in_owner = true
@@ -105,8 +141,8 @@ size_flags_vertical = 3
 [node name="Grid" type="GridContainer" parent="Margin/VBox/Center"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/h_separation = 6
-theme_override_constants/v_separation = 6
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
 columns = 5
 
 [node name="PowerBar" type="HBoxContainer" parent="Margin/VBox"]
@@ -114,6 +150,30 @@ unique_name_in_owner = true
 layout_mode = 2
 alignment = 1
 theme_override_constants/separation = 6
+
+[node name="PowerHint" type="VBoxContainer" parent="Margin/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PowerHintLabel" type="Label" parent="Margin/VBox/PowerHint"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.35, 0.55, 1)
+theme_override_font_sizes/font_size = 13
+text = "Tap a die to use this power"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="CancelPowerBtn" type="Button" parent="Margin/VBox/PowerHint"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.75, 0.15, 0.2, 1)
+theme_override_font_sizes/font_size = 12
+text = "Cancel power-up"
+flat = true
 
 [node name="SafariOverlay" type="Label" parent="."]
 unique_name_in_owner = true
@@ -135,7 +195,7 @@ text = "3"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ModalRound" type="PanelContainer" parent="."]
+[node name="ModalRound" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -144,21 +204,68 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
+z_index = 50
 
-[node name="VBox" type="VBoxContainer" parent="ModalRound"]
+[node name="Backdrop" type="ColorRect" parent="ModalRound"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.55)
+
+[node name="Center" type="CenterContainer" parent="ModalRound"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="ModalRound/Center"]
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_card")
+
+[node name="CardMargin" type="MarginContainer" parent="ModalRound/Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="ModalRound/Center/Card/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Label" type="Label" parent="ModalRound/VBox"]
+[node name="Emoji" type="Label" parent="ModalRound/Center/Card/CardMargin/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "🎉"
+horizontal_alignment = 1
+
+[node name="Label" type="Label" parent="ModalRound/Center/Card/CardMargin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 26
 text = "Level complete!"
 horizontal_alignment = 1
 
-[node name="Continue" type="Button" parent="ModalRound/VBox"]
+[node name="Continue" type="Button" parent="ModalRound/Center/Card/CardMargin/VBox"]
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_modal_btn")
 text = "Choose power"
 
-[node name="ModalLevelUp" type="PanelContainer" parent="."]
+[node name="ModalLevelUp" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -167,20 +274,79 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
+z_index = 50
 
-[node name="VBox" type="VBoxContainer" parent="ModalLevelUp"]
-layout_mode = 2
+[node name="Backdrop" type="ColorRect" parent="ModalLevelUp"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.55)
 
-[node name="Title" type="Label" parent="ModalLevelUp/VBox"]
+[node name="Center" type="CenterContainer" parent="ModalLevelUp"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="ModalLevelUp/Center"]
+custom_minimum_size = Vector2(480, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_card")
+
+[node name="CardMargin" type="MarginContainer" parent="ModalLevelUp/Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="ModalLevelUp/Center/Card/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="ModalLevelUp/Center/Card/CardMargin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 24
 text = "Level up — pick a power"
 horizontal_alignment = 1
 
-[node name="LevelUpOptions" type="VBoxContainer" parent="ModalLevelUp/VBox"]
+[node name="Scroll" type="ScrollContainer" parent="ModalLevelUp/Center/Card/CardMargin/VBox"]
+custom_minimum_size = Vector2(0, 280)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="LevelUpOptions" type="VBoxContainer" parent="ModalLevelUp/Center/Card/CardMargin/VBox/Scroll"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
 
-[node name="ModalNumber" type="PanelContainer" parent="."]
+[node name="LevelUpDetail" type="Label" parent="ModalLevelUp/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 56)
+theme_override_colors/font_color = Color(0.35, 0.38, 0.45, 1)
+theme_override_font_sizes/font_size = 13
+text = "Hover a power to see what it does"
+autowrap_mode = 3
+
+[node name="LevelUpKeepPowers" type="Button" parent="ModalLevelUp/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Keep current powers"
+
+[node name="ModalNumber" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -189,22 +355,59 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
+z_index = 50
 
-[node name="VBox" type="VBoxContainer" parent="ModalNumber"]
+[node name="Backdrop" type="ColorRect" parent="ModalNumber"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.55)
+
+[node name="Center" type="CenterContainer" parent="ModalNumber"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="ModalNumber/Center"]
+custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_card")
+
+[node name="CardMargin" type="MarginContainer" parent="ModalNumber/Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="ModalNumber/Center/Card/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 16
 alignment = 1
 
-[node name="Label" type="Label" parent="ModalNumber/VBox"]
+[node name="Label" type="Label" parent="ModalNumber/Center/Card/CardMargin/VBox"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 22
 text = "Pick a number (1–6)"
 horizontal_alignment = 1
 
-[node name="NumberButtons" type="HBoxContainer" parent="ModalNumber/VBox"]
+[node name="NumberButtons" type="HBoxContainer" parent="ModalNumber/Center/Card/CardMargin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 alignment = 1
+theme_override_constants/separation = 10
 
-[node name="ModalVictory" type="PanelContainer" parent="."]
+[node name="ModalVictory" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -213,25 +416,72 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
+z_index = 50
 
-[node name="VBox" type="VBoxContainer" parent="ModalVictory"]
+[node name="Backdrop" type="ColorRect" parent="ModalVictory"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.55)
+
+[node name="Center" type="CenterContainer" parent="ModalVictory"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="ModalVictory/Center"]
+custom_minimum_size = Vector2(440, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_card")
+
+[node name="CardMargin" type="MarginContainer" parent="ModalVictory/Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="ModalVictory/Center/Card/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Label" type="Label" parent="ModalVictory/VBox"]
+[node name="Emoji" type="Label" parent="ModalVictory/Center/Card/CardMargin/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "🏆"
+horizontal_alignment = 1
+
+[node name="Label" type="Label" parent="ModalVictory/Center/Card/CardMargin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 26
 text = "Gym cleared!"
 horizontal_alignment = 1
 
-[node name="Endless" type="Button" parent="ModalVictory/VBox"]
+[node name="Endless" type="Button" parent="ModalVictory/Center/Card/CardMargin/VBox"]
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_modal_btn")
 text = "Endless mode"
 
-[node name="Menu" type="Button" parent="ModalVictory/VBox"]
+[node name="Menu" type="Button" parent="ModalVictory/Center/Card/CardMargin/VBox"]
 layout_mode = 2
 text = "Main menu"
 
-[node name="ModalGameOver" type="PanelContainer" parent="."]
+[node name="ModalGameOver" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -240,21 +490,79 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
+z_index = 50
 
-[node name="VBox" type="VBoxContainer" parent="ModalGameOver"]
+[node name="Backdrop" type="ColorRect" parent="ModalGameOver"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.55)
+
+[node name="Center" type="CenterContainer" parent="ModalGameOver"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="ModalGameOver/Center"]
+custom_minimum_size = Vector2(440, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_card")
+
+[node name="CardMargin" type="MarginContainer" parent="ModalGameOver/Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="ModalGameOver/Center/Card/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Label" type="Label" parent="ModalGameOver/VBox"]
+[node name="Emoji" type="Label" parent="ModalGameOver/Center/Card/CardMargin/VBox"]
 layout_mode = 2
-text = "Game over"
+theme_override_font_sizes/font_size = 40
+text = "💔"
 horizontal_alignment = 1
 
-[node name="Menu" type="Button" parent="ModalGameOver/VBox"]
+[node name="GameOverTitle" type="Label" parent="ModalGameOver/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 26
+text = "Gym failed"
+horizontal_alignment = 1
+
+[node name="GameOverBody" type="Label" parent="ModalGameOver/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(360, 0)
+theme_override_colors/font_color = Color(0.3, 0.34, 0.42, 1)
+theme_override_font_sizes/font_size = 15
+text = "You ran out of hearts."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Menu" type="Button" parent="ModalGameOver/Center/Card/CardMargin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_modal_btn")
 text = "Main menu"
 
-[node name="ModalStuck" type="PanelContainer" parent="."]
+[node name="ModalStuck" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -263,21 +571,88 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
+z_index = 50
 
-[node name="VBox" type="VBoxContainer" parent="ModalStuck"]
+[node name="Backdrop" type="ColorRect" parent="ModalStuck"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.55)
+
+[node name="Center" type="CenterContainer" parent="ModalStuck"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="ModalStuck/Center"]
+custom_minimum_size = Vector2(460, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_card")
+
+[node name="CardMargin" type="MarginContainer" parent="ModalStuck/Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="ModalStuck/Center/Card/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Label" type="Label" parent="ModalStuck/VBox"]
+[node name="Emoji" type="Label" parent="ModalStuck/Center/Card/CardMargin/VBox"]
 layout_mode = 2
-text = "No moves left — lose a heart"
+theme_override_font_sizes/font_size = 40
+text = "😵"
 horizontal_alignment = 1
 
-[node name="Retry" type="Button" parent="ModalStuck/VBox"]
+[node name="StuckTitle" type="Label" parent="ModalStuck/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "Retry level"
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 26
+text = "No moves left"
+horizontal_alignment = 1
 
-[node name="ModalTournamentWin" type="PanelContainer" parent="."]
+[node name="StuckBody" type="Label" parent="ModalStuck/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(380, 0)
+theme_override_colors/font_color = Color(0.28, 0.32, 0.4, 1)
+theme_override_font_sizes/font_size = 15
+text = "You cannot switch or reroll anymore."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="StuckHearts" type="Label" parent="ModalStuck/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.1, 0.15, 1)
+theme_override_font_sizes/font_size = 15
+text = "♥ 2 remaining"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Retry" type="Button" parent="ModalStuck/Center/Card/CardMargin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_modal_btn")
+text = "Restart level"
+
+[node name="ModalTournamentWin" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -286,21 +661,68 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
+z_index = 50
 
-[node name="VBox" type="VBoxContainer" parent="ModalTournamentWin"]
+[node name="Backdrop" type="ColorRect" parent="ModalTournamentWin"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.55)
+
+[node name="Center" type="CenterContainer" parent="ModalTournamentWin"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="ModalTournamentWin/Center"]
+custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_card")
+
+[node name="CardMargin" type="MarginContainer" parent="ModalTournamentWin/Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="ModalTournamentWin/Center/Card/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Label" type="Label" parent="ModalTournamentWin/VBox"]
+[node name="Emoji" type="Label" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "⚔️"
+horizontal_alignment = 1
+
+[node name="Label" type="Label" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 26
 text = "Match won!"
 horizontal_alignment = 1
 
-[node name="Continue" type="Button" parent="ModalTournamentWin/VBox"]
+[node name="Continue" type="Button" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_modal_btn")
 text = "Continue"
 
-[node name="ModalSwap" type="PanelContainer" parent="."]
+[node name="ModalSwap" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -309,23 +731,165 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
+z_index = 50
 
-[node name="VBox" type="VBoxContainer" parent="ModalSwap"]
-layout_mode = 2
+[node name="Backdrop" type="ColorRect" parent="ModalSwap"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.55)
 
-[node name="Title" type="Label" parent="ModalSwap/VBox"]
+[node name="Center" type="CenterContainer" parent="ModalSwap"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="ModalSwap/Center"]
+custom_minimum_size = Vector2(440, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_card")
+
+[node name="CardMargin" type="MarginContainer" parent="ModalSwap/Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="ModalSwap/Center/Card/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 24
 text = "Swap out a power"
 horizontal_alignment = 1
 
-[node name="SwapOptions" type="VBoxContainer" parent="ModalSwap/VBox"]
+[node name="Scroll" type="ScrollContainer" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+custom_minimum_size = Vector2(0, 240)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="SwapOptions" type="VBoxContainer" parent="ModalSwap/Center/Card/CardMargin/VBox/Scroll"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
 
+[node name="ModalRestartConfirm" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+z_index = 50
+
+[node name="Backdrop" type="ColorRect" parent="ModalRestartConfirm"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.55)
+
+[node name="Center" type="CenterContainer" parent="ModalRestartConfirm"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="ModalRestartConfirm/Center"]
+custom_minimum_size = Vector2(440, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_card")
+
+[node name="CardMargin" type="MarginContainer" parent="ModalRestartConfirm/Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="ModalRestartConfirm/Center/Card/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="RestartTitle" type="Label" parent="ModalRestartConfirm/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 26
+text = "Restart level?"
+horizontal_alignment = 1
+
+[node name="RestartBody" type="Label" parent="ModalRestartConfirm/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(380, 0)
+theme_override_colors/font_color = Color(0.3, 0.34, 0.42, 1)
+theme_override_font_sizes/font_size = 15
+text = "Restarting costs 1 heart."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="RestartHearts" type="Label" parent="ModalRestartConfirm/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.12, 0.18, 1)
+theme_override_font_sizes/font_size = 15
+text = "♥ 3 → ♥ 2 after restart"
+horizontal_alignment = 1
+
+[node name="BtnRow" type="HBoxContainer" parent="ModalRestartConfirm/Center/Card/CardMargin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="CancelRestart" type="Button" parent="ModalRestartConfirm/Center/Card/CardMargin/VBox/BtnRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Keep playing"
+
+[node name="ConfirmRestart" type="Button" parent="ModalRestartConfirm/Center/Card/CardMargin/VBox/BtnRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_modal_btn")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_modal_btn")
+text = "Restart (−1 ♥)"
+
+[connection signal="pressed" from="ModalLevelUp/Center/Card/CardMargin/VBox/LevelUpKeepPowers" to="." method="_on_level_up_keep_powers_pressed"]
 [connection signal="pressed" from="Margin/VBox/Header/TopRow/Back" to="." method="_on_back_pressed"]
-[connection signal="pressed" from="ModalRound/VBox/Continue" to="." method="_on_continue_round_pressed"]
-[connection signal="pressed" from="ModalVictory/VBox/Endless" to="." method="_on_endless_pressed"]
-[connection signal="pressed" from="ModalVictory/VBox/Menu" to="." method="_on_menu_from_over_pressed"]
-[connection signal="pressed" from="ModalGameOver/VBox/Menu" to="." method="_on_menu_from_over_pressed"]
-[connection signal="pressed" from="ModalStuck/VBox/Retry" to="." method="_on_retry_pressed"]
-[connection signal="pressed" from="ModalTournamentWin/VBox/Continue" to="." method="_on_tournament_continue_pressed"]
+[connection signal="pressed" from="Margin/VBox/Header/TopRow/RestartBtn" to="." method="_on_restart_pressed"]
+[connection signal="pressed" from="ModalRound/Center/Card/CardMargin/VBox/Continue" to="." method="_on_continue_round_pressed"]
+[connection signal="pressed" from="ModalVictory/Center/Card/CardMargin/VBox/Endless" to="." method="_on_endless_pressed"]
+[connection signal="pressed" from="ModalVictory/Center/Card/CardMargin/VBox/Menu" to="." method="_on_menu_from_over_pressed"]
+[connection signal="pressed" from="ModalGameOver/Center/Card/CardMargin/VBox/Menu" to="." method="_on_menu_from_over_pressed"]
+[connection signal="pressed" from="ModalStuck/Center/Card/CardMargin/VBox/Retry" to="." method="_on_retry_pressed"]
+[connection signal="pressed" from="ModalTournamentWin/Center/Card/CardMargin/VBox/Continue" to="." method="_on_tournament_continue_pressed"]
+[connection signal="pressed" from="ModalRestartConfirm/Center/Card/CardMargin/VBox/BtnRow/CancelRestart" to="." method="_on_cancel_restart_pressed"]
+[connection signal="pressed" from="ModalRestartConfirm/Center/Card/CardMargin/VBox/BtnRow/ConfirmRestart" to="." method="_on_confirm_restart_pressed"]

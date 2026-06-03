@@ -2,12 +2,13 @@ class_name RunSession
 extends RefCounted
 
 signal state_changed
+signal dice_rerolled(row: int, col: int, new_value: int)
 signal show_modal(modal: String)
 signal hide_modal(modal: String)
 
 enum Modal {
 	NONE, ROUND_COMPLETE, LEVEL_UP, NUMBER_PICKER, GAME_VICTORY,
-	GAME_OVER, TOURNAMENT_WIN, SWAP_POWER, STUCK
+	GAME_OVER, TOURNAMENT_WIN, SWAP_POWER, STUCK, RESTART_CONFIRM
 }
 
 var gym_id: String = "vanilla"
@@ -170,8 +171,48 @@ func check_win() -> bool:
 	return TournamentRules.check_win_patterns(patterns, opp)
 
 
+func blocks_play() -> bool:
+	if game_over or safari_countdown > 0:
+		return true
+	return (
+		current_modal != Modal.NONE
+		and current_modal != Modal.NUMBER_PICKER
+	)
+
+
+func can_offer_restart() -> bool:
+	if game_over or is_tournament or check_win() or safari_countdown > 0:
+		return false
+	if (
+		current_modal != Modal.NONE
+		and current_modal != Modal.RESTART_CONFIRM
+	):
+		return false
+	return hearts > 0
+
+
+func request_restart_confirm() -> void:
+	if not can_offer_restart():
+		return
+	current_modal = Modal.RESTART_CONFIRM
+	_emit()
+
+
+func cancel_restart_confirm() -> void:
+	if current_modal == Modal.RESTART_CONFIRM:
+		current_modal = Modal.NONE
+		_emit()
+
+
+func confirm_restart_level() -> void:
+	if current_modal != Modal.RESTART_CONFIRM:
+		return
+	current_modal = Modal.NONE
+	restart_level_voluntary()
+
+
 func is_level_failed() -> bool:
-	if check_win() or game_over or current_modal != Modal.NONE:
+	if check_win() or game_over or blocks_play():
 		return false
 	return PowerLogic.is_level_stuck(
 		grid, level, switches_used, rerolls_used,
@@ -208,6 +249,7 @@ func process_row_completions() -> void:
 		if complete and not awarded_rows.has(row_index):
 			rows_done.append({"index": row_index, "pattern": pattern})
 	if rows_done.is_empty():
+		_maybe_fail_level()
 		return
 	var charges_add: Dictionary = {}
 	for item in rows_done:
@@ -280,6 +322,11 @@ func _handle_fail() -> void:
 	if fail_heart_processed:
 		return
 	fail_heart_processed = true
+	selected_row = -1
+	selected_col = -1
+	active_power_type = ""
+	active_target_row = -1
+	active_target_col = -1
 	if is_tournament:
 		game_over = true
 		current_modal = Modal.GAME_OVER
@@ -313,9 +360,9 @@ func restart_level_voluntary() -> void:
 
 
 func select_die(row: int, col: int) -> void:
-	if game_over or current_modal == Modal.GAME_VICTORY or safari_countdown > 0:
+	if blocks_play() or current_modal == Modal.GAME_VICTORY:
 		return
-	if active_power_type != "":
+	if active_power_type in ["switchRows", "chooseNumber", "setAnyNumber"]:
 		_handle_power_click(row, col)
 		return
 	if is_level_failed() and not check_win():
@@ -338,7 +385,7 @@ func select_die(row: int, col: int) -> void:
 
 
 func reroll_die(row: int, col: int) -> void:
-	if game_over or safari_countdown > 0:
+	if blocks_play():
 		return
 	if is_level_failed() and not check_win():
 		return
@@ -350,6 +397,7 @@ func reroll_die(row: int, col: int) -> void:
 	var new_val: int = GymRules.reroll_value(cell.value, gym_id)
 	cell.push_history(new_val)
 	rerolls_used += 1
+	dice_rerolled.emit(row, col, new_val)
 	var pending: Dictionary = {"row": row, "col": col, "value": new_val}
 	if GameData.is_countdown_gym(gym_id) and rerolls_used % int(
 		GameData.level_limits.get("safari_reroll_interval", 3)
@@ -476,6 +524,21 @@ func activate_power(power_type: String) -> void:
 	if not unlocked_powers.has(power_type):
 		return
 	active_power_type = power_type
+	active_target_row = -1
+	active_target_col = -1
+	selected_row = -1
+	selected_col = -1
+	_emit()
+
+
+func clear_active_power() -> void:
+	if (
+		active_power_type == ""
+		and active_target_row < 0
+		and selected_row < 0
+	):
+		return
+	active_power_type = ""
 	active_target_row = -1
 	active_target_col = -1
 	selected_row = -1
@@ -621,6 +684,14 @@ func _apply_level_up(power_type: String) -> void:
 	_start_level(level, false)
 
 
+func keep_current_powers_at_level_up() -> void:
+	if current_modal != Modal.LEVEL_UP:
+		return
+	pending_swap_in = ""
+	level += 1
+	_start_level(level, false)
+
+
 func continue_after_round() -> void:
 	if level_up_pool.is_empty():
 		level += 1
@@ -650,5 +721,88 @@ func tournament_match_won() -> void:
 		tournament_on_match_win.call()
 
 
+func dev_complete_level() -> void:
+	if game_over or check_win():
+		return
+	if current_modal == Modal.ROUND_COMPLETE:
+		return
+	var patterns: Array = [
+		[1, 1, 1, 1, 1],
+		[1, 1, 1, 2, 2],
+		[1, 2, 3, 4, 5],
+		[6, 6, 6, 6, 6],
+		[2, 3, 4, 5, 6],
+	]
+	grid = []
+	awarded_rows = {}
+	for row_vals in patterns:
+		var row: Array = []
+		for v in row_vals:
+			var cell := DiceCellData.new(v, true)
+			row.append(cell)
+		grid.append(row)
+		awarded_rows[grid.size() - 1] = true
+	selected_row = -1
+	selected_col = -1
+	active_power_type = ""
+	level_up_pool = _pick_level_up_pool()
+	current_modal = Modal.ROUND_COMPLETE
+	_emit()
+
+
+func dev_add_heart() -> void:
+	if game_over:
+		return
+	var max_h: int = int(GameData.level_limits.get("max_hearts", 3))
+	hearts = mini(hearts + 1, max_h)
+	_emit()
+
+
+func dev_refill_resources() -> void:
+	switches_used = 0
+	rerolls_used = 0
+	_emit()
+
+
+func dev_grant_power(power_type: String) -> String:
+	if game_over:
+		return "Game over — start a new run"
+	if power_type.is_empty():
+		return "Pick a power"
+	if unlocked_powers.has(power_type):
+		var owned: Dictionary = GameData.get_power_def(power_type)
+		return "Already owned: %s" % str(owned.get("label", power_type))
+	if unlocked_powers.size() >= max_owned_powers:
+		return "Loadout full (%d/%d) — drop one first" % [
+			unlocked_powers.size(), max_owned_powers
+		]
+	unlocked_powers[power_type] = true
+	if PowerLogic.is_per_level(power_type):
+		power_charges[power_type] = maxi(power_charges.get(power_type, 0), 1)
+	elif PowerLogic.is_pattern_power(power_type):
+		power_charges[power_type] = 0
+		if level_power_goal.is_empty():
+			level_power_goal = power_type
+	if pending_swap_in == power_type:
+		pending_swap_in = ""
+		if current_modal == Modal.SWAP_POWER:
+			current_modal = Modal.NONE
+	_emit()
+	var def: Dictionary = GameData.get_power_def(power_type)
+	return "Added %s (%d/%d)" % [
+		str(def.get("label", power_type)),
+		unlocked_powers.size(),
+		max_owned_powers,
+	]
+
+
+func _maybe_fail_level() -> void:
+	if game_over or current_modal != Modal.NONE:
+		return
+	if is_level_failed():
+		_handle_fail()
+
+
 func _emit() -> void:
+	_maybe_fail_level()
 	state_changed.emit()

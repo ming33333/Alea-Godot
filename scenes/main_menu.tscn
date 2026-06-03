@@ -1,7 +1,25 @@
-[gd_scene load_steps=3 format=3 uid="uid://bqx7mainmenu01"]
+[gd_scene load_steps=4 format=3 uid="uid://bqx7mainmenu01"]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
-[ext_resource type="Texture2D" path="res://assets/textures/river.jpg" id="2_river"]
+[ext_resource type="VideoStream" path="res://assets/textures/river.ogv" id="2_river"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gym_tooltip"]
+bg_color = Color(0.08, 0.1, 0.14, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.85, 0.72, 0.35, 0.7)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 8
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -12,16 +30,18 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_menu")
 
-[node name="River" type="TextureRect" parent="."]
+[node name="River" type="VideoStreamPlayer" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = ExtResource("2_river")
-expand_mode = 1
-stretch_mode = 6
+mouse_filter = 2
+stream = ExtResource("2_river")
+autoplay = true
+expand = true
 
 [node name="Tint" type="ColorRect" parent="."]
 layout_mode = 1
@@ -88,6 +108,57 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.85)
 theme_override_font_sizes/font_size = 11
 text = "Golden orbs = gyms · hover for info · drag to move · click to play"
+
+[node name="GymTooltip" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+z_index = 30
+layout_mode = 0
+offset_right = 300.0
+offset_bottom = 120.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_gym_tooltip")
+
+[node name="Margin" type="MarginContainer" parent="GymTooltip"]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="VBox" type="VBoxContainer" parent="GymTooltip/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TooltipName" type="Label" parent="GymTooltip/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.82, 0.45, 1)
+theme_override_font_sizes/font_size = 15
+text = "Gym name"
+
+[node name="TooltipSubtitle" type="Label" parent="GymTooltip/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.78, 0.5, 1)
+theme_override_font_sizes/font_size = 12
+text = "Subtitle"
+
+[node name="TooltipBody" type="Label" parent="GymTooltip/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.9, 0.94, 1)
+theme_override_font_sizes/font_size = 12
+text = "How this gym works."
+autowrap_mode = 3
+
+[node name="TooltipFooter" type="Label" parent="GymTooltip/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.68, 0.75, 1)
+theme_override_font_sizes/font_size = 10
+text = "Badge · drag to move · click to play"
 
 [node name="ChampionCelebration" type="PanelContainer" parent="."]
 unique_name_in_owner = true
