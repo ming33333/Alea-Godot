@@ -16,8 +16,13 @@ const GYM_ORB_COLORS: Dictionary = {
 }
 const GYM_ORB_FALLBACK_COLOR := Color(0.55, 0.55, 0.62, 0.88)
 const BADGE_ICON_SIZE := 40.0
+const DECK_PILLAR_HEIGHT := 360.0
+const DECK_PILLAR_WIDTH := 112.0
+const DECK_BOTTOM_SCREEN_FRACTION := 0.15
+const DECK_PILLAR_SIDE_MARGIN := 24.0
 
 @onready var map_area: Control = %MapArea
+@onready var deck_pillars: HBoxContainer = %DeckPillars
 @onready var badges_row: VBoxContainer = %BadgesRow
 @onready var championship_btn: Button = %ChampionshipBtn
 @onready var champion_badge: Label = %ChampionBadge
@@ -47,6 +52,8 @@ const MAX_ORB_BUILD_ATTEMPTS := 60
 func _ready() -> void:
 	DebugLog.alea_log("MainMenu", "========== MENU _ready ==========")
 	_setup_river_background()
+	if not resized.is_connected(_layout_deck_pillars):
+		resized.connect(_layout_deck_pillars)
 	_layout = SaveService.get_menu_layout()
 	gym_tooltip.visible = false
 	if map_area == null:
@@ -71,6 +78,7 @@ func _ready() -> void:
 	if not SaveService.badges_changed.is_connected(_on_badges_changed):
 		SaveService.badges_changed.connect(_on_badges_changed)
 	call_deferred("_build_orbs")
+	_layout_deck_pillars()
 	_refresh_badges()
 	champion_badge.visible = SaveService.is_dice_champion()
 	celebration.visible = GameState.show_champion_celebration
@@ -109,6 +117,22 @@ func _on_map_area_resized() -> void:
 	_build_orbs()
 
 
+func _layout_deck_pillars() -> void:
+	if deck_pillars == null:
+		return
+	var screen_h: float = get_viewport_rect().size.y
+	var bottom_gap: float = screen_h * DECK_BOTTOM_SCREEN_FRACTION
+	deck_pillars.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	deck_pillars.offset_left = DECK_PILLAR_SIDE_MARGIN
+	deck_pillars.offset_right = -DECK_PILLAR_SIDE_MARGIN
+	deck_pillars.offset_bottom = -bottom_gap
+	deck_pillars.offset_top = -(bottom_gap + DECK_PILLAR_HEIGHT)
+	for child in deck_pillars.get_children():
+		if child is TextureRect:
+			var pillar := child as TextureRect
+			pillar.custom_minimum_size = Vector2(DECK_PILLAR_WIDTH, DECK_PILLAR_HEIGHT)
+
+
 func _build_orbs() -> void:
 	if map_area == null:
 		push_error("MainMenu: MapArea missing")
@@ -127,7 +151,8 @@ func _build_orbs() -> void:
 		return
 	_orb_build_attempts = 0
 	for c in map_area.get_children():
-		c.queue_free()
+		if c.name.begins_with("Orb_"):
+			c.queue_free()
 	DebugLog.alea_log(
 		"MainMenu",
 		"building orbs in MapArea size=%s global_rect=%s"
@@ -183,6 +208,7 @@ func _make_orb(gym: Dictionary, px: float, py: float) -> Button:
 	var gid: String = gid_str(gym)
 	var btn := Button.new()
 	btn.name = "Orb_%s" % gid
+	btn.z_index = 2
 	btn.position = _pct_to_pos(px, py)
 	btn.custom_minimum_size = Vector2(ORB_SIZE, ORB_SIZE)
 	btn.size = Vector2(ORB_SIZE, ORB_SIZE)
