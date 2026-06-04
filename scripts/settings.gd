@@ -1,6 +1,8 @@
 extends Control
 
 @onready var volume_slider: HSlider = %VolumeSlider
+@onready var music_volume_slider: HSlider = %MusicVolumeSlider
+@onready var music_mute: CheckBox = %MusicMute
 @onready var dice_sound_option: OptionButton = %DiceSoundOption
 @onready var cheat_hint: Label = %CheatHint
 @onready var cheat_status: Label = %CheatStatus
@@ -12,6 +14,8 @@ var _dice_sound_ids: Array[String] = []
 func _ready() -> void:
 	AudioSettings.load_settings()
 	volume_slider.value = AudioSettings.get_master_volume_linear()
+	music_volume_slider.value = AudioSettings.get_music_volume_linear()
+	music_mute.button_pressed = AudioSettings.is_music_muted()
 	_populate_dice_sound_options()
 	_refresh_cheat_ui()
 	if not DevCheats.unlock_state_changed.is_connected(_refresh_cheat_ui):
@@ -27,9 +31,9 @@ func _populate_dice_sound_options() -> void:
 	var idx: int = _dice_sound_ids.find(AudioSettings.dice_roll_sound_id)
 	if idx < 0:
 		idx = 0
-	dice_sound_option.block_signals(true)
+	dice_sound_option.set_block_signals(true)
 	dice_sound_option.select(idx)
-	dice_sound_option.block_signals(false)
+	dice_sound_option.set_block_signals(false)
 
 
 func _refresh_cheat_ui() -> void:
@@ -41,6 +45,14 @@ func _refresh_cheat_ui() -> void:
 
 func _on_volume_changed(v: float) -> void:
 	AudioSettings.save_master_volume(v)
+
+
+func _on_music_volume_changed(v: float) -> void:
+	AudioSettings.save_music_volume(v)
+
+
+func _on_music_mute_toggled(pressed: bool) -> void:
+	AudioSettings.save_music_muted(pressed)
 
 
 func _on_dice_sound_selected(index: int) -> void:

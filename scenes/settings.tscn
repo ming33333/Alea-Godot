@@ -52,6 +52,22 @@ max_value = 1.0
 step = 0.05
 value = 1.0
 
+[node name="MusicVolumeLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Music volume"
+
+[node name="MusicVolumeSlider" type="HSlider" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="MusicMute" type="CheckBox" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Mute music"
+
 [node name="DiceSoundLabel" type="Label" parent="Margin/VBox"]
 layout_mode = 2
 text = "Dice roll sound"
@@ -108,6 +124,8 @@ layout_mode = 2
 text = "Back to menu"
 
 [connection signal="value_changed" from="Margin/VBox/VolumeSlider" to="." method="_on_volume_changed"]
+[connection signal="value_changed" from="Margin/VBox/MusicVolumeSlider" to="." method="_on_music_volume_changed"]
+[connection signal="toggled" from="Margin/VBox/MusicMute" to="." method="_on_music_mute_toggled"]
 [connection signal="item_selected" from="Margin/VBox/DiceSoundOption" to="." method="_on_dice_sound_selected"]
 [connection signal="pressed" from="Margin/VBox/CheatRow/CheatApply" to="." method="_on_cheat_apply_pressed"]
 [connection signal="pressed" from="Margin/VBox/CheatLock" to="." method="_on_cheat_lock_pressed"]
