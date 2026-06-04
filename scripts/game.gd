@@ -9,7 +9,7 @@ const POWER_DIE_BUTTON: PackedScene = preload("res://scenes/power_die_button.tsc
 @onready var switches_label: Label = %SwitchesLabel
 @onready var rerolls_label: Label = %RerollsLabel
 @onready var gym_label: Label = %GymLabel
-@onready var grid_board: PanelContainer = %GridBoard
+@onready var grid_board: Control = %GridBoard
 @onready var power_dock: PanelContainer = %PowerDock
 @onready var power_bar: HBoxContainer = %PowerBar
 @onready var power_hint: VBoxContainer = %PowerHint
@@ -263,12 +263,6 @@ func _sync_grid() -> void:
 
 
 func _style_game_boards() -> void:
-	if grid_board:
-		grid_board.add_theme_stylebox_override("panel", _make_board_style(
-			Color(0.36, 0.5, 0.34),
-			Color(0.22, 0.32, 0.2),
-			14
-		))
 	if power_dock:
 		power_dock.add_theme_stylebox_override("panel", _make_board_style(
 			Color(0.5, 0.38, 0.26),

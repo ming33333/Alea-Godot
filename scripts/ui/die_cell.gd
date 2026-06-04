@@ -12,6 +12,9 @@ const FACE_POWER_CHOOSE := "power_choose"
 const FACE_POWER_SET_ANY := "power_set_any"
 const FACE_POWER_SWITCH_ANY := "power_switch_any"
 
+const DICE_BOARD_ATLAS: Texture2D = preload("res://assets/textures/dice_board.png")
+const DICE_BOARD_TILE_REGION := Rect2(124, 130, 264, 258)
+
 const DIE_FACES: Array[Texture2D] = [
 	null,
 	preload("res://assets/dice/die_face_1.png"),
@@ -61,12 +64,7 @@ func _ready() -> void:
 
 
 func _cache_styles() -> void:
-	_styles[FACE_NORMAL] = _make_face_style(
-		Color(0.99, 0.98, 0.95),
-		Color(0.52, 0.55, 0.6),
-		2,
-		8
-	)
+	_styles[FACE_NORMAL] = _make_board_face_style()
 	_styles[FACE_LOCKED] = _make_face_style(
 		Color(0.82, 0.84, 0.88),
 		Color(0.45, 0.48, 0.52),
@@ -121,6 +119,18 @@ func _cache_styles() -> void:
 		3,
 		8
 	)
+
+
+func _make_board_face_style() -> StyleBoxTexture:
+	var atlas := AtlasTexture.new()
+	atlas.atlas = DICE_BOARD_ATLAS
+	atlas.region = DICE_BOARD_TILE_REGION
+	var box := StyleBoxTexture.new()
+	box.texture = atlas
+	box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	box.set_content_margin_all(3)
+	return box
 
 
 func _make_face_style(
