@@ -26,11 +26,24 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
+[node name="Margin" type="MarginContainer" parent="Wrap/Face"]
+layout_mode = 2
+theme_override_constants/margin_left = 3
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 3
+
+[node name="DieFace" type="TextureRect" parent="Wrap/Face/Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+expand_mode = 1
+stretch_mode = 5
+
 [node name="Shine" type="ColorRect" parent="Wrap"]
+visible = false
 layout_mode = 1
 anchors_preset = 0
-anchor_right = 0.0
-anchor_bottom = 0.0
 offset_left = 4.0
 offset_top = 4.0
 offset_right = 30.0
@@ -39,6 +52,7 @@ mouse_filter = 2
 color = Color(1, 1, 1, 0.4)
 
 [node name="ValueLabel" type="Label" parent="Wrap"]
+visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -47,7 +61,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
 theme_override_font_sizes/font_size = 26
-text = "1"
+text = "?"
 horizontal_alignment = 1
 vertical_alignment = 1
 mouse_filter = 2

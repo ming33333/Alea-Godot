@@ -12,6 +12,16 @@ const FACE_POWER_CHOOSE := "power_choose"
 const FACE_POWER_SET_ANY := "power_set_any"
 const FACE_POWER_SWITCH_ANY := "power_switch_any"
 
+const DIE_FACES: Array[Texture2D] = [
+	null,
+	preload("res://assets/dice/die_face_1.png"),
+	preload("res://assets/dice/die_face_2.png"),
+	preload("res://assets/dice/die_face_3.png"),
+	preload("res://assets/dice/die_face_4.png"),
+	preload("res://assets/dice/die_face_5.png"),
+	preload("res://assets/dice/die_face_6.png"),
+]
+
 enum Highlight {
 	NONE,
 	SELECTED,
@@ -24,11 +34,13 @@ enum Highlight {
 }
 
 var value_label: Label
+var die_face: TextureRect
 var _face: PanelContainer
 var _shine: ColorRect
 var _styles: Dictionary = {}
 var _base_face_key: String = FACE_NORMAL
 var _highlight: Highlight = Highlight.NONE
+var _show_sprite: bool = true
 var grid_row: int = -1
 var grid_col: int = -1
 
@@ -37,6 +49,7 @@ func _ready() -> void:
 	_cache_styles()
 	_face = get_node_or_null("Wrap/Face") as PanelContainer
 	_shine = get_node_or_null("Wrap/Shine") as ColorRect
+	die_face = get_node_or_null("Wrap/Face/Margin/DieFace") as TextureRect
 	value_label = get_node_or_null("Wrap/ValueLabel") as Label
 	if _face:
 		_face.add_theme_stylebox_override("panel", _styles[FACE_NORMAL])
@@ -124,31 +137,44 @@ func _make_face_style(
 	return box
 
 
+func _face_texture_for(value: int) -> Texture2D:
+	if value < 1 or value >= DIE_FACES.size():
+		return null
+	return DIE_FACES[value]
+
+
 func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
 	grid_row = row
 	grid_col = col
 	_highlight = Highlight.NONE
 	var label: Label = _ensure_value_label()
-	if label == null:
-		push_error("DieCell: ValueLabel missing")
+	var face_tex: TextureRect = _ensure_die_face()
+	if label == null or face_tex == null:
+		push_error("DieCell: DieFace or ValueLabel missing")
 		return
 	if blurred:
-		label.text = "?"
+		_show_sprite = false
 		_base_face_key = FACE_BLURRED
+		label.text = "?"
 		label.add_theme_color_override("font_color", Color(0.35, 0.38, 0.45))
-	elif cell.locked:
-		label.text = str(cell.value)
-		_base_face_key = FACE_LOCKED
-		if cell.value == 7:
-			label.add_theme_color_override("font_color", Color(0.55, 0.12, 0.15))
+	elif cell.value >= 1 and cell.value <= 6:
+		var tex: Texture2D = _face_texture_for(cell.value)
+		if tex != null:
+			_show_sprite = true
+			face_tex.texture = tex
+			_base_face_key = FACE_LOCKED if cell.locked else FACE_NORMAL
 		else:
-			label.add_theme_color_override("font_color", Color(0.35, 0.38, 0.42))
+			_show_sprite = false
+			label.text = str(cell.value)
+			_base_face_key = FACE_LOCKED if cell.locked else FACE_NORMAL
+			_set_fallback_label_colors(cell)
 	else:
+		_show_sprite = false
 		label.text = str(cell.value)
-		_base_face_key = FACE_NORMAL
-		label.add_theme_color_override("font_color", Color(0.1, 0.12, 0.18))
+		_base_face_key = FACE_LOCKED if cell.locked else FACE_NORMAL
+		_set_fallback_label_colors(cell)
 	if _shine:
-		_shine.visible = not cell.locked and not blurred
+		_shine.visible = false
 	if blurred:
 		tooltip_text = ""
 	elif cell.no_reroll:
@@ -158,6 +184,18 @@ func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
 	else:
 		tooltip_text = "Click to select · double-click to reroll"
 	_apply_display()
+
+
+func _set_fallback_label_colors(cell: DiceCellData) -> void:
+	var label: Label = _ensure_value_label()
+	if label == null:
+		return
+	if cell.value == 7:
+		label.add_theme_color_override("font_color", Color(0.55, 0.12, 0.15))
+	elif cell.locked:
+		label.add_theme_color_override("font_color", Color(0.35, 0.38, 0.42))
+	else:
+		label.add_theme_color_override("font_color", Color(0.1, 0.12, 0.18))
 
 
 func set_highlight(h: Highlight) -> void:
@@ -190,6 +228,13 @@ func _apply_display() -> void:
 			face_key = FACE_POWER_SWITCH_ANY
 	if _face and _styles.has(face_key):
 		_face.add_theme_stylebox_override("panel", _styles[face_key])
+	var face_tex: TextureRect = _ensure_die_face()
+	var label: Label = _ensure_value_label()
+	if face_tex:
+		face_tex.visible = _show_sprite
+		face_tex.modulate = _sprite_modulate(face_key)
+	if label:
+		label.visible = not _show_sprite
 	var big: bool = (
 		_highlight == Highlight.SELECTED
 		or _highlight == Highlight.SWITCH_VALID
@@ -198,11 +243,19 @@ func _apply_display() -> void:
 	scale = Vector2(1.08, 1.08) if big else Vector2.ONE
 
 
-func _apply_face_style(key: String) -> void:
-	if _face == null:
-		_face = get_node_or_null("Wrap/Face") as PanelContainer
-	if _face and _styles.has(key):
-		_face.add_theme_stylebox_override("panel", _styles[key])
+func _sprite_modulate(face_key: String) -> Color:
+	if face_key == FACE_LOCKED:
+		return Color(0.78, 0.8, 0.86)
+	if face_key == FACE_BLURRED:
+		return Color(0.55, 0.58, 0.65)
+	return Color.WHITE
+
+
+func _ensure_die_face() -> TextureRect:
+	if die_face != null:
+		return die_face
+	die_face = get_node_or_null("Wrap/Face/Margin/DieFace") as TextureRect
+	return die_face
 
 
 func _ensure_value_label() -> Label:
