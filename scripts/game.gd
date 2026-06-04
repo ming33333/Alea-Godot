@@ -1,6 +1,7 @@
 extends Control
 
 const DIE_CELL := preload("res://scenes/die_cell.tscn")
+const POWER_DIE_BUTTON: PackedScene = preload("res://scenes/power_die_button.tscn")
 
 @onready var grid_container: GridContainer = %Grid
 @onready var level_label: Label = %LevelLabel
@@ -8,6 +9,8 @@ const DIE_CELL := preload("res://scenes/die_cell.tscn")
 @onready var switches_label: Label = %SwitchesLabel
 @onready var rerolls_label: Label = %RerollsLabel
 @onready var gym_label: Label = %GymLabel
+@onready var grid_board: PanelContainer = %GridBoard
+@onready var power_dock: PanelContainer = %PowerDock
 @onready var power_bar: HBoxContainer = %PowerBar
 @onready var power_hint: VBoxContainer = %PowerHint
 @onready var power_hint_label: Label = %PowerHintLabel
@@ -58,7 +61,21 @@ const DOUBLE_CLICK_MS := 350
 
 
 func _ready() -> void:
-	cancel_power_btn.pressed.connect(_on_cancel_power_pressed)
+	DebugLog.alea_log("Game", "========== GAME _ready ==========")
+	DebugLog.alea_log(
+		"Game",
+		"selected_gym=%s tournament_opponents=%d grid_node=%s"
+		% [
+			GameState.selected_gym_id,
+			GameState.tournament_opponents.size(),
+			"OK" if grid_container != null else "MISSING",
+		]
+	)
+	_style_game_boards()
+	if cancel_power_btn:
+		cancel_power_btn.pressed.connect(_on_cancel_power_pressed)
+	else:
+		push_error("Game: %CancelPowerBtn missing — fix PowerHint children in game.tscn")
 	_click_timer = Timer.new()
 	_click_timer.one_shot = true
 	_click_timer.wait_time = SINGLE_CLICK_DELAY_SEC
@@ -80,12 +97,37 @@ func _ready() -> void:
 	session.state_changed.connect(_refresh_ui)
 	session.dice_rerolled.connect(_on_dice_rerolled)
 	_setup_dice_roll_sfx()
+	_setup_dev_cheats()
+	call_deferred("_begin_run")
+
+
+func _begin_run() -> void:
+	if grid_container == null:
+		push_error("Game: %Grid node missing — cannot start run")
+		return
 	if GameState.tournament_opponents.size() > 0:
 		_start_tournament_match()
 	else:
-		session.start_gym_run(GameState.selected_gym_id)
-	_setup_dev_cheats()
+		var gym_id := GameState.selected_gym_id
+		if gym_id.is_empty():
+			gym_id = "vanilla"
+		session.start_gym_run(gym_id)
 	_refresh_ui()
+	if session.grid.is_empty():
+		push_error("Game: run started with an empty grid (check GameData / level_limits.json)")
+	elif grid_container.get_child_count() == 0:
+		_sync_grid()
+	DebugLog.alea_log(
+		"Game",
+		"run started gym=%s level=%d grid=%dx%d ui_cells=%d"
+		% [
+			session.gym_id,
+			session.level,
+			session.grid.size(),
+			session.grid[0].size() if session.grid.size() > 0 else 0,
+			grid_container.get_child_count(),
+		]
+	)
 
 
 func _setup_dev_cheats() -> void:
@@ -220,47 +262,132 @@ func _sync_grid() -> void:
 			btn.set_highlight(_cell_highlight(r, c, cell, blurred))
 
 
+func _style_game_boards() -> void:
+	if grid_board:
+		grid_board.add_theme_stylebox_override("panel", _make_board_style(
+			Color(0.36, 0.5, 0.34),
+			Color(0.22, 0.32, 0.2),
+			14
+		))
+	if power_dock:
+		power_dock.add_theme_stylebox_override("panel", _make_board_style(
+			Color(0.5, 0.38, 0.26),
+			Color(0.32, 0.22, 0.14),
+			12
+		))
+
+
+func _make_board_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = bg
+	box.border_color = border
+	box.set_border_width_all(3)
+	box.set_corner_radius_all(radius)
+	box.shadow_color = Color(0, 0, 0, 0.35)
+	box.shadow_size = 8
+	box.shadow_offset = Vector2(0, 4)
+	return box
+
+
+func _power_short_label(power_type: String, def: Dictionary) -> String:
+	match power_type:
+		"chooseNumber":
+			return "5 of\na Kind"
+		"switchAnywhere":
+			return "Switch"
+		"setAnyNumber":
+			return "Set\nDie"
+		"switchRows":
+			return "Switch\nRows"
+		"rerollTrade":
+			return "Reroll\nTrade"
+		"switchHorizontal":
+			return "Side\nSwitch"
+		"verticalJump":
+			return "V.\nJump"
+		"secondChances":
+			return "2nd\nChance"
+		_:
+			var raw: String = str(def.get("label", power_type))
+			if raw.length() > 10:
+				return raw.substr(0, 10)
+			return raw
+
+
+func _power_accent_color(power_type: String) -> Color:
+	match power_type:
+		"switchRows":
+			return Color(0.35, 0.35, 0.82)
+		"switchAnywhere":
+			return Color(0.5, 0.35, 0.75)
+		"chooseNumber":
+			return Color(0.2, 0.6, 0.35)
+		"setAnyNumber":
+			return Color(0.9, 0.45, 0.1)
+		"rerollTrade":
+			return Color(0.45, 0.55, 0.75)
+		_:
+			return Color(0.45, 0.48, 0.55)
+
+
+func _add_power_die_chip(
+	title: String,
+	charge_text: String,
+	tooltip: String,
+	is_active: bool,
+	is_disabled: bool,
+	accent: Color,
+	on_pressed: Callable = Callable()
+) -> void:
+	var chip: PowerDieButton = POWER_DIE_BUTTON.instantiate() as PowerDieButton
+	chip.setup_display(title, charge_text, is_active, is_disabled, accent)
+	chip.tooltip_text = tooltip
+	if on_pressed.is_valid():
+		chip.pressed.connect(on_pressed)
+	power_bar.add_child(chip)
+
+
 func _build_power_bar() -> void:
 	for c in power_bar.get_children():
 		c.queue_free()
-	power_bar.add_theme_constant_override("separation", 14)
 	for t in session.unlocked_powers:
 		var def: Dictionary = GameData.get_power_def(t)
 		var ch: int = session.power_charges.get(t, 0)
-		var label: String = def.get("label", t)
+		var short: String = _power_short_label(t, def)
+		var tip: String = str(def.get("description", ""))
+		var charge_txt: String = ""
 		if PowerLogic.is_pattern_power(t) or t == "switchRows":
-			label += " (%d)" % ch
+			charge_txt = "×%d" % ch
 		if PowerLogic.is_permanent(t):
-			var tag := Label.new()
-			tag.text = label
-			tag.tooltip_text = str(def.get("description", ""))
-			tag.add_theme_font_size_override("font_size", 11)
-			tag.add_theme_color_override("font_color", Color(0.45, 0.48, 0.55))
-			power_bar.add_child(tag)
+			_add_power_die_chip(short, "", tip, false, true, _power_accent_color(t))
 			continue
 		if t not in ACTIVATABLE_POWERS:
 			continue
-		var b := Button.new()
-		b.text = label
-		b.toggle_mode = true
 		var active: bool = session.active_power_type == t
-		b.button_pressed = active
-		b.disabled = not _power_can_use(t) and not active
-		b.tooltip_text = str(def.get("description", ""))
-		if active:
-			_style_active_power_button(b, t)
-		else:
-			_style_idle_power_button(b)
-		b.pressed.connect(_on_power_pressed.bind(t))
-		power_bar.add_child(b)
+		var usable: bool = _power_can_use(t) or active
+		_add_power_die_chip(
+			short,
+			charge_txt,
+			tip,
+			active,
+			not usable,
+			_power_accent_color(t),
+			_on_power_pressed.bind(t)
+		)
 	if session.unlocked_powers.has("rerollTrade"):
-		var trade := Button.new()
-		trade.text = "Reroll Trade"
-		trade.disabled = not PowerLogic.can_trade_rerolls(
+		var trade_def: Dictionary = GameData.get_power_def("rerollTrade")
+		var can_trade: bool = PowerLogic.can_trade_rerolls(
 			session.level, session.switches_used, session.rerolls_used, session.unlocked_powers
 		)
-		trade.pressed.connect(func(): session.reroll_trade())
-		power_bar.add_child(trade)
+		_add_power_die_chip(
+			_power_short_label("rerollTrade", trade_def),
+			"",
+			str(trade_def.get("description", "")),
+			false,
+			not can_trade,
+			_power_accent_color("rerollTrade"),
+			func(): session.reroll_trade()
+		)
 
 
 func _on_power_pressed(power_type: String) -> void:
@@ -295,13 +422,15 @@ func _power_can_use(power_type: String) -> bool:
 
 
 func _update_power_hint() -> void:
+	if power_hint == null or power_hint_label == null:
+		return
 	var active: String = session.active_power_type
 	if active.is_empty() or active not in ACTIVATABLE_POWERS:
 		power_hint.visible = false
 		return
 	power_hint.visible = true
 	power_hint_label.text = _power_hint_text(active)
-	var hint_color: Color = _power_hint_color(active)
+	var hint_color: Color = _power_hint_color(active).lerp(Color(0.95, 0.93, 0.88), 0.35)
 	power_hint_label.add_theme_color_override("font_color", hint_color)
 
 
@@ -324,7 +453,7 @@ func _power_hint_text(power_type: String) -> String:
 		"switchRows":
 			return (
 				"Switch Rows — tap a die in the first row, "
-				+ "then tap a die in another row (completed rows are OK)"
+				+"then tap a die in another row (completed rows are OK)"
 			)
 		"switchAnywhere":
 			return (
@@ -338,97 +467,6 @@ func _power_hint_text(power_type: String) -> String:
 			return "Set Any Die — tap any die, then pick 1–6 (uses 1 reroll)"
 		_:
 			return ""
-
-
-func _power_button_colors(power_type: String) -> Dictionary:
-	match power_type:
-		"switchRows":
-			return {
-				"bg": Color(0.82, 0.84, 1.0),
-				"border": Color(0.28, 0.28, 0.78),
-				"shadow": Color(0.25, 0.25, 0.55, 0.45),
-			}
-		"switchAnywhere":
-			return {
-				"bg": Color(0.9, 0.86, 1.0),
-				"border": Color(0.45, 0.28, 0.72),
-				"shadow": Color(0.4, 0.25, 0.55, 0.4),
-			}
-		"chooseNumber":
-			return {
-				"bg": Color(0.84, 0.96, 0.88),
-				"border": Color(0.12, 0.52, 0.32),
-				"shadow": Color(0.15, 0.45, 0.28, 0.4),
-			}
-		"setAnyNumber":
-			return {
-				"bg": Color(1.0, 0.94, 0.86),
-				"border": Color(0.88, 0.4, 0.08),
-				"shadow": Color(0.75, 0.35, 0.08, 0.45),
-			}
-		_:
-			return {
-				"bg": Color(0.9, 0.93, 0.99),
-				"border": Color(0.25, 0.4, 0.68),
-				"shadow": Color(0.2, 0.3, 0.5, 0.35),
-			}
-
-
-func _make_power_stylebox(
-	bg: Color, border: Color, shadow: Color, border_w: int, shadow_size: int
-) -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = bg
-	box.border_color = border
-	box.set_border_width_all(border_w)
-	box.set_corner_radius_all(10)
-	box.shadow_color = shadow
-	box.shadow_size = shadow_size
-	box.shadow_offset = Vector2(0, 4)
-	box.set_content_margin_all(10)
-	return box
-
-
-func _style_idle_power_button(btn: Button) -> void:
-	var box := _make_power_stylebox(
-		Color(0.94, 0.95, 0.97),
-		Color(0.72, 0.75, 0.8),
-		Color(0, 0, 0, 0.12),
-		1,
-		2
-	)
-	btn.add_theme_stylebox_override("normal", box)
-	btn.add_theme_stylebox_override("hover", box)
-	btn.add_theme_stylebox_override("pressed", box)
-	btn.add_theme_font_size_override("font_size", 11)
-	btn.scale = Vector2.ONE
-	btn.z_index = 0
-
-
-func _style_active_power_button(btn: Button, power_type: String) -> void:
-	var colors: Dictionary = _power_button_colors(power_type)
-	var box := _make_power_stylebox(
-		colors["bg"],
-		colors["border"],
-		colors["shadow"],
-		4,
-		10
-	)
-	btn.add_theme_stylebox_override("normal", box)
-	btn.add_theme_stylebox_override("hover", box)
-	btn.add_theme_stylebox_override("pressed", box)
-	btn.add_theme_font_size_override("font_size", 14)
-	btn.add_theme_color_override("font_color", Color(0.08, 0.1, 0.16))
-	btn.custom_minimum_size = Vector2(0, 46)
-	btn.scale = Vector2(1.14, 1.14)
-	btn.z_index = 2
-	btn.set_meta("active_power_btn", true)
-	call_deferred("_fit_active_power_btn_pivot", btn)
-
-
-func _fit_active_power_btn_pivot(btn: Button) -> void:
-	if btn.size.x > 1.0 and btn.size.y > 1.0:
-		btn.pivot_offset = btn.size * 0.5
 
 
 func _cell_highlight(
@@ -609,13 +647,13 @@ func _update_restart_modal() -> void:
 	if h <= 1:
 		restart_body.text = (
 			"Restarting this level costs your last heart.\n"
-			+ "You will fail the gym immediately after."
+			+"You will fail the gym immediately after."
 		)
 		restart_hearts.text = "♥ 1 → gym failed"
 	else:
 		restart_body.text = (
 			"Restart deals a fresh grid on this level.\n"
-			+ "Pattern power charges reset to how they were at the start of this level."
+			+"Pattern power charges reset to how they were at the start of this level."
 		)
 		var after: int = h - 1
 		var word: String = "heart" if after == 1 else "hearts"
@@ -640,7 +678,7 @@ func _update_fail_modals() -> void:
 		stuck_title.text = "No moves left"
 		stuck_body.text = (
 			"You have no valid switches or rerolls left (%d/%d switches, %d/%d rerolls).\n"
-			+ "Pattern power charges reset when you restart this level."
+			+"Pattern power charges reset when you restart this level."
 		) % [
 			session.switches_left(),
 			int(lim.get("max_switches", 0)),
@@ -669,7 +707,7 @@ func _update_fail_modals() -> void:
 			game_over_title.text = "Gym failed"
 			game_over_body.text = (
 				"You ran out of hearts in %s.\n"
-				+ "You used all %d lives — this gym run is over."
+				+"You used all %d lives — this gym run is over."
 			) % [gym.get("name", "this gym"), max_hearts]
 
 

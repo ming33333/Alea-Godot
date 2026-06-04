@@ -48,7 +48,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.95, 0.97, 1, 1)
+mouse_filter = 2
+color = Color(0.88, 0.9, 0.86, 1)
 
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -95,42 +96,50 @@ vertical_alignment = 1
 
 [node name="StatsRow" type="HBoxContainer" parent="Margin/VBox/Header"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 32
 alignment = 1
 
-[node name="LevelLabel" type="Label" parent="Margin/VBox/Header/StatsRow"]
+[node name="LevelColumn" type="VBoxContainer" parent="Margin/VBox/Header/StatsRow"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="LevelLabel" type="Label" parent="Margin/VBox/Header/StatsRow/LevelColumn"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(88, 0)
+custom_minimum_size = Vector2(100, 0)
 theme_override_colors/font_color = Color(0.12, 0.18, 0.32, 1)
 theme_override_font_sizes/font_size = 16
 text = "Level 1"
 horizontal_alignment = 1
 
-[node name="HeartsLabel" type="Label" parent="Margin/VBox/Header/StatsRow"]
+[node name="SwitchesLabel" type="Label" parent="Margin/VBox/Header/StatsRow/LevelColumn"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(56, 0)
+custom_minimum_size = Vector2(100, 0)
+theme_override_colors/font_color = Color(0.35, 0.4, 0.5, 1)
+theme_override_font_sizes/font_size = 13
+text = "Switch 5/5"
+horizontal_alignment = 1
+
+[node name="HeartsColumn" type="VBoxContainer" parent="Margin/VBox/Header/StatsRow"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="HeartsLabel" type="Label" parent="Margin/VBox/Header/StatsRow/HeartsColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(100, 0)
 theme_override_colors/font_color = Color(0.55, 0.12, 0.18, 1)
 theme_override_font_sizes/font_size = 16
 text = "♥ 3"
 horizontal_alignment = 1
 
-[node name="SwitchesLabel" type="Label" parent="Margin/VBox/Header/StatsRow"]
+[node name="RerollsLabel" type="Label" parent="Margin/VBox/Header/StatsRow/HeartsColumn"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(120, 0)
-theme_override_colors/font_color = Color(0.12, 0.18, 0.32, 1)
-theme_override_font_sizes/font_size = 16
-text = "Switch 5/5"
-horizontal_alignment = 1
-
-[node name="RerollsLabel" type="Label" parent="Margin/VBox/Header/StatsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(120, 0)
-theme_override_colors/font_color = Color(0.12, 0.18, 0.32, 1)
-theme_override_font_sizes/font_size = 16
+custom_minimum_size = Vector2(100, 0)
+theme_override_colors/font_color = Color(0.35, 0.4, 0.5, 1)
+theme_override_font_sizes/font_size = 13
 text = "Reroll 15/15"
 horizontal_alignment = 1
 
@@ -138,26 +147,52 @@ horizontal_alignment = 1
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Grid" type="GridContainer" parent="Margin/VBox/Center"]
+[node name="GridBoard" type="PanelContainer" parent="Margin/VBox/Center"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BoardMargin" type="MarginContainer" parent="Margin/VBox/Center/GridBoard"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="Grid" type="GridContainer" parent="Margin/VBox/Center/GridBoard/BoardMargin"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 5
 
-[node name="PowerBar" type="HBoxContainer" parent="Margin/VBox"]
+[node name="PowerDock" type="PanelContainer" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="DockMargin" type="MarginContainer" parent="Margin/VBox/PowerDock"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="DockVBox" type="VBoxContainer" parent="Margin/VBox/PowerDock/DockMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PowerBar" type="HBoxContainer" parent="Margin/VBox/PowerDock/DockMargin/DockVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 6
+theme_override_constants/separation = 10
 
-[node name="PowerHint" type="VBoxContainer" parent="Margin/VBox"]
+[node name="PowerHint" type="VBoxContainer" parent="Margin/VBox/PowerDock/DockMargin/DockVBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="PowerHintLabel" type="Label" parent="Margin/VBox/PowerHint"]
+[node name="PowerHintLabel" type="Label" parent="Margin/VBox/PowerDock/DockMargin/DockVBox/PowerHint"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 0.35, 0.55, 1)
@@ -166,7 +201,7 @@ text = "Tap a die to use this power"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="CancelPowerBtn" type="Button" parent="Margin/VBox/PowerHint"]
+[node name="CancelPowerBtn" type="Button" parent="Margin/VBox/PowerDock/DockMargin/DockVBox/PowerHint"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4

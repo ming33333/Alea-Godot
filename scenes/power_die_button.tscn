@@ -1,0 +1,57 @@
+[gd_scene format=3 uid="uid://bv4i82vy4gowy"]
+
+[ext_resource type="Script" path="res://scripts/ui/power_die_button.gd" id="1_pwr"]
+
+[node name="PowerDieButton" type="Button"]
+custom_minimum_size = Vector2(62, 62)
+focus_mode = 0
+flat = true
+script = ExtResource("1_pwr")
+
+[node name="Wrap" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Face" type="PanelContainer" parent="Wrap"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="Wrap/Face"]
+layout_mode = 2
+theme_override_constants/margin_left = 5
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 5
+theme_override_constants/margin_bottom = 5
+
+[node name="VBox" type="VBoxContainer" parent="Wrap/Face/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="Wrap/Face/Margin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.1, 0.12, 0.18, 1)
+theme_override_font_sizes/font_size = 9
+text = "Power"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="ChargeLabel" type="Label" parent="Wrap/Face/Margin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.35, 0.38, 0.45, 1)
+theme_override_font_sizes/font_size = 10
+text = "x2"
+horizontal_alignment = 1
