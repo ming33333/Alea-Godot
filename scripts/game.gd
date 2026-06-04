@@ -24,6 +24,7 @@ const ACTIVATABLE_POWERS: Array[String] = [
 @onready var modal_level_up: Control = %ModalLevelUp
 @onready var modal_number: Control = %ModalNumber
 @onready var modal_victory: Control = %ModalVictory
+@onready var victory_badge: TextureRect = %VictoryBadge
 @onready var modal_game_over: Control = %ModalGameOver
 @onready var modal_stuck: Control = %ModalStuck
 @onready var modal_tournament_win: Control = %ModalTournamentWin
@@ -593,7 +594,11 @@ func _update_modals() -> void:
 	modal_round.visible = session.current_modal == RunSession.Modal.ROUND_COMPLETE
 	modal_level_up.visible = session.current_modal == RunSession.Modal.LEVEL_UP
 	modal_number.visible = session.current_modal == RunSession.Modal.NUMBER_PICKER
-	modal_victory.visible = session.current_modal == RunSession.Modal.GAME_VICTORY
+	var show_victory: bool = session.current_modal == RunSession.Modal.GAME_VICTORY
+	modal_victory.visible = show_victory
+	if show_victory and victory_badge:
+		victory_badge.texture = GameData.get_badge_texture(session.gym_id)
+		victory_badge.visible = victory_badge.texture != null
 	modal_game_over.visible = session.current_modal == RunSession.Modal.GAME_OVER
 	modal_stuck.visible = session.current_modal == RunSession.Modal.STUCK
 	modal_tournament_win.visible = session.current_modal == RunSession.Modal.TOURNAMENT_WIN

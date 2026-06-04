@@ -512,11 +512,14 @@ layout_mode = 2
 theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Emoji" type="Label" parent="ModalVictory/Center/Card/CardMargin/VBox"]
+[node name="VictoryBadge" type="TextureRect" parent="ModalVictory/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
-theme_override_font_sizes/font_size = 40
-text = "🏆"
-horizontal_alignment = 1
+size_flags_horizontal = 4
+expand_mode = 1
+stretch_mode = 5
+texture_filter = 0
 
 [node name="Label" type="Label" parent="ModalVictory/Center/Card/CardMargin/VBox"]
 layout_mode = 2

@@ -73,6 +73,17 @@ func get_gym(id: String) -> Dictionary:
 	return gym_modes[0] if gym_modes.size() > 0 else {}
 
 
+func get_badge_texture(gym_id: String) -> Texture2D:
+	var path: String = str(get_gym(gym_id).get("badge_texture", ""))
+	if path.is_empty():
+		return null
+	var tex: Resource = load(path)
+	if tex is Texture2D:
+		return tex as Texture2D
+	push_warning("GameData: missing badge texture at %s" % path)
+	return null
+
+
 func get_power_def(type_id: String) -> Dictionary:
 	for p in powers:
 		if str(p.get("type", "")) == type_id:

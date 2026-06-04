@@ -1,16 +1,29 @@
 extends Control
 
-const ORB_SIZE := 44.0
+const ORB_SIZE := 48.0
+const ORB_RADIUS := int(ORB_SIZE * 0.5)
 const TOOLTIP_GAP := 14.0
 const DRAG_THRESHOLD_PX := 8.0
 const GAME_SCENE: PackedScene = preload("res://scenes/game.tscn")
 
+const GYM_ORB_COLORS: Dictionary = {
+	"vanilla": Color(0.25, 0.82, 0.48, 0.88),
+	"orderedReroll": Color(0.35, 0.52, 0.95, 0.88),
+	"countdownOne": Color(0.95, 0.72, 0.12, 0.88),
+	"countdownAll": Color(0.12, 0.72, 0.88, 0.88),
+	"twoSlots": Color(0.62, 0.38, 0.88, 0.88),
+	"middleStraight": Color(0.92, 0.32, 0.28, 0.88),
+}
+const GYM_ORB_FALLBACK_COLOR := Color(0.55, 0.55, 0.62, 0.88)
+const BADGE_ICON_SIZE := 40.0
+
 @onready var map_area: Control = %MapArea
-@onready var badges_row: HBoxContainer = %BadgesRow
+@onready var badges_row: VBoxContainer = %BadgesRow
 @onready var championship_btn: Button = %ChampionshipBtn
 @onready var champion_badge: Label = %ChampionBadge
 @onready var celebration: PanelContainer = %ChampionCelebration
 @onready var gym_tooltip: PanelContainer = %GymTooltip
+@onready var tooltip_badge: TextureRect = %TooltipBadge
 @onready var tooltip_name: Label = %TooltipName
 @onready var tooltip_subtitle: Label = %TooltipSubtitle
 @onready var tooltip_body: Label = %TooltipBody
@@ -140,6 +153,32 @@ func _build_orbs() -> void:
 	)
 
 
+func _orb_color_for_gym(gym_id: String) -> Color:
+	if GYM_ORB_COLORS.has(gym_id):
+		return GYM_ORB_COLORS[gym_id] as Color
+	return GYM_ORB_FALLBACK_COLOR
+
+
+func _make_orb_style(fill: Color) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = fill
+	box.set_corner_radius_all(ORB_RADIUS)
+	box.shadow_color = Color(0, 0, 0, 0.45)
+	box.shadow_size = 6
+	box.shadow_offset = Vector2(0, 3)
+	return box
+
+
+func _apply_orb_styles(btn: Button, gym_id: String, _earned: bool) -> void:
+	var base: Color = _orb_color_for_gym(gym_id)
+	var empty := StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("focus", empty)
+	btn.add_theme_stylebox_override("disabled", empty)
+	btn.add_theme_stylebox_override("normal", _make_orb_style(base))
+	btn.add_theme_stylebox_override("hover", _make_orb_style(base.lightened(0.12)))
+	btn.add_theme_stylebox_override("pressed", _make_orb_style(base.darkened(0.08)))
+
+
 func _make_orb(gym: Dictionary, px: float, py: float) -> Button:
 	var gid: String = gid_str(gym)
 	var btn := Button.new()
@@ -147,15 +186,12 @@ func _make_orb(gym: Dictionary, px: float, py: float) -> Button:
 	btn.position = _pct_to_pos(px, py)
 	btn.custom_minimum_size = Vector2(ORB_SIZE, ORB_SIZE)
 	btn.size = Vector2(ORB_SIZE, ORB_SIZE)
-	btn.text = gym.get("badge_emoji", "●")
-	btn.flat = true
+	btn.text = ""
+	btn.flat = false
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.tooltip_text = _gym_tooltip_plaintext(gym)
 	var earned: bool = SaveService.has_badge(gid)
-	if earned:
-		btn.modulate = Color(1.0, 0.9, 0.5)
-	else:
-		btn.modulate = Color(0.85, 0.85, 0.85)
+	_apply_orb_styles(btn, gid, earned)
 	btn.mouse_entered.connect(_on_orb_hover.bind(gym, btn))
 	btn.mouse_exited.connect(_on_orb_unhover.bind(gym))
 	btn.button_down.connect(_on_orb_button_down.bind(gid, btn))
@@ -172,14 +208,27 @@ func _gym_tooltip_plaintext(gym: Dictionary) -> String:
 	]
 
 
+func _make_badge_icon(gym_id: String) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(BADGE_ICON_SIZE, BADGE_ICON_SIZE)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.texture = GameData.get_badge_texture(gym_id)
+	return icon
+
+
 func _populate_tooltip(gym: Dictionary) -> void:
+	var gid: String = gid_str(gym)
+	if tooltip_badge:
+		tooltip_badge.texture = GameData.get_badge_texture(gid)
+		tooltip_badge.visible = tooltip_badge.texture != null
 	tooltip_name.text = str(gym.get("name", "Gym"))
 	tooltip_subtitle.text = str(gym.get("subtitle", ""))
 	tooltip_body.text = str(gym.get("description", ""))
-	var earned: bool = SaveService.has_badge(gid_str(gym))
+	var earned: bool = SaveService.has_badge(gid)
 	var badge_label: String = "Badge earned" if earned else "Badge locked"
-	tooltip_footer.text = "%s %s · %s · drag to move · click to play" % [
-		gym.get("badge_emoji", ""),
+	tooltip_footer.text = "%s · %s · drag to move · click to play" % [
 		gym.get("badge_name", ""),
 		badge_label,
 	]
@@ -202,6 +251,8 @@ func _on_orb_unhover(gym: Dictionary) -> void:
 
 func _on_championship_hover() -> void:
 	_hover_gym_id = "championship"
+	if tooltip_badge:
+		tooltip_badge.visible = false
 	tooltip_name.text = "Dice Master Championship"
 	tooltip_subtitle.text = "Tournament mode"
 	tooltip_body.text = (
@@ -436,10 +487,7 @@ func _refresh_badges() -> void:
 	for c in badges_row.get_children():
 		c.queue_free()
 	for bid in SaveService.get_earned_badges():
-		var gym: Dictionary = GameData.get_gym(bid)
-		var l := Label.new()
-		l.text = gym.get("badge_emoji", "")
-		badges_row.add_child(l)
+		badges_row.add_child(_make_badge_icon(bid))
 	championship_btn.visible = SaveService.has_all_menu_badges()
 
 

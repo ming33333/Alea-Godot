@@ -1,5 +1,6 @@
 {
   "vanilla": { "x": 18, "y": 38 },
+  "orderedReroll": { "x": 48, "y": 48 },
   "countdownOne": { "x": 42, "y": 22 },
   "countdownAll": { "x": 72, "y": 36 },
   "twoSlots": { "x": 28, "y": 68 },
