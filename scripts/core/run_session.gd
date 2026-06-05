@@ -83,6 +83,7 @@ func _reset_meta() -> void:
 	game_over = false
 	endless_mode = false
 	unlocked_powers = {}
+	power_earned_rows = {}
 	power_charges = _empty_charges()
 	level_power_goal = ""
 	fail_heart_processed = false
@@ -110,6 +111,7 @@ func _start_level(lvl: int, new_run: bool) -> void:
 	blurred_cell_key = ""
 	current_modal = Modal.NONE
 	awarded_rows = {}
+	power_earned_rows = {}
 	for r in GymRules.initial_awarded_rows(gym_id):
 		awarded_rows[r] = true
 	var has_sc: bool = unlocked_powers.has("secondChances")
@@ -257,23 +259,50 @@ func process_row_completions() -> void:
 		var idx: int = int(row_item["index"])
 		var pat: String = str(row_item["pattern"])
 		awarded_rows[idx] = true
-		for t in unlocked_powers:
-			if not PowerLogic.is_pattern_power(t):
-				continue
-			var key: String = PowerLogic.power_earn_key(idx, t)
-			if power_earned_rows.has(key):
-				continue
-			if not PowerLogic.row_earns_goal(t, pat):
-				continue
-			if t == "chooseNumber" and pat == PatternCheck.FIVE_KIND and skip_rows.has(idx):
-				power_earned_rows[key] = true
-				continue
-			power_earned_rows[key] = true
-			charges_add[t] = charges_add.get(t, 0) + 1
+		_add_pattern_charges_for_row(idx, pat, skip_rows, charges_add)
 		grid[idx] = _lock_row(grid[idx])
 	for t in charges_add:
 		power_charges[t] = power_charges.get(t, 0) + charges_add[t]
 	_check_win_flow()
+
+
+func _add_pattern_charges_for_row(
+	row_index: int,
+	pattern: String,
+	skip_choose_rows: Dictionary,
+	charges_add: Dictionary
+) -> void:
+	for t in unlocked_powers:
+		if not PowerLogic.is_pattern_power(t):
+			continue
+		var key: String = PowerLogic.power_earn_key(row_index, t)
+		if power_earned_rows.has(key):
+			continue
+		if not PowerLogic.row_earns_goal(t, pattern):
+			continue
+		if (
+			t == "chooseNumber"
+			and pattern == PatternCheck.FIVE_KIND
+			and skip_choose_rows.has(row_index)
+		):
+			power_earned_rows[key] = true
+			continue
+		power_earned_rows[key] = true
+		charges_add[t] = charges_add.get(t, 0) + 1
+
+
+func _award_pattern_charges_on_completed_rows() -> void:
+	var charges_add: Dictionary = {}
+	for row_index in awarded_rows:
+		var vals: Array = []
+		for c in grid[row_index]:
+			vals.append(c.value)
+		var pattern: String = PatternCheck.check_pattern(vals)
+		if pattern == PatternCheck.INCOMPLETE:
+			continue
+		_add_pattern_charges_for_row(row_index, pattern, {}, charges_add)
+	for t in charges_add:
+		power_charges[t] = power_charges.get(t, 0) + charges_add[t]
 
 
 func _lock_row(row: Array) -> Array:
@@ -783,6 +812,7 @@ func dev_grant_power(power_type: String) -> String:
 		power_charges[power_type] = 0
 		if level_power_goal.is_empty():
 			level_power_goal = power_type
+	_award_pattern_charges_on_completed_rows()
 	if pending_swap_in == power_type:
 		pending_swap_in = ""
 		if current_modal == Modal.SWAP_POWER:
