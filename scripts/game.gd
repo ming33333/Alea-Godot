@@ -355,6 +355,20 @@ func _build_power_bar() -> void:
 		var charge_txt: String = ""
 		if PowerLogic.is_pattern_power(t) or t == "switchRows":
 			charge_txt = "×%d" % ch
+		if t == "rerollTrade":
+			var can_trade: bool = PowerLogic.can_trade_rerolls(
+				session.level, session.switches_used, session.rerolls_used, session.unlocked_powers
+			)
+			_add_power_die_chip(
+				short,
+				"",
+				tip,
+				false,
+				not can_trade,
+				_power_accent_color(t),
+				func(): session.reroll_trade()
+			)
+			continue
 		if PowerLogic.is_permanent(t):
 			_add_power_die_chip(short, "", tip, false, true, _power_accent_color(t))
 			continue
@@ -370,20 +384,6 @@ func _build_power_bar() -> void:
 			not usable,
 			_power_accent_color(t),
 			_on_power_pressed.bind(t)
-		)
-	if session.unlocked_powers.has("rerollTrade"):
-		var trade_def: Dictionary = GameData.get_power_def("rerollTrade")
-		var can_trade: bool = PowerLogic.can_trade_rerolls(
-			session.level, session.switches_used, session.rerolls_used, session.unlocked_powers
-		)
-		_add_power_die_chip(
-			_power_short_label("rerollTrade", trade_def),
-			"",
-			str(trade_def.get("description", "")),
-			false,
-			not can_trade,
-			_power_accent_color("rerollTrade"),
-			func(): session.reroll_trade()
 		)
 
 
