@@ -833,7 +833,31 @@ theme_override_constants/separation = 12
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
 theme_override_font_sizes/font_size = 24
-text = "Swap out a power"
+text = "Replace a power"
+horizontal_alignment = 1
+
+[node name="SwapInLabel" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.15, 0.4, 0.2, 1)
+theme_override_font_sizes/font_size = 18
+text = "Adding: (power)"
+horizontal_alignment = 1
+
+[node name="SwapInDetail" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.4, 0.5, 1)
+theme_override_font_sizes/font_size = 13
+text = "Power description"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="SwapDropLabel" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 15
+text = "Drop one of your current powers:"
 horizontal_alignment = 1
 
 [node name="Scroll" type="ScrollContainer" parent="ModalSwap/Center/Card/CardMargin/VBox"]
@@ -847,6 +871,11 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
+
+[node name="SwapCancel" type="Button" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cancel"
 
 [node name="ModalRestartConfirm" type="Control" parent="."]
 unique_name_in_owner = true
@@ -951,5 +980,6 @@ text = "Restart (−1 ♥)"
 [connection signal="pressed" from="ModalGameOver/Center/Card/CardMargin/VBox/Menu" to="." method="_on_menu_from_over_pressed"]
 [connection signal="pressed" from="ModalStuck/Center/Card/CardMargin/VBox/Retry" to="." method="_on_retry_pressed"]
 [connection signal="pressed" from="ModalTournamentWin/Center/Card/CardMargin/VBox/Continue" to="." method="_on_tournament_continue_pressed"]
+[connection signal="pressed" from="ModalSwap/Center/Card/CardMargin/VBox/SwapCancel" to="." method="_on_cancel_swap_pressed"]
 [connection signal="pressed" from="ModalRestartConfirm/Center/Card/CardMargin/VBox/BtnRow/CancelRestart" to="." method="_on_cancel_restart_pressed"]
 [connection signal="pressed" from="ModalRestartConfirm/Center/Card/CardMargin/VBox/BtnRow/ConfirmRestart" to="." method="_on_confirm_restart_pressed"]

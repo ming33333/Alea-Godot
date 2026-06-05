@@ -36,6 +36,8 @@ const ACTIVATABLE_POWERS: Array[String] = [
 const LEVEL_UP_DETAIL_HINT := "Hover a power to see what it does"
 @onready var number_buttons: HBoxContainer = %NumberButtons
 @onready var swap_options: VBoxContainer = %SwapOptions
+@onready var swap_in_label: Label = %SwapInLabel
+@onready var swap_in_detail: Label = %SwapInDetail
 @onready var stuck_title: Label = %StuckTitle
 @onready var stuck_body: Label = %StuckBody
 @onready var stuck_hearts: Label = %StuckHearts
@@ -719,12 +721,26 @@ func _update_fail_modals() -> void:
 func _build_swap() -> void:
 	for c in swap_options.get_children():
 		c.queue_free()
+	var incoming_id: String = session.pending_swap_in
+	var incoming_def: Dictionary = GameData.get_power_def(incoming_id)
+	var incoming_label: String = str(incoming_def.get("label", incoming_id))
+	swap_in_label.text = "Adding: %s" % incoming_label
+	swap_in_detail.text = str(incoming_def.get("description", ""))
 	for t in session.unlocked_powers:
 		var def: Dictionary = GameData.get_power_def(t)
+		var outgoing_label: String = str(def.get("label", t))
 		var b := Button.new()
-		b.text = "Drop: %s" % def.get("label", t)
+		b.text = "Drop %s → add %s" % [outgoing_label, incoming_label]
+		b.custom_minimum_size = Vector2(0, 44)
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var outgoing_desc: String = str(def.get("description", ""))
+		b.tooltip_text = "Remove %s\n\n%s" % [outgoing_label, outgoing_desc]
 		b.pressed.connect(func(): session.swap_out_power(t))
 		swap_options.add_child(b)
+
+
+func _on_cancel_swap_pressed() -> void:
+	session.cancel_swap_power()
 
 
 func _on_back_pressed() -> void:

@@ -705,6 +705,14 @@ func swap_out_power(replaced: String) -> void:
 	_start_level(level, false)
 
 
+func cancel_swap_power() -> void:
+	if pending_swap_in == "" or current_modal != Modal.SWAP_POWER:
+		return
+	pending_swap_in = ""
+	current_modal = Modal.LEVEL_UP
+	_emit()
+
+
 func _apply_level_up(power_type: String) -> void:
 	unlocked_powers[power_type] = true
 	if PowerLogic.is_pattern_power(power_type):
