@@ -97,6 +97,8 @@ func _ready() -> void:
 	session = RunSession.new()
 	session.state_changed.connect(_refresh_ui)
 	session.dice_rerolled.connect(_on_dice_rerolled)
+	if not DiceSprites.style_changed.is_connected(_on_dice_style_changed):
+		DiceSprites.style_changed.connect(_on_dice_style_changed)
 	_setup_dice_roll_sfx()
 	_setup_dev_cheats()
 	call_deferred("_begin_run")
@@ -552,6 +554,10 @@ func _setup_dice_roll_sfx() -> void:
 func _on_dice_rerolled(_row: int, _col: int, _new_value: int) -> void:
 	if _dice_roll_player and _dice_roll_player.stream:
 		_dice_roll_player.play()
+
+
+func _on_dice_style_changed() -> void:
+	_sync_grid()
 
 
 func _on_die_pressed(row: int, col: int) -> void:

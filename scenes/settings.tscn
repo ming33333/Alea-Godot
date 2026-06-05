@@ -68,6 +68,14 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Mute music"
 
+[node name="DiceStyleLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "Dice appearance"
+
+[node name="DiceStyleOption" type="OptionButton" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="DiceSoundLabel" type="Label" parent="Margin/VBox"]
 layout_mode = 2
 text = "Dice roll sound"
@@ -126,6 +134,7 @@ text = "Back to menu"
 [connection signal="value_changed" from="Margin/VBox/VolumeSlider" to="." method="_on_volume_changed"]
 [connection signal="value_changed" from="Margin/VBox/MusicVolumeSlider" to="." method="_on_music_volume_changed"]
 [connection signal="toggled" from="Margin/VBox/MusicMute" to="." method="_on_music_mute_toggled"]
+[connection signal="item_selected" from="Margin/VBox/DiceStyleOption" to="." method="_on_dice_style_selected"]
 [connection signal="item_selected" from="Margin/VBox/DiceSoundOption" to="." method="_on_dice_sound_selected"]
 [connection signal="pressed" from="Margin/VBox/CheatRow/CheatApply" to="." method="_on_cheat_apply_pressed"]
 [connection signal="pressed" from="Margin/VBox/CheatLock" to="." method="_on_cheat_lock_pressed"]

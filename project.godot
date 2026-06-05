@@ -23,6 +23,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 AudioSettings="*res://scripts/autoload/audio_settings.gd"
+DiceSprites="*res://scripts/autoload/dice_sprites.gd"
 DebugLog="*res://scripts/autoload/debug_log.gd"
 DevCheats="*res://scripts/autoload/dev_cheats.gd"
 GameData="*res://scripts/autoload/game_data.gd"

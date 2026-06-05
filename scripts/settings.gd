@@ -3,11 +3,13 @@ extends Control
 @onready var volume_slider: HSlider = %VolumeSlider
 @onready var music_volume_slider: HSlider = %MusicVolumeSlider
 @onready var music_mute: CheckBox = %MusicMute
+@onready var dice_style_option: OptionButton = %DiceStyleOption
 @onready var dice_sound_option: OptionButton = %DiceSoundOption
 @onready var cheat_hint: Label = %CheatHint
 @onready var cheat_status: Label = %CheatStatus
 @onready var cheat_code_input: LineEdit = %CheatCodeInput
 
+var _dice_style_ids: Array[String] = []
 var _dice_sound_ids: Array[String] = []
 
 
@@ -20,6 +22,20 @@ func _ready() -> void:
 	_refresh_cheat_ui()
 	if not DevCheats.unlock_state_changed.is_connected(_refresh_cheat_ui):
 		DevCheats.unlock_state_changed.connect(_refresh_cheat_ui)
+
+
+func _populate_dice_style_options() -> void:
+	dice_style_option.clear()
+	_dice_style_ids.clear()
+	for style_id in DiceSprites.STYLE_ORDER:
+		_dice_style_ids.append(style_id)
+		dice_style_option.add_item(DiceSprites.style_label(style_id))
+	var style_idx: int = _dice_style_ids.find(DiceSprites.get_dice_style_id())
+	if style_idx < 0:
+		style_idx = 0
+	dice_style_option.set_block_signals(true)
+	dice_style_option.select(style_idx)
+	dice_style_option.set_block_signals(false)
 
 
 func _populate_dice_sound_options() -> void:
@@ -53,6 +69,12 @@ func _on_music_volume_changed(v: float) -> void:
 
 func _on_music_mute_toggled(pressed: bool) -> void:
 	AudioSettings.save_music_muted(pressed)
+
+
+func _on_dice_style_selected(index: int) -> void:
+	if index < 0 or index >= _dice_style_ids.size():
+		return
+	DiceSprites.save_dice_style(_dice_style_ids[index])
 
 
 func _on_dice_sound_selected(index: int) -> void:

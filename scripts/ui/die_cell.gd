@@ -15,16 +15,6 @@ const FACE_POWER_SWITCH_ANY := "power_switch_any"
 const DICE_BOARD_ATLAS: Texture2D = preload("res://assets/textures/dice_board.png")
 const DICE_BOARD_TILE_REGION := Rect2(124, 130, 264, 258)
 
-const DIE_FACES: Array[Texture2D] = [
-	null,
-	preload("res://assets/dice/die_face_1.png"),
-	preload("res://assets/dice/die_face_2.png"),
-	preload("res://assets/dice/die_face_3.png"),
-	preload("res://assets/dice/die_face_4.png"),
-	preload("res://assets/dice/die_face_5.png"),
-	preload("res://assets/dice/die_face_6.png"),
-]
-
 enum Highlight {
 	NONE,
 	SELECTED,
@@ -148,9 +138,16 @@ func _make_face_style(
 
 
 func _face_texture_for(value: int) -> Texture2D:
-	if value < 1 or value >= DIE_FACES.size():
+	var sprites := _dice_sprite_settings()
+	if sprites == null:
 		return null
-	return DIE_FACES[value]
+	return sprites.get_face(value)
+
+
+func _dice_sprite_settings() -> Node:
+	if not is_inside_tree():
+		return null
+	return get_tree().root.get_node_or_null("DiceSprites")
 
 
 func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
@@ -167,7 +164,7 @@ func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
 		_base_face_key = FACE_BLURRED
 		label.text = "?"
 		label.add_theme_color_override("font_color", Color(0.35, 0.38, 0.45))
-	elif cell.value >= 1 and cell.value <= 6:
+	elif cell.value >= 1 and cell.value <= 7:
 		var tex: Texture2D = _face_texture_for(cell.value)
 		if tex != null:
 			_show_sprite = true
