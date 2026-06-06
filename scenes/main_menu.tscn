@@ -183,12 +183,6 @@ layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 1
 
-[node name="Hint" type="Label" parent="Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.85)
-theme_override_font_sizes/font_size = 11
-text = "Colored orbs = gyms · hover for info · drag to move · click to play"
-
 [node name="GymTooltip" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 visible = false

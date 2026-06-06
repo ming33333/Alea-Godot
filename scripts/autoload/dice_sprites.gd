@@ -1,26 +1,16 @@
 extends Node
-## Dice face textures: number style (dice_num) or pip style (dice). Lucky 7 always uses dice_face_7.
+## Dice face textures: pixel font (VT323) or pip style (dice). Lucky 7 always uses dice_face_7.
 
 signal style_changed
 
 const CFG_PATH := "user://settings.cfg"
-const STYLE_NUM := "dice_num"
 const STYLE_PIPES := "dice"
 const STYLE_PIXEL := "pixel"
-const DEFAULT_STYLE := STYLE_NUM
+const DEFAULT_STYLE := STYLE_PIXEL
 const VT323_FONT_PATH := "res://assets/fonts/VT323/VT323-Regular.ttf"
+const LEGACY_NUM_STYLE := "dice_num"
 
-const STYLE_ORDER: Array[String] = [STYLE_NUM, STYLE_PIPES, STYLE_PIXEL]
-
-const NUM_FACE_PATHS: Array[String] = [
-	"",
-	"res://assets/dice_num/die_num_1.png",
-	"res://assets/dice_num/die_num_2.png",
-	"res://assets/dice_num/die_num_3.png",
-	"res://assets/dice_num/die_num_4.png",
-	"res://assets/dice_num/die_num_5.png",
-	"res://assets/dice_num/die_num_6.png",
-]
+const STYLE_ORDER: Array[String] = [STYLE_PIXEL, STYLE_PIPES]
 
 const PIPES_FACE_PATHS: Array[String] = [
 	"",
@@ -37,7 +27,6 @@ const LUCKY_SEVEN_PATH := "res://assets/dice/dice_face_7.png"
 var dice_style_id: String = DEFAULT_STYLE
 
 var _lucky_seven_tex: Texture2D
-var _num_faces: Array[Texture2D] = []
 var _pipes_faces: Array[Texture2D] = []
 var _pixel_font: Font
 
@@ -52,6 +41,8 @@ func load_settings() -> void:
 		dice_style_id = DEFAULT_STYLE
 		return
 	var saved: String = str(cfg.get_value("visual", "dice_style", DEFAULT_STYLE))
+	if saved == LEGACY_NUM_STYLE:
+		saved = STYLE_PIXEL
 	dice_style_id = saved if STYLE_ORDER.has(saved) else DEFAULT_STYLE
 
 
@@ -65,7 +56,6 @@ func save_dice_style(style_id: String) -> void:
 	if dice_style_id == style_id:
 		return
 	dice_style_id = style_id
-	_num_faces.clear()
 	_pipes_faces.clear()
 	var cfg := ConfigFile.new()
 	cfg.load(CFG_PATH)
@@ -109,9 +99,7 @@ func _lucky_seven_face() -> Texture2D:
 
 
 func _faces_for_style() -> Array[Texture2D]:
-	if dice_style_id == STYLE_PIPES:
-		return _load_face_set(PIPES_FACE_PATHS, _pipes_faces)
-	return _load_face_set(NUM_FACE_PATHS, _num_faces)
+	return _load_face_set(PIPES_FACE_PATHS, _pipes_faces)
 
 
 func _load_face_set(paths: Array[String], cache: Array[Texture2D]) -> Array[Texture2D]:
@@ -132,8 +120,6 @@ func _load_face_set(paths: Array[String], cache: Array[Texture2D]) -> Array[Text
 
 static func style_label(style_id: String) -> String:
 	match style_id:
-		STYLE_NUM:
-			return "Number dice"
 		STYLE_PIPES:
 			return "Pip dice"
 		STYLE_PIXEL:

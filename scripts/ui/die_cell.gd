@@ -11,6 +11,9 @@ const FACE_SWITCH_ROWS_PICKABLE := "switch_rows_pickable"
 const FACE_POWER_CHOOSE := "power_choose"
 const FACE_POWER_SET_ANY := "power_set_any"
 const FACE_POWER_SWITCH_ANY := "power_switch_any"
+const PIXEL_FACE_NORMAL := "pixel_normal"
+const PIXEL_FACE_LOCKED := "pixel_locked"
+const PIXEL_FACE_BLURRED := "pixel_blurred"
 
 const DICE_BOARD_ATLAS: Texture2D = preload("res://assets/textures/dice_board.png")
 const DICE_BOARD_TILE_REGION := Rect2(124, 130, 264, 258)
@@ -29,6 +32,7 @@ enum Highlight {
 var value_label: Label
 var die_face: TextureRect
 var _face: PanelContainer
+var _pixel_border: PixelDieFrame
 var _shine: ColorRect
 var _styles: Dictionary = {}
 var _base_face_key: String = FACE_NORMAL
@@ -41,6 +45,7 @@ var grid_col: int = -1
 func _ready() -> void:
 	_cache_styles()
 	_face = get_node_or_null("Wrap/Face") as PanelContainer
+	_pixel_border = get_node_or_null("Wrap/PixelBorder") as PixelDieFrame
 	_shine = get_node_or_null("Wrap/Shine") as ColorRect
 	die_face = get_node_or_null("Wrap/Face/Margin/DieFace") as TextureRect
 	value_label = get_node_or_null("Wrap/ValueLabel") as Label
@@ -109,6 +114,18 @@ func _cache_styles() -> void:
 		5,
 		12
 	)
+	_styles[PIXEL_FACE_NORMAL] = _make_pixel_face_style(
+		Color(1, 1, 1),
+		Color(0.28, 0.3, 0.34)
+	)
+	_styles[PIXEL_FACE_LOCKED] = _make_pixel_face_style(
+		Color(0.96, 0.97, 0.99),
+		Color(0.55, 0.58, 0.64)
+	)
+	_styles[PIXEL_FACE_BLURRED] = _make_pixel_face_style(
+		Color(0.94, 0.95, 0.97),
+		Color(0.62, 0.65, 0.7)
+	)
 
 
 func _make_board_face_style() -> StyleBoxTexture:
@@ -137,6 +154,74 @@ func _make_face_style(
 	return box
 
 
+func _make_pixel_face_style(bg: Color, _border: Color) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = bg
+	box.set_border_width_all(0)
+	box.set_corner_radius_all(0)
+	box.shadow_size = 0
+	box.shadow_offset = Vector2.ZERO
+	box.anti_aliasing = false
+	return box
+
+
+func _panel_style_for_face(face_key: String) -> StyleBox:
+	if not _styles.has(face_key):
+		return null
+	var style: StyleBox = _styles[face_key]
+	if not _is_pixel_font_style() or not style is StyleBoxFlat:
+		return style
+	var flat := style.duplicate() as StyleBoxFlat
+	flat.set_border_width_all(0)
+	flat.set_corner_radius_all(0)
+	flat.shadow_size = 0
+	flat.shadow_offset = Vector2.ZERO
+	flat.anti_aliasing = false
+	return flat
+
+
+func _pixel_border_color(face_key: String) -> Color:
+	match face_key:
+		PIXEL_FACE_NORMAL, FACE_NORMAL:
+			return Color(0.28, 0.3, 0.34)
+		PIXEL_FACE_LOCKED, FACE_LOCKED:
+			return Color(0.55, 0.58, 0.64)
+		PIXEL_FACE_BLURRED, FACE_BLURRED:
+			return Color(0.62, 0.65, 0.7)
+		FACE_SELECTED:
+			return Color(0.15, 0.4, 0.92)
+		FACE_SWITCH_VALID:
+			return Color(0.2, 0.65, 0.35)
+		FACE_SWITCH_ROWS_PRIMARY:
+			return Color(0.35, 0.35, 0.85)
+		FACE_SWITCH_ROWS_PICKABLE:
+			return Color(0.55, 0.58, 0.82)
+		FACE_POWER_CHOOSE:
+			return Color(0.15, 0.6, 0.35)
+		FACE_POWER_SET_ANY:
+			return Color(0.9, 0.45, 0.1)
+		FACE_POWER_SWITCH_ANY:
+			return Color(0.45, 0.3, 0.75)
+		_:
+			return Color(0.28, 0.3, 0.34)
+
+
+func _update_pixel_border(face_key: String) -> void:
+	if _pixel_border == null:
+		_pixel_border = get_node_or_null("Wrap/PixelBorder") as PixelDieFrame
+	if _pixel_border == null:
+		return
+	var show_frame: bool = _is_pixel_font_style() and not _show_sprite
+	_pixel_border.visible = show_frame
+	if not show_frame:
+		return
+	var cell_px: float = maxf(custom_minimum_size.x, custom_minimum_size.y)
+	_pixel_border.line_thickness = maxi(3, int(round(cell_px * 0.034)))
+	_pixel_border.corner_radius = maxi(2, int(round(cell_px * 0.028)))
+	_pixel_border.frame_color = _pixel_border_color(face_key)
+	_pixel_border.queue_redraw()
+
+
 func _face_texture_for(value: int) -> Texture2D:
 	var sprites := _dice_sprite_settings()
 	if sprites == null:
@@ -148,6 +233,24 @@ func _dice_sprite_settings() -> Node:
 	if not is_inside_tree():
 		return null
 	return get_tree().root.get_node_or_null("DiceSprites")
+
+
+func _is_pixel_font_style() -> bool:
+	var sprites := _dice_sprite_settings()
+	return sprites != null and sprites.is_pixel_font_style()
+
+
+func _resolve_face_key(face_key: String) -> String:
+	if not _is_pixel_font_style():
+		return face_key
+	match face_key:
+		FACE_NORMAL:
+			return PIXEL_FACE_NORMAL
+		FACE_LOCKED:
+			return PIXEL_FACE_LOCKED
+		FACE_BLURRED:
+			return PIXEL_FACE_BLURRED
+	return face_key
 
 
 func _configure_value_label_font(blurred: bool) -> void:
@@ -222,6 +325,11 @@ func _set_fallback_label_colors(cell: DiceCellData) -> void:
 		return
 	if cell.value == 7:
 		label.add_theme_color_override("font_color", Color(0.55, 0.12, 0.15))
+	elif _is_pixel_font_style():
+		if cell.locked:
+			label.add_theme_color_override("font_color", Color(0.5, 0.53, 0.58))
+		else:
+			label.add_theme_color_override("font_color", Color(0.1, 0.12, 0.16))
 	elif cell.locked:
 		label.add_theme_color_override("font_color", Color(0.35, 0.38, 0.42))
 	else:
@@ -256,8 +364,11 @@ func _apply_display() -> void:
 			face_key = FACE_POWER_SET_ANY
 		Highlight.POWER_SWITCH_ANY:
 			face_key = FACE_POWER_SWITCH_ANY
-	if _face and _styles.has(face_key):
-		_face.add_theme_stylebox_override("panel", _styles[face_key])
+	face_key = _resolve_face_key(face_key)
+	var panel_style: StyleBox = _panel_style_for_face(face_key)
+	if _face and panel_style != null:
+		_face.add_theme_stylebox_override("panel", panel_style)
+	_update_pixel_border(face_key)
 	var face_tex: TextureRect = _ensure_die_face()
 	var label: Label = _ensure_value_label()
 	if face_tex:

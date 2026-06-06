@@ -104,11 +104,11 @@ custom_minimum_size = Vector2(76, 0)
 layout_mode = 2
 text = "Menu"
 
-[node name="TopSpacerLeft" type="Control" parent="Margin/VBox/Header/TopRow"]
+[node name="TopCenter" type="CenterContainer" parent="Margin/VBox/Header/TopRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="GymLabel" type="Label" parent="Margin/VBox/Header/TopRow"]
+[node name="GymLabel" type="Label" parent="Margin/VBox/Header/TopRow/TopCenter"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.16, 0.24, 1)
@@ -117,9 +117,9 @@ text = "Gym"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="TopSpacerRight" type="Control" parent="Margin/VBox/Header/TopRow"]
+[node name="TopBalance" type="Control" parent="Margin/VBox/Header/TopRow"]
+custom_minimum_size = Vector2(76, 0)
 layout_mode = 2
-size_flags_horizontal = 3
 
 [node name="Center" type="CenterContainer" parent="Margin/VBox"]
 layout_mode = 2
