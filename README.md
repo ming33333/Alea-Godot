@@ -10,7 +10,7 @@ Godot 4 port of **Alea**. Web prototype: **`../Alea`**
 
 ## Audio
 
-- **`assets/dice_roll_default.mp3`** — default dice reroll SFX (double-click a die in-game).
+- **`assets/sfx/dice_roll_default.mp3`** — default dice reroll SFX (double-click a die in-game).
 - **Settings → Dice roll sound** — choose Default, Roll 2 (`dice_roll_2.mp3`), or Roll 3 (`dice_roll3.mp3`).
 - Master volume is saved in `user://settings.cfg` via the **AudioSettings** autoload.
 

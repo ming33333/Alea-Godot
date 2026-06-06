@@ -150,6 +150,26 @@ func _dice_sprite_settings() -> Node:
 	return get_tree().root.get_node_or_null("DiceSprites")
 
 
+func _configure_value_label_font(blurred: bool) -> void:
+	var label: Label = _ensure_value_label()
+	if label == null:
+		return
+	var sprites := _dice_sprite_settings()
+	if sprites != null and sprites.is_pixel_font_style():
+		var font: Font = sprites.get_pixel_font()
+		if font != null:
+			label.add_theme_font_override("font", font)
+		var cell_px: float = maxf(custom_minimum_size.x, custom_minimum_size.y)
+		var font_px: int = maxi(16, int(round(cell_px * (0.5 if blurred else 0.58))))
+		label.add_theme_font_size_override("font_size", font_px)
+	else:
+		label.remove_theme_font_override("font")
+		label.add_theme_font_size_override("font_size", maxi(16, int(round(maxf(
+			custom_minimum_size.x,
+			custom_minimum_size.y
+		) * 0.45))))
+
+
 func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
 	grid_row = row
 	grid_col = col
@@ -163,6 +183,7 @@ func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
 		_show_sprite = false
 		_base_face_key = FACE_BLURRED
 		label.text = "?"
+		_configure_value_label_font(blurred)
 		label.add_theme_color_override("font_color", Color(0.35, 0.38, 0.45))
 	elif cell.value >= 1 and cell.value <= 7:
 		var tex: Texture2D = _face_texture_for(cell.value)
@@ -173,11 +194,13 @@ func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
 		else:
 			_show_sprite = false
 			label.text = str(cell.value)
+			_configure_value_label_font(blurred)
 			_base_face_key = FACE_LOCKED if cell.locked else FACE_NORMAL
 			_set_fallback_label_colors(cell)
 	else:
 		_show_sprite = false
 		label.text = str(cell.value)
+		_configure_value_label_font(blurred)
 		_base_face_key = FACE_LOCKED if cell.locked else FACE_NORMAL
 		_set_fallback_label_colors(cell)
 	if _shine:

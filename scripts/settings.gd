@@ -18,6 +18,7 @@ func _ready() -> void:
 	volume_slider.value = AudioSettings.get_master_volume_linear()
 	music_volume_slider.value = AudioSettings.get_music_volume_linear()
 	music_mute.button_pressed = AudioSettings.is_music_muted()
+	_populate_dice_style_options()
 	_populate_dice_sound_options()
 	_refresh_cheat_ui()
 	if not DevCheats.unlock_state_changed.is_connected(_refresh_cheat_ui):

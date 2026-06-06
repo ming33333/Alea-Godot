@@ -6,9 +6,11 @@ signal style_changed
 const CFG_PATH := "user://settings.cfg"
 const STYLE_NUM := "dice_num"
 const STYLE_PIPES := "dice"
+const STYLE_PIXEL := "pixel"
 const DEFAULT_STYLE := STYLE_NUM
+const VT323_FONT_PATH := "res://assets/fonts/VT323/VT323-Regular.ttf"
 
-const STYLE_ORDER: Array[String] = [STYLE_NUM, STYLE_PIPES]
+const STYLE_ORDER: Array[String] = [STYLE_NUM, STYLE_PIPES, STYLE_PIXEL]
 
 const NUM_FACE_PATHS: Array[String] = [
 	"",
@@ -37,6 +39,7 @@ var dice_style_id: String = DEFAULT_STYLE
 var _lucky_seven_tex: Texture2D
 var _num_faces: Array[Texture2D] = []
 var _pipes_faces: Array[Texture2D] = []
+var _pixel_font: Font
 
 
 func _ready() -> void:
@@ -71,10 +74,26 @@ func save_dice_style(style_id: String) -> void:
 	style_changed.emit()
 
 
+func is_pixel_font_style() -> bool:
+	return dice_style_id == STYLE_PIXEL
+
+
+func get_pixel_font() -> Font:
+	if _pixel_font == null:
+		var res: Resource = load(VT323_FONT_PATH)
+		if res is Font:
+			_pixel_font = res as Font
+		else:
+			push_warning("DiceSprites: missing pixel font at %s" % VT323_FONT_PATH)
+	return _pixel_font
+
+
 func get_face(value: int) -> Texture2D:
 	if value == 7:
 		return _lucky_seven_face()
 	if value < 1 or value > 6:
+		return null
+	if is_pixel_font_style():
 		return null
 	return _faces_for_style()[value]
 
@@ -117,5 +136,7 @@ static func style_label(style_id: String) -> String:
 			return "Number dice"
 		STYLE_PIPES:
 			return "Pip dice"
+		STYLE_PIXEL:
+			return "Pixel font dice"
 		_:
 			return style_id

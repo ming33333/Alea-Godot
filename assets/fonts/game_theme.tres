@@ -1,0 +1,7 @@
+[gd_resource type="Theme" format=3 uid="uid://d1hxa4fatlxi7"]
+
+[ext_resource type="FontFile" uid="uid://cacdhvlxani7m" path="res://assets/fonts/VT323/VT323-Regular.ttf" id="1_vt323"]
+
+[resource]
+default_font = ExtResource("1_vt323")
+default_font_size = 20

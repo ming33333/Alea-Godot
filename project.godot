@@ -31,6 +31,10 @@ SaveService="*res://scripts/autoload/save_service.gd"
 GameState="*res://scripts/autoload/game_state.gd"
 SceneNav="*res://scripts/autoload/scene_nav.gd"
 
+[gui]
+
+theme/custom="res://assets/fonts/game_theme.tres"
+
 [display]
 
 window/size/viewport_width=1280

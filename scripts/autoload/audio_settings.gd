@@ -6,9 +6,9 @@ const DEFAULT_DICE_SOUND := "default"
 const MUSIC_BUS := &"Music"
 
 const DICE_SOUND_PATHS: Dictionary = {
-	"default": "res://assets/dice_roll_default.mp3",
-	"roll_2": "res://assets/dice_roll_2.mp3",
-	"roll_3": "res://assets/dice_roll3.mp3",
+	"default": "res://assets/sfx/dice_roll_default.mp3",
+	"roll_2": "res://assets/sfx/dice_roll_2.mp3",
+	"roll_3": "res://assets/sfx/dice_roll3.mp3",
 }
 
 const DICE_SOUND_ORDER: Array[String] = ["default", "roll_2", "roll_3"]

@@ -9,7 +9,11 @@ const POWER_DIE_BUTTON: PackedScene = preload("res://scenes/power_die_button.tsc
 @onready var switches_label: Label = %SwitchesLabel
 @onready var rerolls_label: Label = %RerollsLabel
 @onready var gym_label: Label = %GymLabel
+@onready var board_column: VBoxContainer = %BoardColumn
+@onready var stats_bar: PanelContainer = %StatsBar
 @onready var grid_board: Control = %GridBoard
+@onready var board_backdrop: NinePatchRect = %BoardBackdrop
+@onready var board_margin: MarginContainer = %BoardMargin
 @onready var power_dock: PanelContainer = %PowerDock
 @onready var power_bar: HBoxContainer = %PowerBar
 @onready var power_hint: VBoxContainer = %PowerHint
@@ -62,6 +66,17 @@ var _die_cells: Dictionary = {}
 const SINGLE_CLICK_DELAY_SEC := 0.12
 const DOUBLE_CLICK_MS := 350
 
+const REF_BOARD_SIZE := 501.0
+const POWER_BOARD_HEIGHT_RATIO := 0.2
+const REF_DIE_CELL := 87.0
+const REF_GRID_SEP := 6.0
+const REF_BOARD_INSET := 21.0
+const REF_POWER_CHIP := 62.0
+const REF_POWER_BAR_SEP := 10.0
+
+var _board_size: float = REF_BOARD_SIZE
+var _power_chip_size: int = int(REF_POWER_CHIP)
+
 
 func _ready() -> void:
 	DebugLog.alea_log("Game", "========== GAME _ready ==========")
@@ -74,7 +89,8 @@ func _ready() -> void:
 			"OK" if grid_container != null else "MISSING",
 		]
 	)
-	_style_game_boards()
+	get_viewport().size_changed.connect(_on_viewport_size_changed)
+	call_deferred("_layout_boards")
 	if cancel_power_btn:
 		cancel_power_btn.pressed.connect(_on_cancel_power_pressed)
 	else:
@@ -254,6 +270,8 @@ func _sync_grid() -> void:
 		for r in range(rows):
 			for c in range(cols):
 				var btn: DieCell = DIE_CELL.instantiate() as DieCell
+				var die_px: int = int(round(REF_DIE_CELL * (_board_size / REF_BOARD_SIZE)))
+				btn.custom_minimum_size = Vector2(die_px, die_px)
 				grid_container.add_child(btn)
 				_die_cells[_die_key(r, c)] = btn
 				btn.pressed.connect(_on_die_pressed.bind(r, c))
@@ -267,24 +285,91 @@ func _sync_grid() -> void:
 			btn.set_highlight(_cell_highlight(r, c, cell, blurred))
 
 
-func _style_game_boards() -> void:
+func _on_viewport_size_changed() -> void:
+	call_deferred("_layout_boards")
+
+
+func _layout_boards() -> void:
+	_board_size = _compute_board_size()
+	var layout_scale: float = _board_size / REF_BOARD_SIZE
+	var board_px: int = int(round(_board_size))
+	var power_h: int = int(round(_board_size * POWER_BOARD_HEIGHT_RATIO))
+	var die_cell: int = int(round(REF_DIE_CELL * layout_scale))
+	var grid_sep: int = maxi(2, int(round(REF_GRID_SEP * layout_scale)))
+	var board_inset: int = maxi(8, int(round(REF_BOARD_INSET * layout_scale)))
+	var power_bar_sep: int = maxi(4, int(round(REF_POWER_BAR_SEP * layout_scale)))
+	var content_inset: int = maxi(8, int(round(18.0 * layout_scale)))
+	var dock_pad: int = maxi(2, int(round(4.0 * layout_scale)))
+	_power_chip_size = maxi(
+		28,
+		power_h - content_inset * 2 - dock_pad * 2 - maxi(4, int(round(8.0 * layout_scale)))
+	)
+
+	if board_column:
+		board_column.custom_minimum_size = Vector2(board_px, 0)
+	if stats_bar:
+		stats_bar.custom_minimum_size = Vector2(board_px, 0)
+	if grid_board:
+		grid_board.custom_minimum_size = Vector2(board_px, board_px)
+	if board_margin:
+		board_margin.add_theme_constant_override("margin_left", board_inset)
+		board_margin.add_theme_constant_override("margin_top", board_inset)
+		board_margin.add_theme_constant_override("margin_right", board_inset)
+		board_margin.add_theme_constant_override("margin_bottom", board_inset)
+	if board_backdrop:
+		board_backdrop.patch_margin_left = int(round(78.0 * layout_scale))
+		board_backdrop.patch_margin_top = int(round(78.0 * layout_scale))
+		board_backdrop.patch_margin_right = int(round(78.0 * layout_scale))
+		board_backdrop.patch_margin_bottom = int(round(96.0 * layout_scale))
+	if grid_container:
+		grid_container.add_theme_constant_override("h_separation", grid_sep)
+		grid_container.add_theme_constant_override("v_separation", grid_sep)
 	if power_dock:
-		power_dock.add_theme_stylebox_override("panel", _make_board_style(
-			Color(0.5, 0.38, 0.26),
-			Color(0.32, 0.22, 0.14),
-			12
-		))
+		power_dock.custom_minimum_size = Vector2(board_px, power_h)
+		power_dock.add_theme_stylebox_override("panel", _make_power_board_style(layout_scale))
+	if power_bar:
+		power_bar.add_theme_constant_override("separation", power_bar_sep)
+
+	_apply_die_cell_sizes(die_cell)
+	_apply_power_chip_sizes()
 
 
-func _make_board_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = bg
-	box.border_color = border
-	box.set_border_width_all(3)
-	box.set_corner_radius_all(radius)
-	box.shadow_color = Color(0, 0, 0, 0.35)
-	box.shadow_size = 8
-	box.shadow_offset = Vector2(0, 4)
+func _compute_board_size() -> float:
+	var vp_h: float = get_viewport_rect().size.y
+	var chrome_h: float = 24.0 + 44.0 + 8.0 + 40.0 + 6.0 + 6.0
+	var available: float = vp_h - chrome_h
+	if available <= 0.0:
+		return REF_BOARD_SIZE
+	var max_board: float = available / (1.0 + POWER_BOARD_HEIGHT_RATIO)
+	return floor(min(REF_BOARD_SIZE, max(280.0, max_board)))
+
+
+func _apply_die_cell_sizes(die_cell: int = -1) -> void:
+	var size_px: int = die_cell if die_cell > 0 else int(round(REF_DIE_CELL * (_board_size / REF_BOARD_SIZE)))
+	for btn in _die_cells.values():
+		if btn is Control:
+			(btn as Control).custom_minimum_size = Vector2(size_px, size_px)
+
+
+func _apply_power_chip_sizes() -> void:
+	if power_bar == null:
+		return
+	for child in power_bar.get_children():
+		if child is PowerDieButton:
+			(child as PowerDieButton).set_chip_size(_power_chip_size)
+
+
+func _make_power_board_style(layout_scale: float) -> StyleBoxTexture:
+	var tex: Texture2D = load("res://assets/textures/powerup_board.png") as Texture2D
+	var box := StyleBoxTexture.new()
+	box.texture = tex
+	box.texture_margin_left = int(round(40.0 * layout_scale))
+	box.texture_margin_top = int(round(40.0 * layout_scale))
+	box.texture_margin_right = int(round(40.0 * layout_scale))
+	box.texture_margin_bottom = int(round(48.0 * layout_scale))
+	box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	box.set_content_margin_all(maxi(8, int(round(18.0 * layout_scale))))
 	return box
 
 
@@ -339,6 +424,7 @@ func _add_power_die_chip(
 	on_pressed: Callable = Callable()
 ) -> void:
 	var chip: PowerDieButton = POWER_DIE_BUTTON.instantiate() as PowerDieButton
+	chip.set_chip_size(_power_chip_size)
 	chip.setup_display(title, charge_text, is_active, is_disabled, accent)
 	chip.tooltip_text = tooltip
 	if on_pressed.is_valid():

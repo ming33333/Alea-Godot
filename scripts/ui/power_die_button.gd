@@ -72,3 +72,17 @@ func setup_display(
 			style.shadow_color = accent.darkened(0.35)
 		_face.add_theme_stylebox_override("panel", style)
 	scale = Vector2(1.06, 1.06) if is_active else Vector2.ONE
+
+
+func set_chip_size(pixel_size: int) -> void:
+	custom_minimum_size = Vector2(pixel_size, pixel_size)
+	if _title_label == null:
+		_title_label = get_node_or_null("Wrap/Face/Margin/VBox/TitleLabel") as Label
+	if _charge_label == null:
+		_charge_label = get_node_or_null("Wrap/Face/Margin/VBox/ChargeLabel") as Label
+	var title_font: int = maxi(7, int(round(float(pixel_size) * 0.14)))
+	var charge_font: int = maxi(8, int(round(float(pixel_size) * 0.16)))
+	if _title_label:
+		_title_label.add_theme_font_size_override("font_size", title_font)
+	if _charge_label:
+		_charge_label.add_theme_font_size_override("font_size", charge_font)

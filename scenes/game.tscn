@@ -121,18 +121,12 @@ vertical_alignment = 1
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="RestartBtn" type="Button" parent="Margin/VBox/Header/TopRow"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(76, 0)
-layout_mode = 2
-tooltip_text = "Restart this level (costs 1 heart)"
-text = "Restart"
-
 [node name="Center" type="CenterContainer" parent="Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 
 [node name="BoardColumn" type="VBoxContainer" parent="Margin/VBox/Center"]
+unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(501, 0)
 size_flags_horizontal = 4
@@ -140,6 +134,7 @@ theme_override_constants/separation = 6
 alignment = 1
 
 [node name="StatsBar" type="PanelContainer" parent="Margin/VBox/Center/BoardColumn"]
+unique_name_in_owner = true
 clip_contents = true
 layout_mode = 2
 custom_minimum_size = Vector2(501, 0)
@@ -158,7 +153,25 @@ layout_mode = 2
 theme_override_constants/separation = 18
 alignment = 1
 
-[node name="LevelLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+[node name="LevelGroup" type="HBoxContainer" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="RestartBtn" type="Button" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow/LevelGroup"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+tooltip_text = "Restart this level (costs 1 heart)"
+theme_override_colors/font_color = Color(0.35, 0.4, 0.52, 1)
+theme_override_colors/font_hover_color = Color(0.75, 0.15, 0.2, 1)
+theme_override_colors/font_pressed_color = Color(0.55, 0.1, 0.15, 1)
+theme_override_colors/font_disabled_color = Color(0.72, 0.75, 0.8, 1)
+theme_override_font_sizes/font_size = 18
+text = "↻"
+flat = true
+
+[node name="LevelLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow/LevelGroup"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.18, 0.32, 1)
@@ -211,6 +224,7 @@ layout_mode = 2
 size_flags_horizontal = 4
 
 [node name="BoardBackdrop" type="NinePatchRect" parent="Margin/VBox/Center/BoardColumn/GridBoard"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -226,6 +240,7 @@ patch_margin_right = 78
 patch_margin_bottom = 96
 
 [node name="BoardMargin" type="MarginContainer" parent="Margin/VBox/Center/BoardColumn/GridBoard"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -246,34 +261,39 @@ theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 6
 columns = 5
 
-[node name="PowerDock" type="PanelContainer" parent="Margin/VBox"]
+[node name="PowerDock" type="PanelContainer" parent="Margin/VBox/Center/BoardColumn"]
 unique_name_in_owner = true
 layout_mode = 2
+custom_minimum_size = Vector2(501, 100)
+size_flags_horizontal = 4
 
-[node name="DockMargin" type="MarginContainer" parent="Margin/VBox/PowerDock"]
+[node name="DockMargin" type="MarginContainer" parent="Margin/VBox/Center/BoardColumn/PowerDock"]
 layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 10
+size_flags_vertical = 3
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 2
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
 
-[node name="DockVBox" type="VBoxContainer" parent="Margin/VBox/PowerDock/DockMargin"]
+[node name="DockVBox" type="VBoxContainer" parent="Margin/VBox/Center/BoardColumn/PowerDock/DockMargin"]
 layout_mode = 2
+size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="PowerBar" type="HBoxContainer" parent="Margin/VBox/PowerDock/DockMargin/DockVBox"]
+[node name="PowerBar" type="HBoxContainer" parent="Margin/VBox/Center/BoardColumn/PowerDock/DockMargin/DockVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_vertical = 3
 alignment = 1
 theme_override_constants/separation = 10
 
-[node name="PowerHint" type="VBoxContainer" parent="Margin/VBox/PowerDock/DockMargin/DockVBox"]
+[node name="PowerHint" type="VBoxContainer" parent="Margin/VBox/Center/BoardColumn/PowerDock/DockMargin/DockVBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="PowerHintLabel" type="Label" parent="Margin/VBox/PowerDock/DockMargin/DockVBox/PowerHint"]
+[node name="PowerHintLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/PowerDock/DockMargin/DockVBox/PowerHint"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 0.35, 0.55, 1)
@@ -282,7 +302,7 @@ text = "Tap a die to use this power"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="CancelPowerBtn" type="Button" parent="Margin/VBox/PowerDock/DockMargin/DockVBox/PowerHint"]
+[node name="CancelPowerBtn" type="Button" parent="Margin/VBox/Center/BoardColumn/PowerDock/DockMargin/DockVBox/PowerHint"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
@@ -1032,7 +1052,7 @@ text = "Restart (−1 ♥)"
 
 [connection signal="pressed" from="ModalLevelUp/Center/Card/CardMargin/VBox/LevelUpKeepPowers" to="." method="_on_level_up_keep_powers_pressed"]
 [connection signal="pressed" from="Margin/VBox/Header/TopRow/Back" to="." method="_on_back_pressed"]
-[connection signal="pressed" from="Margin/VBox/Header/TopRow/RestartBtn" to="." method="_on_restart_pressed"]
+[connection signal="pressed" from="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow/LevelGroup/RestartBtn" to="." method="_on_restart_pressed"]
 [connection signal="pressed" from="ModalRound/Center/Card/CardMargin/VBox/Continue" to="." method="_on_continue_round_pressed"]
 [connection signal="pressed" from="ModalVictory/Center/Card/CardMargin/VBox/Endless" to="." method="_on_endless_pressed"]
 [connection signal="pressed" from="ModalVictory/Center/Card/CardMargin/VBox/Menu" to="." method="_on_menu_from_over_pressed"]
