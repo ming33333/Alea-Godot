@@ -58,56 +58,56 @@ func _cache_styles() -> void:
 	_styles[FACE_LOCKED] = _make_face_style(
 		Color(0.82, 0.84, 0.88),
 		Color(0.45, 0.48, 0.52),
-		2,
-		8
+		3,
+		12
 	)
 	_styles[FACE_SELECTED] = _make_face_style(
 		Color(0.88, 0.94, 1.0),
 		Color(0.15, 0.4, 0.92),
-		4,
-		8
+		6,
+		12
 	)
 	_styles[FACE_BLURRED] = _make_face_style(
 		Color(0.94, 0.94, 0.96),
 		Color(0.6, 0.62, 0.68),
-		2,
-		8
+		3,
+		12
 	)
 	_styles[FACE_SWITCH_VALID] = _make_face_style(
 		Color(0.9, 0.98, 0.92),
 		Color(0.2, 0.65, 0.35),
-		4,
-		8
+		6,
+		12
 	)
 	_styles[FACE_SWITCH_ROWS_PRIMARY] = _make_face_style(
 		Color(0.9, 0.91, 0.98),
 		Color(0.35, 0.35, 0.85),
-		4,
-		8
+		6,
+		12
 	)
 	_styles[FACE_SWITCH_ROWS_PICKABLE] = _make_face_style(
 		Color(0.94, 0.94, 0.99),
 		Color(0.55, 0.58, 0.82),
-		3,
-		8
+		5,
+		12
 	)
 	_styles[FACE_POWER_CHOOSE] = _make_face_style(
 		Color(0.9, 0.98, 0.93),
 		Color(0.15, 0.6, 0.35),
-		4,
-		8
+		6,
+		12
 	)
 	_styles[FACE_POWER_SET_ANY] = _make_face_style(
 		Color(1.0, 0.96, 0.9),
 		Color(0.9, 0.45, 0.1),
-		4,
-		8
+		6,
+		12
 	)
 	_styles[FACE_POWER_SWITCH_ANY] = _make_face_style(
 		Color(0.95, 0.93, 1.0),
 		Color(0.45, 0.3, 0.75),
-		3,
-		8
+		5,
+		12
 	)
 
 
@@ -119,7 +119,7 @@ func _make_board_face_style() -> StyleBoxTexture:
 	box.texture = atlas
 	box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
 	box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
-	box.set_content_margin_all(3)
+	box.set_content_margin_all(5)
 	return box
 
 
@@ -132,8 +132,8 @@ func _make_face_style(
 	box.set_border_width_all(border_w)
 	box.set_corner_radius_all(radius)
 	box.shadow_color = Color(0, 0, 0, 0.22)
-	box.shadow_size = 3
-	box.shadow_offset = Vector2(0, 2)
+	box.shadow_size = 5
+	box.shadow_offset = Vector2(0, 3)
 	return box
 
 

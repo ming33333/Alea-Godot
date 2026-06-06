@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://c8k2gameplaceholder"]
+[gd_scene load_steps=7 format=3 uid="uid://c8k2gameplaceholder"]
 
 [ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
 [ext_resource type="Texture2D" path="res://assets/textures/dice_board.png" id="2_board"]
@@ -37,6 +37,25 @@ content_margin_top = 10.0
 content_margin_right = 16.0
 content_margin_bottom = 10.0
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hud_stats"]
+bg_color = Color(0.96, 0.97, 0.99, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.84, 0.87, 0.92, 1)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+shadow_color = Color(0, 0, 0, 0.06)
+shadow_size = 6
+shadow_offset = Vector2(0, 3)
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+
 [node name="Game" type="Control"]
 layout_mode = 3
 anchors_preset = 15
@@ -74,90 +93,124 @@ theme_override_constants/separation = 8
 
 [node name="Header" type="VBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 8
 
 [node name="TopRow" type="HBoxContainer" parent="Margin/VBox/Header"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 
 [node name="Back" type="Button" parent="Margin/VBox/Header/TopRow"]
+custom_minimum_size = Vector2(76, 0)
 layout_mode = 2
 text = "Menu"
 
-[node name="RestartBtn" type="Button" parent="Margin/VBox/Header/TopRow"]
-unique_name_in_owner = true
+[node name="TopSpacerLeft" type="Control" parent="Margin/VBox/Header/TopRow"]
 layout_mode = 2
-tooltip_text = "Restart this level (costs 1 heart)"
-text = "Restart"
+size_flags_horizontal = 3
 
 [node name="GymLabel" type="Label" parent="Margin/VBox/Header/TopRow"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.15, 0.2, 0.28, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.12, 0.16, 0.24, 1)
+theme_override_font_sizes/font_size = 26
 text = "Gym"
+horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="StatsRow" type="HBoxContainer" parent="Margin/VBox/Header"]
+[node name="TopSpacerRight" type="Control" parent="Margin/VBox/Header/TopRow"]
 layout_mode = 2
-theme_override_constants/separation = 32
-alignment = 1
+size_flags_horizontal = 3
 
-[node name="LevelColumn" type="VBoxContainer" parent="Margin/VBox/Header/StatsRow"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="LevelLabel" type="Label" parent="Margin/VBox/Header/StatsRow/LevelColumn"]
+[node name="RestartBtn" type="Button" parent="Margin/VBox/Header/TopRow"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(76, 0)
 layout_mode = 2
-custom_minimum_size = Vector2(100, 0)
-theme_override_colors/font_color = Color(0.12, 0.18, 0.32, 1)
-theme_override_font_sizes/font_size = 16
-text = "Level 1"
-horizontal_alignment = 1
-
-[node name="SwitchesLabel" type="Label" parent="Margin/VBox/Header/StatsRow/LevelColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(100, 0)
-theme_override_colors/font_color = Color(0.35, 0.4, 0.5, 1)
-theme_override_font_sizes/font_size = 13
-text = "Switch 5/5"
-horizontal_alignment = 1
-
-[node name="HeartsColumn" type="VBoxContainer" parent="Margin/VBox/Header/StatsRow"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="HeartsLabel" type="Label" parent="Margin/VBox/Header/StatsRow/HeartsColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(100, 0)
-theme_override_colors/font_color = Color(0.55, 0.12, 0.18, 1)
-theme_override_font_sizes/font_size = 16
-text = "♥ 3"
-horizontal_alignment = 1
-
-[node name="RerollsLabel" type="Label" parent="Margin/VBox/Header/StatsRow/HeartsColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(100, 0)
-theme_override_colors/font_color = Color(0.35, 0.4, 0.5, 1)
-theme_override_font_sizes/font_size = 13
-text = "Reroll 15/15"
-horizontal_alignment = 1
+tooltip_text = "Restart this level (costs 1 heart)"
+text = "Restart"
 
 [node name="Center" type="CenterContainer" parent="Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="GridBoard" type="Control" parent="Margin/VBox/Center"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(334, 334)
+[node name="BoardColumn" type="VBoxContainer" parent="Margin/VBox/Center"]
 layout_mode = 2
+custom_minimum_size = Vector2(501, 0)
+size_flags_horizontal = 4
+theme_override_constants/separation = 6
+alignment = 1
 
-[node name="BoardBackdrop" type="NinePatchRect" parent="Margin/VBox/Center/GridBoard"]
+[node name="StatsBar" type="PanelContainer" parent="Margin/VBox/Center/BoardColumn"]
+clip_contents = true
+layout_mode = 2
+custom_minimum_size = Vector2(501, 0)
+size_flags_horizontal = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_hud_stats")
+
+[node name="StatsMargin" type="MarginContainer" parent="Margin/VBox/Center/BoardColumn/StatsBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 12
+
+[node name="StatsRow" type="HBoxContainer" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="LevelLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.18, 0.32, 1)
+theme_override_font_sizes/font_size = 23
+text = "Level 1"
+
+[node name="StatsSep1" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
+theme_override_font_sizes/font_size = 23
+text = "·"
+
+[node name="HeartsLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 23
+text = "♥ 3"
+
+[node name="StatsSep2" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
+theme_override_font_sizes/font_size = 23
+text = "·"
+
+[node name="SwitchesLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.28, 0.34, 0.46, 1)
+theme_override_font_sizes/font_size = 23
+text = "Switch 5/5"
+
+[node name="StatsSep3" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
+theme_override_font_sizes/font_size = 23
+text = "·"
+
+[node name="RerollsLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.28, 0.34, 0.46, 1)
+theme_override_font_sizes/font_size = 23
+text = "Reroll 15/15"
+
+[node name="GridBoard" type="Control" parent="Margin/VBox/Center/BoardColumn"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(501, 501)
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="BoardBackdrop" type="NinePatchRect" parent="Margin/VBox/Center/BoardColumn/GridBoard"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -167,24 +220,30 @@ grow_vertical = 2
 mouse_filter = 2
 texture = SubResource("AtlasTexture_dice_board_tile")
 texture_filter = 0
-patch_margin_left = 52
-patch_margin_top = 52
-patch_margin_right = 52
-patch_margin_bottom = 64
+patch_margin_left = 78
+patch_margin_top = 78
+patch_margin_right = 78
+patch_margin_bottom = 96
 
-[node name="BoardMargin" type="MarginContainer" parent="Margin/VBox/Center/GridBoard"]
-layout_mode = 2
-theme_override_constants/margin_left = 14
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_right = 14
-theme_override_constants/margin_bottom = 14
+[node name="BoardMargin" type="MarginContainer" parent="Margin/VBox/Center/BoardColumn/GridBoard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 21
+theme_override_constants/margin_top = 21
+theme_override_constants/margin_right = 21
+theme_override_constants/margin_bottom = 21
 
-[node name="Grid" type="GridContainer" parent="Margin/VBox/Center/GridBoard/BoardMargin"]
+[node name="Grid" type="GridContainer" parent="Margin/VBox/Center/BoardColumn/GridBoard/BoardMargin"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(306, 306)
-theme_override_constants/h_separation = 4
-theme_override_constants/v_separation = 4
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
 columns = 5
 
 [node name="PowerDock" type="PanelContainer" parent="Margin/VBox"]
