@@ -469,7 +469,7 @@ func _power_hint_text(power_type: String) -> String:
 
 
 func _cell_highlight(
-	row: int, col: int, _cell: DiceCellData, blurred: bool
+	row: int, col: int, cell: DiceCellData, blurred: bool
 ) -> DieCell.Highlight:
 	if blurred:
 		return DieCell.Highlight.NONE
@@ -493,7 +493,9 @@ func _cell_highlight(
 			if row == session.selected_row and col == session.selected_col:
 				return DieCell.Highlight.SELECTED
 			return DieCell.Highlight.NONE
-		return DieCell.Highlight.POWER_SWITCH_ANY
+		if not cell.locked:
+			return DieCell.Highlight.POWER_SWITCH_ANY
+		return DieCell.Highlight.NONE
 	if row == session.selected_row and col == session.selected_col:
 		return DieCell.Highlight.SELECTED
 	if session.selected_row >= 0 and _can_switch_target(row, col):
