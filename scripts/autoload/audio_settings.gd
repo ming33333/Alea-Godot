@@ -17,6 +17,7 @@ const MUSIC_TRACKS: Array[String] = [
 	"res://assets/music/pause_and_breathe.mp3",
 	"res://assets/music/slow_sleep_state.mp3",
 	"res://assets/music/slow_jazzy_sleep_state.mp3",
+	"res://assets/music/Highlife Fusion.mp3",
 ]
 
 var dice_roll_sound_id: String = DEFAULT_DICE_SOUND
@@ -156,7 +157,7 @@ func _setup_music_player() -> void:
 func start_background_music() -> void:
 	if MUSIC_TRACKS.is_empty():
 		return
-	_music_track_index = 0
+	_music_track_index = _pick_random_music_index()
 	_play_current_music_track()
 
 
@@ -182,7 +183,16 @@ func _on_music_track_finished() -> void:
 func _advance_music_track() -> void:
 	if MUSIC_TRACKS.is_empty():
 		return
-	_music_track_index = (_music_track_index + 1) % MUSIC_TRACKS.size()
+	_music_track_index = _pick_random_music_index(_music_track_index)
+
+
+func _pick_random_music_index(exclude_index: int = -1) -> int:
+	if MUSIC_TRACKS.size() == 1:
+		return 0
+	var next: int = randi() % MUSIC_TRACKS.size()
+	while next == exclude_index:
+		next = randi() % MUSIC_TRACKS.size()
+	return next
 
 
 func get_dice_roll_stream_for_id(sound_id: String) -> AudioStream:
