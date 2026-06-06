@@ -62,6 +62,7 @@ var _pending_click: Vector2i = Vector2i(-1, -1)
 var _dev_panel: DevCheatsPanel
 var _dev_toggle_btn: Button
 var _dice_roll_player: AudioStreamPlayer
+var _dice_swish_player: AudioStreamPlayer
 var _die_cells: Dictionary = {}
 const SINGLE_CLICK_DELAY_SEC := 0.12
 const DOUBLE_CLICK_MS := 350
@@ -115,9 +116,11 @@ func _ready() -> void:
 	session = RunSession.new()
 	session.state_changed.connect(_refresh_ui)
 	session.dice_rerolled.connect(_on_dice_rerolled)
+	session.dice_swished.connect(_on_dice_swished)
 	if not DiceSprites.style_changed.is_connected(_on_dice_style_changed):
 		DiceSprites.style_changed.connect(_on_dice_style_changed)
 	_setup_dice_roll_sfx()
+	_setup_dice_swish_sfx()
 	_setup_dev_cheats()
 	call_deferred("_begin_run")
 
@@ -644,6 +647,18 @@ func _setup_dice_roll_sfx() -> void:
 func _on_dice_rerolled(_row: int, _col: int, _new_value: int) -> void:
 	if _dice_roll_player and _dice_roll_player.stream:
 		_dice_roll_player.play()
+
+
+func _setup_dice_swish_sfx() -> void:
+	_dice_swish_player = AudioStreamPlayer.new()
+	_dice_swish_player.stream = AudioSettings.get_dice_swish_stream()
+	_dice_swish_player.bus = &"Master"
+	add_child(_dice_swish_player)
+
+
+func _on_dice_swished() -> void:
+	if _dice_swish_player and _dice_swish_player.stream:
+		_dice_swish_player.play()
 
 
 func _on_dice_style_changed() -> void:

@@ -12,6 +12,7 @@ const DICE_SOUND_PATHS: Dictionary = {
 }
 
 const DICE_SOUND_ORDER: Array[String] = ["default", "roll_2", "roll_3"]
+const DICE_SWISH_PATH := "res://assets/sfx/thud.mp3"
 
 const MUSIC_TRACKS: Array[String] = [
 	"res://assets/music/pause_and_breathe.mp3",
@@ -208,6 +209,14 @@ func get_dice_roll_stream_for_id(sound_id: String) -> AudioStream:
 
 func get_dice_roll_stream() -> AudioStream:
 	return get_dice_roll_stream_for_id(dice_roll_sound_id)
+
+
+func get_dice_swish_stream() -> AudioStream:
+	var stream: Resource = load(DICE_SWISH_PATH)
+	if stream is AudioStream:
+		return stream as AudioStream
+	push_warning("AudioSettings: missing dice swish sound at %s" % DICE_SWISH_PATH)
+	return null
 
 
 func preview_dice_roll_sound(sound_id: String) -> void:

@@ -3,6 +3,7 @@ extends RefCounted
 
 signal state_changed
 signal dice_rerolled(row: int, col: int, new_value: int)
+signal dice_swished
 signal show_modal(modal: String)
 signal hide_modal(modal: String)
 
@@ -535,6 +536,7 @@ func _swap_values(r1: int, c1: int, r2: int, c2: int) -> void:
 	var t: int = grid[r1][c1].value
 	grid[r1][c1].value = grid[r2][c2].value
 	grid[r2][c2].value = t
+	dice_swished.emit()
 
 
 func _apply_second_chances(r1: int, r2: int, col: int) -> void:
@@ -631,6 +633,7 @@ func _swap_rows(first: int, second: int) -> void:
 					)
 				new_row.append(nc)
 			grid[ri] = new_row
+	dice_swished.emit()
 
 
 func _handle_pattern_pick(row: int, col: int) -> void:
