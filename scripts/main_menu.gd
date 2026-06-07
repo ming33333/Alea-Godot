@@ -23,7 +23,7 @@ const DECK_PILLAR_SIDE_MARGIN := 24.0
 
 @onready var map_area: Control = %MapArea
 @onready var deck_pillars: HBoxContainer = %DeckPillars
-@onready var badges_row: VBoxContainer = %BadgesRow
+@onready var badges_row: HBoxContainer = %BadgesRow
 @onready var championship_btn: Button = %ChampionshipBtn
 @onready var champion_badge: Label = %ChampionBadge
 @onready var celebration: PanelContainer = %ChampionCelebration

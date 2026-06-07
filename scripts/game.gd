@@ -14,7 +14,8 @@ const POWER_DIE_BUTTON: PackedScene = preload("res://scenes/power_die_button.tsc
 @onready var grid_board: Control = %GridBoard
 @onready var board_backdrop: NinePatchRect = %BoardBackdrop
 @onready var board_margin: MarginContainer = %BoardMargin
-@onready var power_dock: PanelContainer = %PowerDock
+@onready var power_dock: Control = %PowerDock
+@onready var power_backdrop: NinePatchRect = %PowerBackdrop
 @onready var power_bar: HBoxContainer = %PowerBar
 @onready var power_hint: VBoxContainer = %PowerHint
 @onready var power_hint_label: Label = %PowerHintLabel
@@ -74,6 +75,10 @@ const REF_GRID_SEP := 6.0
 const REF_BOARD_INSET := 21.0
 const REF_POWER_CHIP := 62.0
 const REF_POWER_BAR_SEP := 10.0
+const REF_POWER_PATCH_LEFT := 35.0
+const REF_POWER_PATCH_TOP := 14.0
+const REF_POWER_PATCH_RIGHT := 35.0
+const REF_POWER_PATCH_BOTTOM := 16.0
 
 var _board_size: float = REF_BOARD_SIZE
 var _power_chip_size: int = int(REF_POWER_CHIP)
@@ -329,7 +334,11 @@ func _layout_boards() -> void:
 		grid_container.add_theme_constant_override("v_separation", grid_sep)
 	if power_dock:
 		power_dock.custom_minimum_size = Vector2(board_px, power_h)
-		power_dock.add_theme_stylebox_override("panel", _make_power_board_style(layout_scale))
+	if power_backdrop:
+		power_backdrop.patch_margin_left = int(round(REF_POWER_PATCH_LEFT * layout_scale))
+		power_backdrop.patch_margin_top = int(round(REF_POWER_PATCH_TOP * layout_scale))
+		power_backdrop.patch_margin_right = int(round(REF_POWER_PATCH_RIGHT * layout_scale))
+		power_backdrop.patch_margin_bottom = int(round(REF_POWER_PATCH_BOTTOM * layout_scale))
 	if power_bar:
 		power_bar.add_theme_constant_override("separation", power_bar_sep)
 
@@ -360,20 +369,6 @@ func _apply_power_chip_sizes() -> void:
 	for child in power_bar.get_children():
 		if child is PowerDieButton:
 			(child as PowerDieButton).set_chip_size(_power_chip_size)
-
-
-func _make_power_board_style(layout_scale: float) -> StyleBoxTexture:
-	var tex: Texture2D = load("res://assets/textures/powerup_board.png") as Texture2D
-	var box := StyleBoxTexture.new()
-	box.texture = tex
-	box.texture_margin_left = int(round(40.0 * layout_scale))
-	box.texture_margin_top = int(round(40.0 * layout_scale))
-	box.texture_margin_right = int(round(40.0 * layout_scale))
-	box.texture_margin_bottom = int(round(48.0 * layout_scale))
-	box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
-	box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
-	box.set_content_margin_all(maxi(8, int(round(18.0 * layout_scale))))
-	return box
 
 
 func _power_short_label(power_type: String, def: Dictionary) -> String:

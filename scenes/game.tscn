@@ -1,11 +1,16 @@
-[gd_scene load_steps=7 format=3 uid="uid://c8k2gameplaceholder"]
+[gd_scene load_steps=9 format=3 uid="uid://c8k2gameplaceholder"]
 
 [ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
 [ext_resource type="Texture2D" path="res://assets/textures/dice_board.png" id="2_board"]
+[ext_resource type="Texture2D" path="res://assets/textures/powerup_board.png" id="3_powerup"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_dice_board_tile"]
 atlas = ExtResource("2_board")
 region = Rect2(124, 130, 264, 258)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_powerup_board_tile"]
+atlas = ExtResource("3_powerup")
+region = Rect2(39, 98, 178, 60)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_modal_card"]
 bg_color = Color(1, 1, 1, 1)
@@ -261,15 +266,35 @@ theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 6
 columns = 5
 
-[node name="PowerDock" type="PanelContainer" parent="Margin/VBox/Center/BoardColumn"]
+[node name="PowerDock" type="Control" parent="Margin/VBox/Center/BoardColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(501, 100)
 size_flags_horizontal = 4
 
+[node name="PowerBackdrop" type="NinePatchRect" parent="Margin/VBox/Center/BoardColumn/PowerDock"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("AtlasTexture_powerup_board_tile")
+texture_filter = 0
+patch_margin_left = 35
+patch_margin_top = 14
+patch_margin_right = 35
+patch_margin_bottom = 16
+
 [node name="DockMargin" type="MarginContainer" parent="Margin/VBox/Center/BoardColumn/PowerDock"]
-layout_mode = 2
-size_flags_vertical = 3
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_constants/margin_left = 4
 theme_override_constants/margin_top = 2
 theme_override_constants/margin_right = 4
