@@ -37,6 +37,8 @@ func has_badge(gym_id: String) -> bool:
 
 
 func has_all_menu_badges() -> bool:
+	if GameData.menu_gym_modes.is_empty():
+		return false
 	for g in GameData.menu_gym_modes:
 		if not has_badge(str(g.get("id", ""))):
 			return false

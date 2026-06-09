@@ -1,30 +1,33 @@
 extends Control
 
-const ORB_SIZE := 48.0
-const ORB_RADIUS := int(ORB_SIZE * 0.5)
+const ORB_SIZE := 72.0
+const ORB_ABOVE_PILLAR_GAP := 2.0
+const PILLAR_TEXTURE_SRC_HEIGHT := 222.0
+const PILLAR_TEXTURE_VISIBLE_TOP := 75.0
 const TOOLTIP_GAP := 14.0
-const DRAG_THRESHOLD_PX := 8.0
 const GAME_SCENE: PackedScene = preload("res://scenes/game.tscn")
 
 const GYM_ORB_COLORS: Dictionary = {
-	"vanilla": Color(0.25, 0.82, 0.48, 0.88),
-	"orderedReroll": Color(0.35, 0.52, 0.95, 0.88),
-	"countdownOne": Color(0.95, 0.72, 0.12, 0.88),
-	"countdownAll": Color(0.12, 0.72, 0.88, 0.88),
-	"twoSlots": Color(0.62, 0.38, 0.88, 0.88),
-	"middleStraight": Color(0.92, 0.32, 0.28, 0.88),
+	"vanilla": Color(0.52, 0.68, 0.54, 0.9),
+	"orderedReroll": Color(0.55, 0.62, 0.78, 0.9),
+	"countdownOne": Color(0.85, 0.68, 0.42, 0.9),
+	"countdownAll": Color(0.50, 0.66, 0.72, 0.9),
+	"twoSlots": Color(0.65, 0.55, 0.72, 0.9),
+	"middleStraight": Color(0.80, 0.52, 0.44, 0.9),
 }
-const GYM_ORB_FALLBACK_COLOR := Color(0.55, 0.55, 0.62, 0.88)
+const GYM_ORB_FALLBACK_COLOR := Color(0.62, 0.60, 0.58, 0.9)
 const BADGE_ICON_SIZE := 40.0
 const DECK_PILLAR_HEIGHT := 360.0
 const DECK_PILLAR_WIDTH := 112.0
 const DECK_BOTTOM_SCREEN_FRACTION := 0.15
 const DECK_PILLAR_SIDE_MARGIN := 24.0
+const PORTAL_HEIGHT_SCALE := 1.2
+const PORTAL_CENTER_Y_FRACTION := 0.36
 
 @onready var map_area: Control = %MapArea
+@onready var champion_portal: TextureButton = %ChampionPortal
 @onready var deck_pillars: HBoxContainer = %DeckPillars
 @onready var badges_row: HBoxContainer = %BadgesRow
-@onready var championship_btn: Button = %ChampionshipBtn
 @onready var champion_badge: Label = %ChampionBadge
 @onready var celebration: PanelContainer = %ChampionCelebration
 @onready var gym_tooltip: PanelContainer = %GymTooltip
@@ -35,18 +38,13 @@ const DECK_PILLAR_SIDE_MARGIN := 24.0
 @onready var tooltip_footer: Label = %TooltipFooter
 @onready var river_video: VideoStreamPlayer = %River
 
-var _layout: Dictionary = {}
-var _drag_gym_id: String = ""
-var _drag_orb: Control = null
-var _drag_offset: Vector2 = Vector2.ZERO
-var _drag_start: Vector2 = Vector2.ZERO
-var _drag_moved: bool = false
 var _hover_gym_id: String = ""
 var _launching: bool = false
 var _click_seq: int = 0
 var _orb_build_attempts: int = 0
-var _last_orb_map_size: Vector2 = Vector2.ZERO
+var _portal_layout_attempts: int = 0
 const MAX_ORB_BUILD_ATTEMPTS := 60
+const MAX_PORTAL_LAYOUT_ATTEMPTS := 40
 
 
 func _ready() -> void:
@@ -54,18 +52,15 @@ func _ready() -> void:
 	_setup_river_background()
 	if not resized.is_connected(_layout_deck_pillars):
 		resized.connect(_layout_deck_pillars)
-	_layout = SaveService.get_menu_layout()
 	gym_tooltip.visible = false
 	if map_area == null:
 		DebugLog.log_error("MainMenu", "@onready MapArea is null")
 	else:
-		map_area.mouse_filter = Control.MOUSE_FILTER_STOP
+		map_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		map_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		map_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		if not map_area.resized.is_connected(_on_map_area_resized):
 			map_area.resized.connect(_on_map_area_resized)
-		if not map_area.gui_input.is_connected(_on_map_area_gui_input):
-			map_area.gui_input.connect(_on_map_area_gui_input)
 		DebugLog.alea_log(
 			"MainMenu",
 			"MapArea size=%s global_rect=%s filter=%s"
@@ -80,6 +75,7 @@ func _ready() -> void:
 	call_deferred("_build_orbs")
 	_layout_deck_pillars()
 	_refresh_badges()
+	call_deferred("_refresh_champion_portal")
 	champion_badge.visible = SaveService.is_dice_champion()
 	celebration.visible = GameState.show_champion_celebration
 	DebugLog.alea_log(
@@ -96,12 +92,11 @@ func _ready() -> void:
 		DebugLog.alea_log("MainMenu", "WARN: champion popup is open — dismiss it to click gyms")
 	else:
 		celebration.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	championship_btn.tooltip_text = (
-		"Dice Master Championship\n"
-		+"Pick three powers and defeat three opponents in a row to become Dice Champion."
-	)
-	championship_btn.mouse_entered.connect(_on_championship_hover)
-	championship_btn.mouse_exited.connect(_hide_gym_tooltip)
+	if champion_portal:
+		champion_portal.tooltip_text = (
+			"Dice Master Championship\n"
+			+ "Pick three powers and defeat three opponents in a row to become Dice Champion."
+		)
 
 
 func _map_area_ready() -> bool:
@@ -111,10 +106,8 @@ func _map_area_ready() -> bool:
 func _on_map_area_resized() -> void:
 	if not _map_area_ready():
 		return
-	if map_area.size == _last_orb_map_size:
-		return
 	DebugLog.alea_log("MainMenu", "MapArea resized -> %s, rebuilding orbs" % map_area.size)
-	_build_orbs()
+	call_deferred("_build_orbs")
 
 
 func _layout_deck_pillars() -> void:
@@ -131,6 +124,56 @@ func _layout_deck_pillars() -> void:
 		if child is TextureRect:
 			var pillar := child as TextureRect
 			pillar.custom_minimum_size = Vector2(DECK_PILLAR_WIDTH, DECK_PILLAR_HEIGHT)
+	if _map_area_ready():
+		call_deferred("_build_orbs")
+	if champion_portal != null and champion_portal.visible:
+		call_deferred("_layout_champion_portal")
+
+
+func _should_show_champion_portal() -> bool:
+	var menu_count: int = GameData.menu_gym_modes.size()
+	if menu_count <= 0:
+		return false
+	return SaveService.get_earned_badges().size() >= menu_count and SaveService.has_all_menu_badges()
+
+
+func _portal_texture_size() -> Vector2:
+	if champion_portal != null and champion_portal.texture_normal != null:
+		return champion_portal.texture_normal.get_size()
+	return Vector2(128.0, 256.0)
+
+
+func _refresh_champion_portal() -> void:
+	if champion_portal == null:
+		return
+	var show: bool = _should_show_champion_portal()
+	champion_portal.visible = show
+	if show:
+		call_deferred("_layout_champion_portal")
+
+
+func _layout_champion_portal() -> void:
+	if champion_portal == null or not champion_portal.visible or deck_pillars == null:
+		return
+	var pillar_rect := deck_pillars.get_global_rect()
+	if pillar_rect.size.x < 32.0 or pillar_rect.size.y < 32.0:
+		_portal_layout_attempts += 1
+		if _portal_layout_attempts < MAX_PORTAL_LAYOUT_ATTEMPTS:
+			call_deferred("_layout_champion_portal")
+		return
+	_portal_layout_attempts = 0
+	var tex_size: Vector2 = _portal_texture_size()
+	var portal_h: float = DECK_PILLAR_HEIGHT * PORTAL_HEIGHT_SCALE
+	var portal_w: float = portal_h * (tex_size.x / tex_size.y)
+	var center_global := Vector2(
+		pillar_rect.get_center().x,
+		pillar_rect.position.y + pillar_rect.size.y * PORTAL_CENTER_Y_FRACTION
+	)
+	var top_left_global := center_global - Vector2(portal_w * 0.5, portal_h * 0.5)
+	var local_top_left: Vector2 = get_global_transform_with_canvas().affine_inverse() * top_left_global
+	champion_portal.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	champion_portal.position = local_top_left
+	champion_portal.size = Vector2(portal_w, portal_h)
 
 
 func _build_orbs() -> void:
@@ -158,19 +201,22 @@ func _build_orbs() -> void:
 		"building orbs in MapArea size=%s global_rect=%s"
 		% [map_area.size, map_area.get_global_rect()]
 	)
+	var pillar_idx := 0
 	for gym in GameData.menu_gym_modes:
 		var gid: String = str(gym.get("id", ""))
 		if gid.is_empty():
 			continue
-		var pos: Dictionary = _layout.get(gid, {"x": 50, "y": 50})
-		var orb := _make_orb(gym, float(pos.x), float(pos.y))
+		var orb := _make_orb(gym, pillar_idx)
+		var base_pos := _orb_position_above_pillar(pillar_idx)
+		orb.set_float_base(base_pos)
+		orb.configure_float(float(pillar_idx) * 0.85)
 		map_area.add_child(orb)
 		DebugLog.alea_log(
 			"MainMenu",
-			"orb %s pos=%s size=%s global_rect=%s"
-			% [gid, orb.position, orb.size, orb.get_global_rect()]
+			"orb %s pillar=%d pos=%s size=%s global_rect=%s"
+			% [gid, pillar_idx, orb.position, orb.size, orb.get_global_rect()]
 		)
-	_last_orb_map_size = map_area.size
+		pillar_idx += 1
 	DebugLog.alea_log(
 		"MainMenu",
 		"built %d orbs (map_area children=%d)"
@@ -184,45 +230,41 @@ func _orb_color_for_gym(gym_id: String) -> Color:
 	return GYM_ORB_FALLBACK_COLOR
 
 
-func _make_orb_style(fill: Color) -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = fill
-	box.set_corner_radius_all(ORB_RADIUS)
-	box.shadow_color = Color(0, 0, 0, 0.45)
-	box.shadow_size = 6
-	box.shadow_offset = Vector2(0, 3)
-	return box
+func _orb_position_above_pillar(pillar_index: int) -> Vector2:
+	if deck_pillars == null or map_area == null:
+		return Vector2.ZERO
+	var pillars := deck_pillars.get_children()
+	if pillar_index < 0 or pillar_index >= pillars.size():
+		return Vector2.ZERO
+	var pillar := pillars[pillar_index] as Control
+	if pillar == null:
+		return Vector2.ZERO
+	var pillar_rect := pillar.get_global_rect()
+	var visible_top_y := pillar_rect.position.y + pillar_rect.size.y * (
+		PILLAR_TEXTURE_VISIBLE_TOP / PILLAR_TEXTURE_SRC_HEIGHT
+	)
+	var top_center_global := Vector2(pillar_rect.get_center().x, visible_top_y)
+	var local := map_area.get_global_transform_with_canvas().affine_inverse() * top_center_global
+	return Vector2(
+		local.x - ORB_SIZE * 0.5,
+		local.y - ORB_SIZE - ORB_ABOVE_PILLAR_GAP
+	)
 
 
-func _apply_orb_styles(btn: Button, gym_id: String, _earned: bool) -> void:
-	var base: Color = _orb_color_for_gym(gym_id)
-	var empty := StyleBoxEmpty.new()
-	btn.add_theme_stylebox_override("focus", empty)
-	btn.add_theme_stylebox_override("disabled", empty)
-	btn.add_theme_stylebox_override("normal", _make_orb_style(base))
-	btn.add_theme_stylebox_override("hover", _make_orb_style(base.lightened(0.12)))
-	btn.add_theme_stylebox_override("pressed", _make_orb_style(base.darkened(0.08)))
-
-
-func _make_orb(gym: Dictionary, px: float, py: float) -> Button:
+func _make_orb(gym: Dictionary, pillar_index: int) -> PixelGymOrb:
 	var gid: String = gid_str(gym)
-	var btn := Button.new()
+	var btn := PixelGymOrb.new()
 	btn.name = "Orb_%s" % gid
 	btn.z_index = 2
-	btn.position = _pct_to_pos(px, py)
 	btn.custom_minimum_size = Vector2(ORB_SIZE, ORB_SIZE)
 	btn.size = Vector2(ORB_SIZE, ORB_SIZE)
-	btn.text = ""
-	btn.flat = false
-	btn.focus_mode = Control.FOCUS_NONE
 	btn.tooltip_text = _gym_tooltip_plaintext(gym)
-	var earned: bool = SaveService.has_badge(gid)
-	_apply_orb_styles(btn, gid, earned)
+	btn.set_orb_color(_orb_color_for_gym(gid))
 	btn.mouse_entered.connect(_on_orb_hover.bind(gym, btn))
 	btn.mouse_exited.connect(_on_orb_unhover.bind(gym))
-	btn.button_down.connect(_on_orb_button_down.bind(gid, btn))
 	btn.pressed.connect(_on_orb_pressed.bind(gid))
 	btn.set_meta("gym_id", gid)
+	btn.set_meta("pillar_index", pillar_index)
 	return btn
 
 
@@ -254,15 +296,13 @@ func _populate_tooltip(gym: Dictionary) -> void:
 	tooltip_body.text = str(gym.get("description", ""))
 	var earned: bool = SaveService.has_badge(gid)
 	var badge_label: String = "Badge earned" if earned else "Badge locked"
-	tooltip_footer.text = "%s · %s · drag to move · click to play" % [
+	tooltip_footer.text = "%s · %s · click to play" % [
 		gym.get("badge_name", ""),
 		badge_label,
 	]
 
 
 func _on_orb_hover(gym: Dictionary, orb: Control) -> void:
-	if _drag_gym_id != "":
-		return
 	DebugLog.alea_log("MainMenu", "hover gym=%s orb_rect=%s" % [gid_str(gym), orb.get_global_rect()])
 	_hover_gym_id = gid_str(gym)
 	_populate_tooltip(gym)
@@ -276,6 +316,8 @@ func _on_orb_unhover(gym: Dictionary) -> void:
 
 
 func _on_championship_hover() -> void:
+	if champion_portal == null or not champion_portal.visible:
+		return
 	_hover_gym_id = "championship"
 	if tooltip_badge:
 		tooltip_badge.visible = false
@@ -283,11 +325,16 @@ func _on_championship_hover() -> void:
 	tooltip_subtitle.text = "Tournament mode"
 	tooltip_body.text = (
 		"Choose three powers, then beat three special opponents in a row. "
-		+"Win the final match to earn the Dice Champion title on the map."
+		+ "Win the final match to earn the Dice Champion title on the map."
 	)
-	tooltip_footer.text = "Requires all gym badges · click to enter"
+	tooltip_footer.text = "All gym badges earned · click to enter"
 	gym_tooltip.visible = true
-	call_deferred("_position_tooltip_near_control", championship_btn)
+	call_deferred("_position_tooltip_near_control", champion_portal)
+
+
+func _on_championship_unhover() -> void:
+	if _hover_gym_id == "championship":
+		_hide_gym_tooltip()
 
 
 func _hide_gym_tooltip() -> void:
@@ -342,130 +389,11 @@ func _log_gym_click(phase: String, gym_id: String, detail: String = "") -> void:
 	DebugLog.alea_log("MainMenu", line)
 
 
-func _pct_to_pos(x: float, y: float) -> Vector2:
-	var r := map_area.size
-	return Vector2(r.x * x / 100.0 - ORB_SIZE / 2, r.y * y / 100.0 - ORB_SIZE / 2)
-
-
-func _pos_to_pct(pos: Vector2) -> Vector2:
-	var r := map_area.size
-	if r.x < 1.0 or r.y < 1.0:
-		return Vector2(50, 50)
-	return Vector2(
-		(pos.x + ORB_SIZE / 2) / r.x * 100.0,
-		(pos.y + ORB_SIZE / 2) / r.y * 100.0
-	)
-
-
-func _find_orb(gym_id: String) -> Control:
-	var node_name := "Orb_%s" % gym_id
-	return map_area.get_node_or_null(node_name) as Control
-
-
-func _gym_id_at_global(global_pos: Vector2) -> String:
-	for child in map_area.get_children():
-		if child is Control and child.get_global_rect().has_point(global_pos):
-			return str(child.get_meta("gym_id", ""))
-	return ""
-
-
-func _on_map_area_gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
-		if mb.button_index != MOUSE_BUTTON_LEFT:
-			return
-		var hit_id := _gym_id_at_global(mb.global_position)
-		if mb.pressed:
-			if hit_id.is_empty():
-				DebugLog.alea_log(
-					"MainMenu",
-					"[%d] map_area press MISS global=%s"
-					% [_click_seq + 1, mb.global_position]
-				)
-				return
-			_log_gym_click("PRESS", hit_id, "global=%s" % mb.global_position)
-			var orb := _find_orb(hit_id)
-			if orb != null:
-				_on_orb_button_down(hit_id, orb)
-			else:
-				DebugLog.log_error("MainMenu", "hit gym %s but orb node missing" % hit_id)
-		elif _drag_gym_id != "":
-			_log_gym_click("RELEASE", _drag_gym_id, "via map_area")
-			_mark_input_handled()
-			_finish_orb_pointer()
-
-
-func _on_orb_button_down(gym_id: String, orb: Control) -> void:
-	_click_seq += 1
-	_log_gym_click(
-		"DOWN",
-		gym_id,
-		"orb=%s map_mouse=%s" % [orb.name, map_area.get_local_mouse_position()]
-	)
-	_hide_gym_tooltip()
-	_drag_gym_id = gym_id
-	_drag_orb = orb
-	_drag_moved = false
-	_drag_start = map_area.get_local_mouse_position()
-	_drag_offset = orb.position - _drag_start
-
-
 func _on_orb_pressed(gym_id: String) -> void:
-	_log_gym_click(
-		"PRESSED",
-		gym_id,
-		"drag_moved=%s active_drag=%s" % [_drag_moved, _drag_gym_id]
-	)
-	if _drag_moved:
-		return
+	_click_seq += 1
+	_log_gym_click("PRESSED", gym_id, "launching gym")
+	_hide_gym_tooltip()
 	_launch_gym(gym_id)
-
-
-func _input(event: InputEvent) -> void:
-	if _drag_gym_id == "":
-		return
-	if event is InputEventMouseMotion:
-		var mm := event as InputEventMouseMotion
-		if (mm.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
-			_update_orb_drag()
-	elif event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed:
-			_log_gym_click("RELEASE", _drag_gym_id, "via _input global=%s" % mb.global_position)
-			_mark_input_handled()
-			_finish_orb_pointer()
-
-
-func _update_orb_drag() -> void:
-	if _drag_orb == null:
-		return
-	var local_mouse := map_area.get_local_mouse_position()
-	if not _drag_moved and local_mouse.distance_to(_drag_start) > DRAG_THRESHOLD_PX:
-		_drag_moved = true
-		DebugLog.alea_log("MainMenu", "[%d] drag started gym=%s" % [_click_seq, _drag_gym_id])
-	if _drag_moved:
-		_drag_orb.position = local_mouse + _drag_offset
-
-
-func _finish_orb_pointer() -> void:
-	if _drag_gym_id == "":
-		DebugLog.alea_log("MainMenu", "[%d] _finish_orb_pointer called but no active drag" % _click_seq)
-		return
-	var gym_id := _drag_gym_id
-	var orb: Control = _drag_orb
-	var was_drag := _drag_moved
-	_drag_gym_id = ""
-	_drag_orb = null
-	_drag_moved = false
-	if was_drag and orb != null:
-		var pct := _pos_to_pct(orb.position)
-		SaveService.save_orb_position(gym_id, pct.x, pct.y)
-		DebugLog.alea_log("MainMenu", "[%d] saved orb position gym=%s pct=(%.1f,%.1f)" % [
-			_click_seq, gym_id, pct.x, pct.y
-		])
-	else:
-		_log_gym_click("CONFIRMED", gym_id, "short click (not drag) -> launching")
-		_launch_gym(gym_id)
 
 
 func _launch_gym(gym_id: String) -> void:
@@ -514,7 +442,7 @@ func _refresh_badges() -> void:
 		c.queue_free()
 	for bid in SaveService.get_earned_badges():
 		badges_row.add_child(_make_badge_icon(bid))
-	championship_btn.visible = SaveService.has_all_menu_badges()
+	_refresh_champion_portal()
 
 
 func _on_badges_changed() -> void:
@@ -562,7 +490,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			var action: String = "DOWN" if mb.pressed else "UP"
 			DebugLog.log_hovered(
 				"MainMenu",
-				"[%d] unhandled mouse_%s drag_id=%s" % [_click_seq, action, _drag_gym_id]
+				"[%d] unhandled mouse_%s" % [_click_seq, action]
 			)
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key := event as InputEventKey

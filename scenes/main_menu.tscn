@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://bqx7mainmenu01"]
+[gd_scene load_steps=6 format=3 uid="uid://bqx7mainmenu01"]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
 [ext_resource type="VideoStream" path="res://assets/textures/river.ogv" id="2_river"]
 [ext_resource type="Texture2D" path="res://assets/textures/pillars.png" id="3_pillars"]
+[ext_resource type="Texture2D" path="res://assets/textures/portal.png" id="4_portal"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gym_tooltip"]
 bg_color = Color(0.08, 0.1, 0.14, 0.96)
@@ -43,6 +44,17 @@ mouse_filter = 2
 stream = ExtResource("2_river")
 autoplay = true
 expand = true
+
+[node name="ChampionPortal" type="TextureButton" parent="."]
+unique_name_in_owner = true
+visible = false
+z_index = 1
+layout_mode = 0
+focus_mode = 0
+texture_filter = 0
+texture_normal = ExtResource("4_portal")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="DeckPillars" type="HBoxContainer" parent="."]
 unique_name_in_owner = true
@@ -127,6 +139,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 16
@@ -189,13 +202,8 @@ text = "Settings"
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
+mouse_filter = 2
 theme_override_constants/separation = 8
-
-[node name="ChampionshipBtn" type="Button" parent="Margin/VBox"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-text = "Dice Master Championship"
 
 [node name="MapArea" type="Control" parent="Margin/VBox"]
 unique_name_in_owner = true
@@ -292,5 +300,7 @@ layout_mode = 2
 text = "Continue"
 
 [connection signal="pressed" from="SettingsBtn" to="." method="_on_settings_pressed"]
-[connection signal="pressed" from="Margin/VBox/ChampionshipBtn" to="." method="_on_championship_pressed"]
+[connection signal="mouse_entered" from="ChampionPortal" to="." method="_on_championship_hover"]
+[connection signal="mouse_exited" from="ChampionPortal" to="." method="_on_championship_unhover"]
+[connection signal="pressed" from="ChampionPortal" to="." method="_on_championship_pressed"]
 [connection signal="pressed" from="ChampionCelebration/VBox/Ok" to="." method="_on_celebration_dismiss"]
