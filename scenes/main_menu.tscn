@@ -1,9 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://bqx7mainmenu01"]
+[gd_scene load_steps=8 format=3 uid="uid://bqx7mainmenu01"]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
 [ext_resource type="VideoStream" path="res://assets/textures/river.ogv" id="2_river"]
 [ext_resource type="Texture2D" path="res://assets/textures/pillars.png" id="3_pillars"]
 [ext_resource type="Texture2D" path="res://assets/textures/portal.png" id="4_portal"]
+[ext_resource type="Texture2D" path="res://assets/textures/closed_box.png" id="5_closed_box"]
+[ext_resource type="Texture2D" path="res://assets/textures/opened_box.png" id="6_opened_box"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gym_tooltip"]
 bg_color = Color(0.08, 0.1, 0.14, 0.96)
@@ -172,11 +174,35 @@ grow_vertical = 0
 theme_override_constants/separation = 6
 alignment = 0
 
-[node name="BadgesRow" type="HBoxContainer" parent="BadgeBlock"]
+[node name="BadgeBoxWrap" type="HBoxContainer" parent="BadgeBlock"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 2
+
+[node name="BadgeBoxBtn" type="TextureButton" parent="BadgeBlock/BadgeBoxWrap"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+texture_filter = 0
+texture_normal = ExtResource("5_closed_box")
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="BadgeSlideClip" type="Control" parent="BadgeBlock/BadgeBoxWrap"]
+unique_name_in_owner = true
+clip_contents = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="BadgesRow" type="HBoxContainer" parent="BadgeBlock/BadgeBoxWrap/BadgeSlideClip"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
 theme_override_constants/separation = 6
-alignment = 0
+alignment = 1
 
 [node name="ChampionBadge" type="Label" parent="BadgeBlock"]
 unique_name_in_owner = true
@@ -299,6 +325,7 @@ horizontal_alignment = 1
 layout_mode = 2
 text = "Continue"
 
+[connection signal="pressed" from="BadgeBlock/BadgeBoxWrap/BadgeBoxBtn" to="." method="_on_badge_box_pressed"]
 [connection signal="pressed" from="SettingsBtn" to="." method="_on_settings_pressed"]
 [connection signal="mouse_entered" from="ChampionPortal" to="." method="_on_championship_hover"]
 [connection signal="mouse_exited" from="ChampionPortal" to="." method="_on_championship_unhover"]

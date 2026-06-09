@@ -4,7 +4,12 @@ extends RefCounted
 static func pick_opponents(count: int) -> Array[String]:
 	var pool: Array[String] = []
 	for o in GameData.tournament_opponents:
-		pool.append(str(o.get("id", "")))
+		var oid: String = str(o.get("id", ""))
+		if not oid.is_empty():
+			pool.append(oid)
+	if pool.is_empty():
+		push_error("TournamentRules: no opponents loaded from GameData")
+		return []
 	pool.shuffle()
 	return pool.slice(0, mini(count, pool.size()))
 

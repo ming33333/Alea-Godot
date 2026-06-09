@@ -3,6 +3,7 @@ extends Node
 const TAG := "GameState"
 
 var selected_gym_id: String = "vanilla"
+var championship_active: bool = false
 var tournament_loadout: Array = []
 var tournament_opponents: Array = []
 var tournament_opponent_index: int = 0
@@ -15,7 +16,17 @@ func _ready() -> void:
 
 
 func reset_tournament() -> void:
+	championship_active = false
 	tournament_loadout = []
 	tournament_opponents = []
 	tournament_opponent_index = 0
 	tournament_stolen_power = ""
+
+
+func start_championship_prep() -> void:
+	reset_tournament()
+	championship_active = true
+
+
+func is_championship_run() -> bool:
+	return championship_active and tournament_opponents.size() > 0

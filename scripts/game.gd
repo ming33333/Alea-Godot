@@ -70,10 +70,11 @@ const DOUBLE_CLICK_MS := 350
 
 const REF_BOARD_SIZE := 501.0
 const POWER_BOARD_HEIGHT_RATIO := 0.2
+const POWER_CHIP_SCALE := 2.0
 const REF_DIE_CELL := 87.0
 const REF_GRID_SEP := 6.0
 const REF_BOARD_INSET := 21.0
-const REF_POWER_CHIP := 62.0
+const REF_POWER_CHIP := 124.0
 const REF_POWER_BAR_SEP := 10.0
 const REF_POWER_PATCH_LEFT := 35.0
 const REF_POWER_PATCH_TOP := 14.0
@@ -88,9 +89,10 @@ func _ready() -> void:
 	DebugLog.alea_log("Game", "========== GAME _ready ==========")
 	DebugLog.alea_log(
 		"Game",
-		"selected_gym=%s tournament_opponents=%d grid_node=%s"
+		"selected_gym=%s championship=%s opponents=%d grid_node=%s"
 		% [
 			GameState.selected_gym_id,
+			GameState.championship_active,
 			GameState.tournament_opponents.size(),
 			"OK" if grid_container != null else "MISSING",
 		]
@@ -134,7 +136,7 @@ func _begin_run() -> void:
 	if grid_container == null:
 		push_error("Game: %Grid node missing — cannot start run")
 		return
-	if GameState.tournament_opponents.size() > 0:
+	if GameState.is_championship_run():
 		_start_tournament_match()
 	else:
 		var gym_id := GameState.selected_gym_id
@@ -233,8 +235,16 @@ func _on_tournament_match_won() -> void:
 
 
 func _refresh_ui() -> void:
-	var gym: Dictionary = GameData.get_gym(session.gym_id)
-	gym_label.text = gym.get("name", "Alea")
+	if session.is_tournament:
+		var opp: Dictionary = GameData.get_tournament_opponent(session.tournament_opponent_id)
+		var match_no: int = GameState.tournament_opponent_index + 1
+		gym_label.text = "Championship %d/3 · %s" % [
+			match_no,
+			opp.get("name", "Opponent"),
+		]
+	else:
+		var gym: Dictionary = GameData.get_gym(session.gym_id)
+		gym_label.text = gym.get("name", "Alea")
 	level_label.text = "Level %d" % session.level
 	hearts_label.text = "♥ %d" % session.hearts
 	var lim: Dictionary = session.get_limits()
@@ -257,6 +267,8 @@ func _refresh_ui() -> void:
 	_build_power_bar()
 	_update_power_hint()
 	_update_modals()
+	if _dev_panel != null:
+		_dev_panel.refresh_for_session()
 
 
 func _die_key(row: int, col: int) -> String:
@@ -301,17 +313,21 @@ func _layout_boards() -> void:
 	_board_size = _compute_board_size()
 	var layout_scale: float = _board_size / REF_BOARD_SIZE
 	var board_px: int = int(round(_board_size))
-	var power_h: int = int(round(_board_size * POWER_BOARD_HEIGHT_RATIO))
 	var die_cell: int = int(round(REF_DIE_CELL * layout_scale))
 	var grid_sep: int = maxi(2, int(round(REF_GRID_SEP * layout_scale)))
 	var board_inset: int = maxi(8, int(round(REF_BOARD_INSET * layout_scale)))
 	var power_bar_sep: int = maxi(4, int(round(REF_POWER_BAR_SEP * layout_scale)))
 	var content_inset: int = maxi(8, int(round(18.0 * layout_scale)))
 	var dock_pad: int = maxi(2, int(round(4.0 * layout_scale)))
-	_power_chip_size = maxi(
-		28,
-		power_h - content_inset * 2 - dock_pad * 2 - maxi(4, int(round(8.0 * layout_scale)))
+	var chip_overhead: int = (
+		content_inset * 2
+		+ dock_pad * 2
+		+ maxi(4, int(round(8.0 * layout_scale)))
 	)
+	var base_power_h: int = int(round(_board_size * POWER_BOARD_HEIGHT_RATIO))
+	var base_chip: int = maxi(28, base_power_h - chip_overhead)
+	_power_chip_size = maxi(28, int(round(float(base_chip) * POWER_CHIP_SCALE)))
+	var power_h: int = base_power_h
 
 	if board_column:
 		board_column.custom_minimum_size = Vector2(board_px, 0)
@@ -398,16 +414,22 @@ func _power_short_label(power_type: String, def: Dictionary) -> String:
 
 func _power_accent_color(power_type: String) -> Color:
 	match power_type:
-		"switchRows":
-			return Color(0.35, 0.35, 0.82)
-		"switchAnywhere":
-			return Color(0.5, 0.35, 0.75)
 		"chooseNumber":
-			return Color(0.2, 0.6, 0.35)
+			return Color(0.18, 0.72, 0.42)
+		"switchAnywhere":
+			return Color(0.58, 0.32, 0.88)
 		"setAnyNumber":
-			return Color(0.9, 0.45, 0.1)
+			return Color(0.96, 0.52, 0.08)
+		"switchRows":
+			return Color(0.28, 0.42, 0.95)
+		"switchHorizontal":
+			return Color(0.12, 0.68, 0.92)
+		"verticalJump":
+			return Color(0.88, 0.28, 0.58)
+		"secondChances":
+			return Color(0.95, 0.78, 0.12)
 		"rerollTrade":
-			return Color(0.45, 0.55, 0.75)
+			return Color(0.42, 0.52, 0.78)
 		_:
 			return Color(0.45, 0.48, 0.55)
 
@@ -658,6 +680,7 @@ func _on_dice_swished() -> void:
 
 func _on_dice_style_changed() -> void:
 	_sync_grid()
+	_build_power_bar()
 
 
 func _on_die_pressed(row: int, col: int) -> void:
@@ -842,6 +865,8 @@ func _on_cancel_swap_pressed() -> void:
 
 
 func _on_back_pressed() -> void:
+	if GameState.championship_active:
+		GameState.reset_tournament()
 	SceneNav.go_to_main_menu()
 
 
@@ -858,6 +883,8 @@ func _on_retry_pressed() -> void:
 
 
 func _on_menu_from_over_pressed() -> void:
+	if GameState.championship_active:
+		GameState.reset_tournament()
 	SceneNav.go_to_main_menu()
 
 

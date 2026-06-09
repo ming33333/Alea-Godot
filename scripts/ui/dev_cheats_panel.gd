@@ -4,6 +4,7 @@ extends PanelContainer
 var session: RunSession
 var _status_label: Label
 var _power_picker: OptionButton
+var _complete_battle_btn: Button
 var _power_type_ids: Array[String] = []
 
 
@@ -20,7 +21,13 @@ func setup(run_session: RunSession) -> void:
 	session = run_session
 	if _power_picker != null:
 		_populate_power_picker()
-		_update_badge_button()
+	refresh_for_session()
+
+
+func refresh_for_session() -> void:
+	if _complete_battle_btn != null:
+		_complete_battle_btn.visible = session != null and session.is_tournament
+	_update_badge_button()
 
 
 func _build_power_grant_row(parent: VBoxContainer) -> void:
@@ -103,6 +110,8 @@ func _build_ui() -> void:
 	header.add_child(min_btn)
 	_build_power_grant_row(vbox)
 	_add_btn(vbox, "Complete level", _on_complete_level)
+	_complete_battle_btn = _add_btn(vbox, "Complete championship battle", _on_complete_championship_battle)
+	_complete_battle_btn.visible = false
 	_add_btn(vbox, "Refill switch + reroll", _on_refill)
 	_add_btn(vbox, "+1 heart", _on_add_heart)
 	_add_btn(vbox, "Award gym badge", _on_award_badge)
@@ -120,12 +129,13 @@ func _build_ui() -> void:
 	vbox.add_child(codes)
 
 
-func _add_btn(parent: Node, label: String, callback: Callable) -> void:
+func _add_btn(parent: Node, label: String, callback: Callable) -> Button:
 	var b := Button.new()
 	b.text = label
 	b.add_theme_font_size_override("font_size", 11)
 	b.pressed.connect(callback)
 	parent.add_child(b)
+	return b
 
 
 func _show_status(msg: String) -> void:
@@ -160,8 +170,23 @@ func _on_minimize() -> void:
 
 
 func _on_complete_level() -> void:
-	if session:
-		session.dev_complete_level()
+	if session == null:
+		_show_status("No active run")
+		return
+	session.dev_complete_level()
+	if session.is_tournament:
+		_show_status("Championship level advanced (same opponent)")
+
+
+func _on_complete_championship_battle() -> void:
+	if session == null:
+		_show_status("No active run")
+		return
+	if not session.is_tournament:
+		_show_status("Championship runs only")
+		return
+	session.dev_complete_championship_battle()
+	_show_status("Battle won — next opponent")
 
 
 func _on_refill() -> void:

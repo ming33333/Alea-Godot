@@ -5,6 +5,7 @@ signal badges_changed
 const BADGES_KEY := "gym_badges"
 const CHAMPION_KEY := "dice_champion"
 const LAYOUT_KEY := "gym_menu_layout"
+const BADGE_BOX_OPEN_KEY := "badge_box_open"
 
 
 func _ready() -> void:
@@ -94,6 +95,14 @@ func is_dice_champion() -> bool:
 
 func award_dice_champion() -> void:
 	_write(CHAMPION_KEY, "1")
+
+
+func is_badge_box_open() -> bool:
+	return _read(BADGE_BOX_OPEN_KEY) == "1"
+
+
+func set_badge_box_open(open: bool) -> void:
+	_write(BADGE_BOX_OPEN_KEY, "1" if open else "0")
 
 
 func get_menu_layout() -> Dictionary:

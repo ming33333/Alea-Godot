@@ -17,6 +17,7 @@ const PIXEL_FACE_BLURRED := "pixel_blurred"
 
 const DICE_BOARD_ATLAS: Texture2D = preload("res://assets/textures/dice_board.png")
 const DICE_BOARD_TILE_REGION := Rect2(124, 130, 264, 258)
+const DIE_BLUR_SHADER: Shader = preload("res://assets/shaders/die_blur.gdshader")
 
 enum Highlight {
 	NONE,
@@ -38,6 +39,8 @@ var _styles: Dictionary = {}
 var _base_face_key: String = FACE_NORMAL
 var _highlight: Highlight = Highlight.NONE
 var _show_sprite: bool = true
+var _blurred: bool = false
+var _blur_material: ShaderMaterial
 var grid_row: int = -1
 var grid_col: int = -1
 
@@ -72,12 +75,7 @@ func _cache_styles() -> void:
 		6,
 		12
 	)
-	_styles[FACE_BLURRED] = _make_face_style(
-		Color(0.94, 0.94, 0.96),
-		Color(0.6, 0.62, 0.68),
-		3,
-		12
-	)
+	_styles[FACE_BLURRED] = _make_board_face_style()
 	_styles[FACE_SWITCH_VALID] = _make_face_style(
 		Color(0.9, 0.98, 0.92),
 		Color(0.2, 0.65, 0.35),
@@ -123,8 +121,8 @@ func _cache_styles() -> void:
 		Color(0.55, 0.58, 0.64)
 	)
 	_styles[PIXEL_FACE_BLURRED] = _make_pixel_face_style(
-		Color(0.94, 0.95, 0.97),
-		Color(0.62, 0.65, 0.7)
+		Color(1, 1, 1),
+		Color(0.28, 0.3, 0.34)
 	)
 
 
@@ -187,7 +185,7 @@ func _pixel_border_color(face_key: String) -> Color:
 		PIXEL_FACE_LOCKED, FACE_LOCKED:
 			return Color(0.55, 0.58, 0.64)
 		PIXEL_FACE_BLURRED, FACE_BLURRED:
-			return Color(0.62, 0.65, 0.7)
+			return Color(0.28, 0.3, 0.34)
 		FACE_SELECTED:
 			return Color(0.15, 0.4, 0.92)
 		FACE_SWITCH_VALID:
@@ -282,29 +280,30 @@ func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
 	if label == null or face_tex == null:
 		push_error("DieCell: DieFace or ValueLabel missing")
 		return
-	if blurred:
-		_show_sprite = false
-		_base_face_key = FACE_BLURRED
-		label.text = "?"
-		_configure_value_label_font(blurred)
-		label.add_theme_color_override("font_color", Color(0.35, 0.38, 0.45))
-	elif cell.value >= 1 and cell.value <= 7:
+	_blurred = blurred
+	if cell.value >= 1 and cell.value <= 7:
 		var tex: Texture2D = _face_texture_for(cell.value)
 		if tex != null:
 			_show_sprite = true
 			face_tex.texture = tex
-			_base_face_key = FACE_LOCKED if cell.locked else FACE_NORMAL
+			_base_face_key = FACE_BLURRED if blurred else (
+				FACE_LOCKED if cell.locked else FACE_NORMAL
+			)
 		else:
 			_show_sprite = false
 			label.text = str(cell.value)
 			_configure_value_label_font(blurred)
-			_base_face_key = FACE_LOCKED if cell.locked else FACE_NORMAL
+			_base_face_key = FACE_BLURRED if blurred else (
+				FACE_LOCKED if cell.locked else FACE_NORMAL
+			)
 			_set_fallback_label_colors(cell)
 	else:
 		_show_sprite = false
 		label.text = str(cell.value)
 		_configure_value_label_font(blurred)
-		_base_face_key = FACE_LOCKED if cell.locked else FACE_NORMAL
+		_base_face_key = FACE_BLURRED if blurred else (
+			FACE_LOCKED if cell.locked else FACE_NORMAL
+		)
 		_set_fallback_label_colors(cell)
 	if _shine:
 		_shine.visible = false
@@ -371,11 +370,14 @@ func _apply_display() -> void:
 	_update_pixel_border(face_key)
 	var face_tex: TextureRect = _ensure_die_face()
 	var label: Label = _ensure_value_label()
+	var blur_mat: ShaderMaterial = _blur_material_for_display() if _blurred else null
 	if face_tex:
 		face_tex.visible = _show_sprite
 		face_tex.modulate = _sprite_modulate(face_key)
+		face_tex.material = blur_mat
 	if label:
 		label.visible = not _show_sprite
+		label.material = blur_mat if _blurred and not _show_sprite else null
 	var big: bool = (
 		_highlight == Highlight.SELECTED
 		or _highlight == Highlight.SWITCH_VALID
@@ -385,11 +387,17 @@ func _apply_display() -> void:
 
 
 func _sprite_modulate(face_key: String) -> Color:
-	if face_key == FACE_LOCKED:
+	if face_key == FACE_LOCKED or face_key == PIXEL_FACE_LOCKED:
 		return Color(0.78, 0.8, 0.86)
-	if face_key == FACE_BLURRED:
-		return Color(0.55, 0.58, 0.65)
 	return Color.WHITE
+
+
+func _blur_material_for_display() -> ShaderMaterial:
+	if _blur_material == null:
+		_blur_material = ShaderMaterial.new()
+		_blur_material.shader = DIE_BLUR_SHADER
+		_blur_material.set_shader_parameter("blur_amount", 4.5)
+	return _blur_material
 
 
 func _ensure_die_face() -> TextureRect:

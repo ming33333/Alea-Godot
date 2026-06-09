@@ -733,6 +733,9 @@ func keep_current_powers_at_level_up() -> void:
 
 
 func continue_after_round() -> void:
+	if is_tournament:
+		_dev_advance_championship_level()
+		return
 	if level_up_pool.is_empty():
 		level += 1
 		_start_level(level, false)
@@ -762,7 +765,12 @@ func tournament_match_won() -> void:
 
 
 func dev_complete_level() -> void:
-	if game_over or check_win():
+	if game_over:
+		return
+	if is_tournament:
+		_dev_advance_championship_level()
+		return
+	if check_win():
 		return
 	if current_modal == Modal.ROUND_COMPLETE:
 		return
@@ -788,6 +796,41 @@ func dev_complete_level() -> void:
 	level_up_pool = _pick_level_up_pool()
 	current_modal = Modal.ROUND_COMPLETE
 	_emit()
+
+
+func _dev_advance_championship_level() -> void:
+	if current_modal == Modal.SWAP_POWER:
+		return
+	if current_modal == Modal.LEVEL_UP:
+		return
+	pending_swap_in = ""
+	selected_row = -1
+	selected_col = -1
+	active_power_type = ""
+	if current_modal == Modal.ROUND_COMPLETE and not level_up_pool.is_empty():
+		current_modal = Modal.LEVEL_UP
+		_emit()
+		return
+	level_up_pool = _pick_level_up_pool()
+	if level_up_pool.is_empty():
+		level += 1
+		_start_level(level, false)
+		return
+	current_modal = Modal.LEVEL_UP
+	_emit()
+
+
+func dev_complete_championship_battle() -> void:
+	if game_over or not is_tournament:
+		return
+	pending_swap_in = ""
+	selected_row = -1
+	selected_col = -1
+	active_power_type = ""
+	active_target_row = -1
+	active_target_col = -1
+	current_modal = Modal.NONE
+	tournament_match_won()
 
 
 func dev_add_heart() -> void:

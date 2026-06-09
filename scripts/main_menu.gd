@@ -17,6 +17,10 @@ const GYM_ORB_COLORS: Dictionary = {
 }
 const GYM_ORB_FALLBACK_COLOR := Color(0.62, 0.60, 0.58, 0.9)
 const BADGE_ICON_SIZE := 40.0
+const BADGE_BOX_SIZE := 56.0
+const BADGE_SLIDE_DURATION := 0.55
+const CLOSED_BOX_TEX: Texture2D = preload("res://assets/textures/closed_box.png")
+const OPENED_BOX_TEX: Texture2D = preload("res://assets/textures/opened_box.png")
 const DECK_PILLAR_HEIGHT := 360.0
 const DECK_PILLAR_WIDTH := 112.0
 const DECK_BOTTOM_SCREEN_FRACTION := 0.15
@@ -27,6 +31,9 @@ const PORTAL_CENTER_Y_FRACTION := 0.36
 @onready var map_area: Control = %MapArea
 @onready var champion_portal: TextureButton = %ChampionPortal
 @onready var deck_pillars: HBoxContainer = %DeckPillars
+@onready var badge_box_wrap: HBoxContainer = %BadgeBoxWrap
+@onready var badge_box_btn: TextureButton = %BadgeBoxBtn
+@onready var badge_slide_clip: Control = %BadgeSlideClip
 @onready var badges_row: HBoxContainer = %BadgesRow
 @onready var champion_badge: Label = %ChampionBadge
 @onready var celebration: PanelContainer = %ChampionCelebration
@@ -43,6 +50,9 @@ var _launching: bool = false
 var _click_seq: int = 0
 var _orb_build_attempts: int = 0
 var _portal_layout_attempts: int = 0
+var _badge_box_open: bool = false
+var _badge_box_animating: bool = false
+var _badge_slide_tween: Tween
 const MAX_ORB_BUILD_ATTEMPTS := 60
 const MAX_PORTAL_LAYOUT_ATTEMPTS := 40
 
@@ -74,6 +84,7 @@ func _ready() -> void:
 		SaveService.badges_changed.connect(_on_badges_changed)
 	call_deferred("_build_orbs")
 	_layout_deck_pillars()
+	_badge_box_open = SaveService.is_badge_box_open()
 	_refresh_badges()
 	call_deferred("_refresh_champion_portal")
 	champion_badge.visible = SaveService.is_dice_champion()
@@ -93,10 +104,7 @@ func _ready() -> void:
 	else:
 		celebration.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if champion_portal:
-		champion_portal.tooltip_text = (
-			"Dice Master Championship\n"
-			+ "Pick three powers and defeat three opponents in a row to become Dice Champion."
-		)
+		champion_portal.tooltip_text = ""
 
 
 func _map_area_ready() -> bool:
@@ -258,7 +266,6 @@ func _make_orb(gym: Dictionary, pillar_index: int) -> PixelGymOrb:
 	btn.z_index = 2
 	btn.custom_minimum_size = Vector2(ORB_SIZE, ORB_SIZE)
 	btn.size = Vector2(ORB_SIZE, ORB_SIZE)
-	btn.tooltip_text = _gym_tooltip_plaintext(gym)
 	btn.set_orb_color(_orb_color_for_gym(gid))
 	btn.mouse_entered.connect(_on_orb_hover.bind(gym, btn))
 	btn.mouse_exited.connect(_on_orb_unhover.bind(gym))
@@ -266,14 +273,6 @@ func _make_orb(gym: Dictionary, pillar_index: int) -> PixelGymOrb:
 	btn.set_meta("gym_id", gid)
 	btn.set_meta("pillar_index", pillar_index)
 	return btn
-
-
-func _gym_tooltip_plaintext(gym: Dictionary) -> String:
-	return "%s — %s\n%s" % [
-		gym.get("name", ""),
-		gym.get("subtitle", ""),
-		gym.get("description", ""),
-	]
 
 
 func _make_badge_icon(gym_id: String) -> TextureRect:
@@ -442,7 +441,142 @@ func _refresh_badges() -> void:
 		c.queue_free()
 	for bid in SaveService.get_earned_badges():
 		badges_row.add_child(_make_badge_icon(bid))
+	_size_badges_row()
+	_update_badge_box()
 	_refresh_champion_portal()
+
+
+func _size_badges_row() -> void:
+	if badges_row == null:
+		return
+	var row_w: float = _badges_row_width()
+	var row_h: float = BADGE_ICON_SIZE
+	badges_row.custom_minimum_size = Vector2(row_w, row_h)
+	badges_row.size = Vector2(row_w, row_h)
+
+
+func _reset_badge_icon_alpha() -> void:
+	for child in badges_row.get_children():
+		if child is CanvasItem:
+			(child as CanvasItem).modulate.a = 1.0
+
+
+func _has_badges_to_show() -> bool:
+	return not SaveService.get_earned_badges().is_empty()
+
+
+func _badges_row_width() -> float:
+	if badges_row == null:
+		return 0.0
+	var count: int = badges_row.get_child_count()
+	if count <= 0:
+		return 0.0
+	var sep: float = float(badges_row.get_theme_constant("separation"))
+	return float(count) * BADGE_ICON_SIZE + maxf(0.0, float(count - 1)) * sep
+
+
+func _update_badge_box() -> void:
+	if badge_box_wrap == null or badge_box_btn == null or badge_slide_clip == null:
+		return
+	var has_badges: bool = _has_badges_to_show()
+	badge_box_wrap.visible = has_badges
+	if not has_badges:
+		return
+	badge_box_btn.custom_minimum_size = Vector2(BADGE_BOX_SIZE, BADGE_BOX_SIZE)
+	badge_slide_clip.custom_minimum_size.y = BADGE_BOX_SIZE
+	if _badge_box_open:
+		badge_box_btn.texture_normal = OPENED_BOX_TEX
+		badge_box_btn.tooltip_text = "Click to close your badge box"
+		badge_box_btn.disabled = _badge_box_animating
+		badge_box_btn.focus_mode = Control.FOCUS_ALL
+		_reset_badge_icon_alpha()
+		_set_badge_slide_width(_badges_row_width(), false)
+	else:
+		badge_box_btn.texture_normal = CLOSED_BOX_TEX
+		badge_box_btn.tooltip_text = "Click to open your badge box"
+		badge_box_btn.disabled = _badge_box_animating
+		badge_box_btn.focus_mode = Control.FOCUS_ALL
+		_set_badge_slide_width(0.0, false)
+
+
+func _set_badge_slide_width(target_w: float, animate: bool, closing: bool = false) -> void:
+	if badge_slide_clip == null:
+		return
+	if _badge_slide_tween != null and _badge_slide_tween.is_valid():
+		_badge_slide_tween.kill()
+	var clamped: float = maxf(0.0, target_w)
+	if not animate:
+		badge_slide_clip.custom_minimum_size.x = clamped
+		return
+	_badge_box_animating = true
+	badge_box_btn.disabled = true
+	var icons: Array[Node] = []
+	for child in badges_row.get_children():
+		icons.append(child)
+	_badge_slide_tween = create_tween()
+	_badge_slide_tween.set_parallel(true)
+	var width_tween := _badge_slide_tween.tween_property(
+		badge_slide_clip,
+		"custom_minimum_size:x",
+		clamped,
+		BADGE_SLIDE_DURATION
+	)
+	if closing:
+		width_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	else:
+		width_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	for i in icons.size():
+		var icon: CanvasItem = icons[i] as CanvasItem
+		if icon == null:
+			continue
+		var stagger_idx: int = (icons.size() - 1 - i) if closing else i
+		var delay: float = float(stagger_idx) * 0.07
+		if closing:
+			icon.modulate.a = 1.0
+			_badge_slide_tween.tween_property(
+				icon,
+				"modulate:a",
+				0.0,
+				BADGE_SLIDE_DURATION * 0.5
+			).set_delay(delay).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		else:
+			icon.modulate.a = 0.0
+			_badge_slide_tween.tween_property(
+				icon,
+				"modulate:a",
+				1.0,
+				BADGE_SLIDE_DURATION * 0.55
+			).set_delay(delay).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_badge_slide_tween.finished.connect(_on_badge_slide_finished.bind(closing), CONNECT_ONE_SHOT)
+
+
+func _on_badge_slide_finished(closing: bool) -> void:
+	_badge_box_animating = false
+	if closing:
+		_badge_box_open = false
+		SaveService.set_badge_box_open(false)
+		if badge_box_btn != null:
+			badge_box_btn.texture_normal = CLOSED_BOX_TEX
+	if badge_box_btn != null:
+		badge_box_btn.disabled = false
+		if _badge_box_open:
+			badge_box_btn.tooltip_text = "Click to close your badge box"
+		else:
+			badge_box_btn.tooltip_text = "Click to open your badge box"
+
+
+func _on_badge_box_pressed() -> void:
+	if _badge_box_animating or not _has_badges_to_show():
+		return
+	if _badge_box_open:
+		_set_badge_slide_width(0.0, true, true)
+		return
+	_badge_box_open = true
+	SaveService.set_badge_box_open(true)
+	badge_box_btn.texture_normal = OPENED_BOX_TEX
+	badge_box_btn.tooltip_text = "Click to close your badge box"
+	_size_badges_row()
+	_set_badge_slide_width(_badges_row_width(), true, false)
 
 
 func _on_badges_changed() -> void:
@@ -452,7 +586,7 @@ func _on_badges_changed() -> void:
 
 func _on_championship_pressed() -> void:
 	_hide_gym_tooltip()
-	GameState.reset_tournament()
+	GameState.start_championship_prep()
 	SceneNav.go_to_tournament_pick()
 
 

@@ -1,9 +1,10 @@
-[gd_scene format=3 uid="uid://bv4i82vy4gowy"]
+[gd_scene load_steps=3 format=3 uid="uid://bv4i82vy4gowy"]
 
 [ext_resource type="Script" path="res://scripts/ui/power_die_button.gd" id="1_pwr"]
+[ext_resource type="Script" path="res://scripts/ui/pixel_die_frame.gd" id="2_frame"]
 
 [node name="PowerDieButton" type="Button"]
-custom_minimum_size = Vector2(62, 62)
+custom_minimum_size = Vector2(124, 124)
 focus_mode = 0
 flat = true
 script = ExtResource("1_pwr")
@@ -25,6 +26,16 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="PixelBorder" type="Control" parent="Wrap"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_frame")
 
 [node name="Margin" type="MarginContainer" parent="Wrap/Face"]
 layout_mode = 2
