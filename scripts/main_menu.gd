@@ -37,6 +37,8 @@ const PORTAL_CENTER_Y_FRACTION := 0.36
 @onready var badges_row: HBoxContainer = %BadgesRow
 @onready var champion_badge: Label = %ChampionBadge
 @onready var celebration: PanelContainer = %ChampionCelebration
+@onready var how_to_play_overlay: Control = %HowToPlayOverlay
+@onready var how_to_play_sections: VBoxContainer = %HowToPlaySections
 @onready var gym_tooltip: PanelContainer = %GymTooltip
 @onready var tooltip_badge: TextureRect = %TooltipBadge
 @onready var tooltip_name: Label = %TooltipName
@@ -86,6 +88,9 @@ func _ready() -> void:
 	_layout_deck_pillars()
 	_badge_box_open = SaveService.is_badge_box_open()
 	_refresh_badges()
+	_populate_how_to_play()
+	if how_to_play_overlay:
+		how_to_play_overlay.visible = false
 	call_deferred("_refresh_champion_portal")
 	champion_badge.visible = SaveService.is_dice_champion()
 	celebration.visible = GameState.show_champion_celebration
@@ -597,7 +602,39 @@ func _on_celebration_dismiss() -> void:
 
 
 func _on_settings_pressed() -> void:
+	_hide_gym_tooltip()
+	_close_how_to_play()
 	SceneNav.go_to_settings()
+
+
+func _populate_how_to_play() -> void:
+	HowToPlayContent.populate(how_to_play_sections)
+
+
+func _on_how_to_play_pressed() -> void:
+	_hide_gym_tooltip()
+	if how_to_play_overlay == null:
+		return
+	how_to_play_overlay.visible = true
+	how_to_play_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+
+
+func _on_how_to_play_close_pressed() -> void:
+	_close_how_to_play()
+
+
+func _on_how_to_play_backdrop_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+			_close_how_to_play()
+
+
+func _close_how_to_play() -> void:
+	if how_to_play_overlay == null:
+		return
+	how_to_play_overlay.visible = false
+	how_to_play_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _setup_river_background() -> void:

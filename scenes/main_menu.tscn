@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://bqx7mainmenu01"]
+[gd_scene load_steps=9 format=3 uid="uid://bqx7mainmenu01"]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
 [ext_resource type="VideoStream" path="res://assets/textures/river.ogv" id="2_river"]
@@ -24,6 +24,22 @@ content_margin_left = 12.0
 content_margin_top = 10.0
 content_margin_right = 12.0
 content_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_how_to_play"]
+bg_color = Color(0.06, 0.08, 0.12, 0.82)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.55, 0.58, 0.65, 0.55)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 16.0
+content_margin_top = 14.0
+content_margin_right = 16.0
+content_margin_bottom = 14.0
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -210,7 +226,7 @@ visible = false
 layout_mode = 2
 text = "👑 Champion"
 
-[node name="SettingsBtn" type="Button" parent="."]
+[node name="MenuActions" type="VBoxContainer" parent="."]
 z_index = 4
 layout_mode = 1
 anchors_preset = 3
@@ -219,12 +235,24 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -120.0
-offset_top = -52.0
+offset_top = -98.0
 offset_right = -16.0
 offset_bottom = -16.0
 grow_horizontal = 0
 grow_vertical = 0
+theme_override_constants/separation = 6
+
+[node name="SettingsBtn" type="Button" parent="MenuActions"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(104, 36)
 text = "Settings"
+
+[node name="HowToPlayBtn" type="Button" parent="MenuActions"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(104, 36)
+text = "How to play"
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
@@ -297,6 +325,76 @@ theme_override_colors/font_color = Color(0.65, 0.68, 0.75, 1)
 theme_override_font_sizes/font_size = 10
 text = "Badge · drag to move · click to play"
 
+[node name="HowToPlayOverlay" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+z_index = 35
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Backdrop" type="ColorRect" parent="HowToPlayOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.04, 0.06, 0.1, 0.55)
+
+[node name="Center" type="CenterContainer" parent="HowToPlayOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="HowToPlayOverlay/Center"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_how_to_play")
+
+[node name="CardMargin" type="MarginContainer" parent="HowToPlayOverlay/Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="CardVBox" type="VBoxContainer" parent="HowToPlayOverlay/Center/Card/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="HowToPlayOverlay/Center/Card/CardMargin/CardVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "How to play"
+horizontal_alignment = 1
+
+[node name="Scroll" type="ScrollContainer" parent="HowToPlayOverlay/Center/Card/CardMargin/CardVBox"]
+custom_minimum_size = Vector2(0, 320)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="HowToPlaySections" type="VBoxContainer" parent="HowToPlayOverlay/Center/Card/CardMargin/CardVBox/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="CloseBtn" type="Button" parent="HowToPlayOverlay/Center/Card/CardMargin/CardVBox"]
+layout_mode = 2
+text = "Close"
+
 [node name="ChampionCelebration" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 visible = false
@@ -326,7 +424,10 @@ layout_mode = 2
 text = "Continue"
 
 [connection signal="pressed" from="BadgeBlock/BadgeBoxWrap/BadgeBoxBtn" to="." method="_on_badge_box_pressed"]
-[connection signal="pressed" from="SettingsBtn" to="." method="_on_settings_pressed"]
+[connection signal="pressed" from="MenuActions/SettingsBtn" to="." method="_on_settings_pressed"]
+[connection signal="pressed" from="MenuActions/HowToPlayBtn" to="." method="_on_how_to_play_pressed"]
+[connection signal="gui_input" from="HowToPlayOverlay/Backdrop" to="." method="_on_how_to_play_backdrop_input"]
+[connection signal="pressed" from="HowToPlayOverlay/Center/Card/CardMargin/CardVBox/CloseBtn" to="." method="_on_how_to_play_close_pressed"]
 [connection signal="mouse_entered" from="ChampionPortal" to="." method="_on_championship_hover"]
 [connection signal="mouse_exited" from="ChampionPortal" to="." method="_on_championship_unhover"]
 [connection signal="pressed" from="ChampionPortal" to="." method="_on_championship_pressed"]

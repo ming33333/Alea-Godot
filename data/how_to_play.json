@@ -1,0 +1,28 @@
+{
+  "sections": [
+    {
+      "heading": "Goal",
+      "text": "Complete all five rows on the board. Each row must form a valid dice pattern — Straight (five in a row), Full House, Five of a Kind, and others."
+    },
+    {
+      "heading": "Dice",
+      "text": "Click a die to select it. Double-click an unlocked die to reroll it. Adjacent unlocked dice can be swapped using your switch allowance."
+    },
+    {
+      "heading": "Rows & powers",
+      "text": "When a row completes, those dice lock. Earn charges for pattern powers by completing rows with the matching pattern. Tap a power on the dock to activate it, then follow the on-screen hint."
+    },
+    {
+      "heading": "Levels & hearts",
+      "text": "Clear every row to finish the level. Pick a new power on level-up (up to three in your loadout). You have limited switches and rerolls each level. Run out of moves and you lose a heart — lose all hearts and the gym run ends."
+    },
+    {
+      "heading": "Gyms",
+      "text": "Each gym orb on the map changes the rules — ordered rerolls, safari countdowns, tighter loadouts, and more. Hover an orb to read its rules. Earn that gym's badge by beating level 8."
+    },
+    {
+      "heading": "Championship",
+      "text": "Collect every gym badge to unlock the portal. Pick three powers, then beat three special opponents in a row to become Dice Champion."
+    }
+  ]
+}
