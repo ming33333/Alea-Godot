@@ -32,7 +32,7 @@ func refresh_for_session() -> void:
 
 func _build_power_grant_row(parent: VBoxContainer) -> void:
 	var cap := Label.new()
-	cap.text = "Grant power (up to loadout max)"
+	cap.text = "Add / remove power"
 	cap.add_theme_font_size_override("font_size", 9)
 	cap.add_theme_color_override("font_color", Color(0.55, 0.58, 0.65))
 	parent.add_child(cap)
@@ -51,6 +51,12 @@ func _build_power_grant_row(parent: VBoxContainer) -> void:
 	add_btn.add_theme_font_size_override("font_size", 10)
 	add_btn.pressed.connect(_on_grant_power)
 	row.add_child(add_btn)
+	var remove_btn := Button.new()
+	remove_btn.text = "Remove"
+	remove_btn.custom_minimum_size = Vector2(56, 28)
+	remove_btn.add_theme_font_size_override("font_size", 10)
+	remove_btn.pressed.connect(_on_remove_power)
+	row.add_child(remove_btn)
 
 
 func _populate_power_picker() -> void:
@@ -206,6 +212,22 @@ func _on_grant_power() -> void:
 		_show_status("Pick a power")
 		return
 	var msg: String = session.dev_grant_power(_power_type_ids[idx])
+	_show_status(msg)
+	_populate_power_picker()
+
+
+func _on_remove_power() -> void:
+	if session == null:
+		_show_status("No active run")
+		return
+	if _power_type_ids.is_empty():
+		_show_status("No powers in data/powers.json")
+		return
+	var idx: int = _power_picker.selected
+	if idx < 0 or idx >= _power_type_ids.size():
+		_show_status("Pick a power")
+		return
+	var msg: String = session.dev_remove_power(_power_type_ids[idx])
 	_show_status(msg)
 	_populate_power_picker()
 

@@ -391,8 +391,17 @@ func restart_level_voluntary() -> void:
 
 func select_die(row: int, col: int) -> void:
 	if blocks_play() or current_modal == Modal.GAME_VICTORY:
+		if active_power_type != "" or current_modal != Modal.NONE:
+			_log_power(
+				"select_die blocked (%d,%d) %s"
+				% [row, col, _power_block_reason(blocks_play(), current_modal)]
+			)
 		return
 	if active_power_type in ["switchRows", "chooseNumber", "setAnyNumber"]:
+		_log_power(
+			"select_die -> power click (%d,%d) active=%s %s"
+			% [row, col, active_power_type, _power_context()]
+		)
 		_handle_power_click(row, col)
 		return
 	if is_level_failed() and not check_win():
@@ -450,6 +459,7 @@ func _trigger_safari(pending: Dictionary) -> void:
 	safari_countdown = 3
 	# UI will tick countdown; on complete call finish_safari_wave
 	_pending_safari = pending
+	_emit()
 
 
 var _pending_safari: Dictionary = {}
@@ -553,12 +563,24 @@ func _apply_second_chances(r1: int, r2: int, col: int) -> void:
 
 func activate_power(power_type: String) -> void:
 	if not unlocked_powers.has(power_type):
+		_log_power("activate rejected: not unlocked type=%s" % power_type)
 		return
+	var prev: String = active_power_type
 	active_power_type = power_type
 	active_target_row = -1
 	active_target_col = -1
 	selected_row = -1
 	selected_col = -1
+	_log_power(
+		"activate %s (was %s) charges=%s rerolls_left=%d %s"
+		% [
+			power_type,
+			prev if not prev.is_empty() else "(none)",
+			power_charges.get(power_type, 0),
+			rerolls_left(),
+			_power_context(),
+		]
+	)
 	_emit()
 
 
@@ -569,6 +591,12 @@ func clear_active_power() -> void:
 		and selected_row < 0
 	):
 		return
+	_log_power("clear active was=%s target=(%d,%d) %s" % [
+		active_power_type if not active_power_type.is_empty() else "(none)",
+		active_target_row,
+		active_target_col,
+		_power_context(),
+	])
 	active_power_type = ""
 	active_target_row = -1
 	active_target_col = -1
@@ -580,23 +608,37 @@ func clear_active_power() -> void:
 func _handle_power_click(row: int, col: int) -> void:
 	match active_power_type:
 		"switchRows":
+			_log_power("handle switchRows row=%d target_row=%d" % [row, active_target_row])
 			_handle_switch_rows(row)
 		"setAnyNumber", "chooseNumber":
+			_log_power(
+				"handle %s die=(%d,%d) locked=%s value=%d"
+				% [
+					active_power_type,
+					row,
+					col,
+					grid[row][col].locked,
+					grid[row][col].value,
+				]
+			)
 			_handle_pattern_pick(row, col)
 		_:
-			pass
+			_log_power("handle ignored active=%s die=(%d,%d)" % [active_power_type, row, col])
 
 
 func _handle_switch_rows(row: int) -> void:
 	if active_target_row < 0:
+		_log_power("switchRows pick first row=%d" % row)
 		active_target_row = row
 		_emit()
 		return
 	if active_target_row == row:
+		_log_power("switchRows cancelled same row=%d" % row)
 		active_power_type = ""
 		active_target_row = -1
 		_emit()
 		return
+	_log_power("switchRows swap rows %d <-> %d" % [active_target_row, row])
 	_swap_rows(active_target_row, row)
 	power_charges["switchRows"] = power_charges.get("switchRows", 0) - 1
 	active_power_type = ""
@@ -639,24 +681,44 @@ func _swap_rows(first: int, second: int) -> void:
 func _handle_pattern_pick(row: int, col: int) -> void:
 	if active_power_type == "chooseNumber":
 		if awarded_rows.has(row):
+			_log_power("pattern pick rejected: row %d already awarded" % row)
 			return
 		var vals: Array = []
 		for c in grid[row]:
 			vals.append(c.value)
-		if PatternCheck.check_pattern(vals) != PatternCheck.INCOMPLETE:
+		var pattern: String = PatternCheck.check_pattern(vals)
+		if pattern != PatternCheck.INCOMPLETE:
+			_log_power(
+				"pattern pick rejected: row %d already complete (%s)" % [row, pattern]
+			)
 			return
 	active_target_row = row
 	active_target_col = col
 	current_modal = Modal.NUMBER_PICKER
+	_log_power(
+		"number picker opened %s target=(%d,%d) cell_value=%d %s"
+		% [
+			active_power_type,
+			row,
+			col,
+			grid[row][col].value,
+			_power_context(),
+		]
+	)
 	_emit()
 
 
 func apply_number_pick(number: int) -> void:
 	if active_power_type not in ["chooseNumber", "setAnyNumber"]:
+		_log_power(
+			"apply_number_pick ignored n=%d active=%s modal=%s"
+			% [number, active_power_type, _modal_name()]
+		)
 		return
 	var tr: int = active_target_row
 	var tc: int = active_target_col
 	var ptype: String = active_power_type
+	var before: int = grid[tr][tc].value if ptype == "setAnyNumber" else -1
 	if ptype == "chooseNumber":
 		skip_choose_earn_rows[tr] = true
 		for c in range(grid[tr].size()):
@@ -669,6 +731,24 @@ func apply_number_pick(number: int) -> void:
 	active_target_row = -1
 	active_target_col = -1
 	current_modal = Modal.NONE
+	if ptype == "setAnyNumber":
+		_log_power(
+			"setAnyNumber applied n=%d die=(%d,%d) %d->%d charges_left=%d rerolls_used=%d"
+			% [
+				number,
+				tr,
+				tc,
+				before,
+				grid[tr][tc].value,
+				power_charges.get(ptype, 0),
+				rerolls_used,
+			]
+		)
+	else:
+		_log_power(
+			"chooseNumber applied n=%d row=%d charges_left=%d"
+			% [number, tr, power_charges.get(ptype, 0)]
+		)
 	process_row_completions()
 
 
@@ -880,6 +960,37 @@ func dev_grant_power(power_type: String) -> String:
 	]
 
 
+func dev_remove_power(power_type: String) -> String:
+	if game_over:
+		return "Game over — start a new run"
+	if power_type.is_empty():
+		return "Pick a power"
+	if not unlocked_powers.has(power_type):
+		var def: Dictionary = GameData.get_power_def(power_type)
+		return "Not in loadout: %s" % str(def.get("label", power_type))
+	unlocked_powers.erase(power_type)
+	power_charges[power_type] = 0
+	if active_power_type == power_type:
+		active_power_type = ""
+		active_target_row = -1
+		active_target_col = -1
+		selected_row = -1
+		selected_col = -1
+	if level_power_goal == power_type:
+		level_power_goal = ""
+	if pending_swap_in == power_type:
+		pending_swap_in = ""
+		if current_modal == Modal.SWAP_POWER:
+			current_modal = Modal.NONE
+	_emit()
+	var removed: Dictionary = GameData.get_power_def(power_type)
+	return "Removed %s (%d/%d)" % [
+		str(removed.get("label", power_type)),
+		unlocked_powers.size(),
+		max_owned_powers,
+	]
+
+
 func _maybe_fail_level() -> void:
 	if game_over or current_modal != Modal.NONE:
 		return
@@ -890,3 +1001,66 @@ func _maybe_fail_level() -> void:
 func _emit() -> void:
 	_maybe_fail_level()
 	state_changed.emit()
+
+
+func _log_power(message: String) -> void:
+	DebugLog.alea_log("Power", message)
+
+
+func _modal_name(modal_id: int = -1) -> String:
+	var m: int = current_modal if modal_id < 0 else modal_id
+	match m:
+		Modal.NONE:
+			return "NONE"
+		Modal.ROUND_COMPLETE:
+			return "ROUND_COMPLETE"
+		Modal.LEVEL_UP:
+			return "LEVEL_UP"
+		Modal.NUMBER_PICKER:
+			return "NUMBER_PICKER"
+		Modal.GAME_VICTORY:
+			return "GAME_VICTORY"
+		Modal.GAME_OVER:
+			return "GAME_OVER"
+		Modal.TOURNAMENT_WIN:
+			return "TOURNAMENT_WIN"
+		Modal.SWAP_POWER:
+			return "SWAP_POWER"
+		Modal.STUCK:
+			return "STUCK"
+		Modal.RESTART_CONFIRM:
+			return "RESTART_CONFIRM"
+		_:
+			return str(m)
+
+
+func _power_context() -> String:
+	return (
+		"modal=%s target=(%d,%d) selected=(%d,%d) charges=%s rerolls=%d/%d"
+		% [
+			_modal_name(),
+			active_target_row,
+			active_target_col,
+			selected_row,
+			selected_col,
+			power_charges,
+			rerolls_left(),
+			get_limits().get("max_rerolls", 0),
+		]
+	)
+
+
+func _power_block_reason(blocked: bool, modal: int) -> String:
+	var parts: PackedStringArray = []
+	if game_over:
+		parts.append("game_over")
+	if safari_countdown > 0:
+		parts.append("safari=%d" % safari_countdown)
+	if modal == Modal.GAME_VICTORY:
+		parts.append("victory_modal")
+	if blocked and modal != Modal.NONE:
+		parts.append("modal=%s" % _modal_name(modal))
+	if active_power_type != "":
+		parts.append("active=%s" % active_power_type)
+	parts.append(_power_context())
+	return " | ".join(parts)

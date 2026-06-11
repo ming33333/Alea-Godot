@@ -497,17 +497,32 @@ func _build_power_bar() -> void:
 
 func _on_power_pressed(power_type: String) -> void:
 	if power_type not in ACTIVATABLE_POWERS:
+		DebugLog.alea_log("Power", "chip ignored (not activatable): %s" % power_type)
 		return
 	if session.active_power_type == power_type:
+		DebugLog.alea_log("Power", "chip toggle off: %s" % power_type)
 		_clear_active_power()
 	else:
-		if not _power_can_use(power_type):
+		var can_use: bool = _power_can_use(power_type)
+		DebugLog.alea_log(
+			"Power",
+			"chip pressed type=%s can_use=%s active=%s charges=%s rerolls=%d"
+			% [
+				power_type,
+				can_use,
+				session.active_power_type,
+				session.power_charges.get(power_type, 0),
+				session.rerolls_left(),
+			]
+		)
+		if not can_use:
 			return
 		session.activate_power(power_type)
 	_refresh_ui()
 
 
 func _on_cancel_power_pressed() -> void:
+	DebugLog.alea_log("Power", "cancel pressed active=%s" % session.active_power_type)
 	_clear_active_power()
 	_refresh_ui()
 
@@ -685,6 +700,7 @@ func _on_dice_style_changed() -> void:
 
 func _on_die_pressed(row: int, col: int) -> void:
 	if session.safari_countdown > 0:
+		DebugLog.alea_log("Power", "die click ignored safari countdown=%d" % session.safari_countdown)
 		return
 	var now := Time.get_ticks_msec()
 	if (
@@ -694,6 +710,11 @@ func _on_die_pressed(row: int, col: int) -> void:
 		_click_timer.stop()
 		_last_click_cell = Vector2i(-1, -1)
 		var cell: DiceCellData = session.grid[row][col]
+		DebugLog.alea_log(
+			"Power",
+			"die double-click reroll (%d,%d) locked=%s active=%s"
+			% [row, col, cell.locked, session.active_power_type]
+		)
 		if not cell.locked and not cell.no_reroll:
 			session.selected_row = -1
 			session.selected_col = -1
@@ -708,6 +729,11 @@ func _on_die_pressed(row: int, col: int) -> void:
 func _on_single_click_timeout() -> void:
 	var p := _pending_click
 	_pending_click = Vector2i(-1, -1)
+	DebugLog.alea_log(
+		"Power",
+		"die single-click (%d,%d) active=%s modal=%d"
+		% [p.x, p.y, session.active_power_type, session.current_modal]
+	)
 	session.select_die(p.x, p.y)
 
 
@@ -716,6 +742,16 @@ func _on_safari_tick() -> void:
 
 
 func _on_number_picked(n: int) -> void:
+	DebugLog.alea_log(
+		"Power",
+		"number picked %d active=%s target=(%d,%d)"
+		% [
+			n,
+			session.active_power_type,
+			session.active_target_row,
+			session.active_target_col,
+		]
+	)
 	session.apply_number_pick(n)
 
 

@@ -17,6 +17,7 @@ var _pressing: bool = false
 var _float_base: Vector2 = Vector2.ZERO
 var _float_time: float = 0.0
 var _float_phase_offset: float = 0.0
+var _floating_enabled: bool = true
 
 
 func _ready() -> void:
@@ -37,12 +38,23 @@ func _ready() -> void:
 
 func configure_float(phase_offset: float) -> void:
 	_float_phase_offset = phase_offset
-	set_process(true)
+	_set_floating(_floating_enabled)
+
+
+func set_floating_enabled(enabled: bool) -> void:
+	_floating_enabled = enabled
+	_set_floating(enabled)
 
 
 func set_float_base(pos: Vector2) -> void:
 	_float_base = pos
 	position = pos
+
+
+func _set_floating(enabled: bool) -> void:
+	set_process(enabled)
+	if not enabled:
+		position = _float_base
 
 
 func set_orb_color(color: Color) -> void:
@@ -61,6 +73,9 @@ func _set_pressing(value: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	if not _floating_enabled:
+		position = _float_base
+		return
 	_float_time += delta
 	var bob: float = sin((_float_time + _float_phase_offset) * TAU / FLOAT_PERIOD) * FLOAT_AMPLITUDE
 	position = Vector2(_float_base.x, _float_base.y + bob)

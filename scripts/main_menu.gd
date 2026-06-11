@@ -2,6 +2,7 @@ extends Control
 
 const ORB_SIZE := 72.0
 const ORB_ABOVE_PILLAR_GAP := 2.0
+const ORB_SEATED_OVERLAP := 15.0
 const PILLAR_TEXTURE_SRC_HEIGHT := 222.0
 const PILLAR_TEXTURE_VISIBLE_TOP := 75.0
 const TOOLTIP_GAP := 14.0
@@ -219,10 +220,14 @@ func _build_orbs() -> void:
 		var gid: String = str(gym.get("id", ""))
 		if gid.is_empty():
 			continue
+		var defeated: bool = SaveService.has_badge(gid)
 		var orb := _make_orb(gym, pillar_idx)
-		var base_pos := _orb_position_above_pillar(pillar_idx)
+		var base_pos := _orb_position_above_pillar(pillar_idx, defeated)
 		orb.set_float_base(base_pos)
-		orb.configure_float(float(pillar_idx) * 0.85)
+		if defeated:
+			orb.set_floating_enabled(false)
+		else:
+			orb.configure_float(float(pillar_idx) * 0.85)
 		map_area.add_child(orb)
 		DebugLog.alea_log(
 			"MainMenu",
@@ -243,7 +248,7 @@ func _orb_color_for_gym(gym_id: String) -> Color:
 	return GYM_ORB_FALLBACK_COLOR
 
 
-func _orb_position_above_pillar(pillar_index: int) -> Vector2:
+func _orb_position_above_pillar(pillar_index: int, seated: bool = false) -> Vector2:
 	if deck_pillars == null or map_area == null:
 		return Vector2.ZERO
 	var pillars := deck_pillars.get_children()
@@ -258,9 +263,10 @@ func _orb_position_above_pillar(pillar_index: int) -> Vector2:
 	)
 	var top_center_global := Vector2(pillar_rect.get_center().x, visible_top_y)
 	var local := map_area.get_global_transform_with_canvas().affine_inverse() * top_center_global
+	var gap: float = -ORB_SEATED_OVERLAP if seated else ORB_ABOVE_PILLAR_GAP
 	return Vector2(
 		local.x - ORB_SIZE * 0.5,
-		local.y - ORB_SIZE - ORB_ABOVE_PILLAR_GAP
+		local.y - ORB_SIZE - gap
 	)
 
 
@@ -307,7 +313,6 @@ func _populate_tooltip(gym: Dictionary) -> void:
 
 
 func _on_orb_hover(gym: Dictionary, orb: Control) -> void:
-	DebugLog.alea_log("MainMenu", "hover gym=%s orb_rect=%s" % [gid_str(gym), orb.get_global_rect()])
 	_hover_gym_id = gid_str(gym)
 	_populate_tooltip(gym)
 	gym_tooltip.visible = true
@@ -655,14 +660,6 @@ func _on_river_video_finished() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if DebugLog.log_menu_clicks and event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_LEFT:
-			var action: String = "DOWN" if mb.pressed else "UP"
-			DebugLog.log_hovered(
-				"MainMenu",
-				"[%d] unhandled mouse_%s" % [_click_seq, action]
-			)
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key := event as InputEventKey
 		if DevCheats.feed_typed_key(key.unicode):
