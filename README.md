@@ -2,6 +2,12 @@
 
 Godot 4 port of **Alea**. Web prototype: **`../Alea`**
 
+## About
+
+**Alea** is a dice puzzle roguelite. You have a 5×5 board and a handful of rerolls and swaps each level. Your job is to shape every row into a valid pattern — straights, full houses, five of a kind, and more — then lock those dice in place. Complete all five rows to clear the level, earn a new power for your loadout, and push deeper into the run.
+
+Powers are tied to the patterns you finish: land a straight to unlock free swaps anywhere, a full house for precise set-die control, five of a kind to rewrite a whole row. Each gym on the world map twists the rules — ordered rerolls, safari countdowns, tighter loadouts, head-start boards — and awards a badge when you reach level 8. Collect every badge to unlock the Championship: three powers, three special opponents, one title — **Dice Champion**.
+
 ## Run
 
 1. Install [Godot 4.3+](https://godotengine.org/download)

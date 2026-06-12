@@ -750,6 +750,7 @@ func apply_number_pick(number: int) -> void:
 			% [number, tr, power_charges.get(ptype, 0)]
 		)
 	process_row_completions()
+	_emit()
 
 
 func reroll_trade() -> void:
