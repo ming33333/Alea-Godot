@@ -2,6 +2,7 @@ extends Control
 
 const DIE_CELL := preload("res://scenes/die_cell.tscn")
 const POWER_DIE_BUTTON: PackedScene = preload("res://scenes/power_die_button.tscn")
+const GYM_BACKGROUND_SHADER: Shader = preload("res://assets/shaders/gym_background.gdshader")
 
 @onready var grid_container: GridContainer = %Grid
 @onready var level_label: Label = %LevelLabel
@@ -9,6 +10,8 @@ const POWER_DIE_BUTTON: PackedScene = preload("res://scenes/power_die_button.tsc
 @onready var switches_label: Label = %SwitchesLabel
 @onready var rerolls_label: Label = %RerollsLabel
 @onready var gym_label: Label = %GymLabel
+@onready var gym_title_wrap: VBoxContainer = %GymTitleWrap
+@onready var gym_title_underline: ColorRect = %GymTitleUnderline
 @onready var board_column: VBoxContainer = %BoardColumn
 @onready var stats_bar: PanelContainer = %StatsBar
 @onready var grid_board: Control = %GridBoard
@@ -20,6 +23,7 @@ const POWER_DIE_BUTTON: PackedScene = preload("res://scenes/power_die_button.tsc
 @onready var power_hint: VBoxContainer = %PowerHint
 @onready var power_hint_label: Label = %PowerHintLabel
 @onready var cancel_power_btn: Button = %CancelPowerBtn
+@onready var background: ColorRect = $Background
 
 const ACTIVATABLE_POWERS: Array[String] = [
 	"chooseNumber", "switchAnywhere", "setAnyNumber", "switchRows"
@@ -83,6 +87,12 @@ const REF_POWER_PATCH_BOTTOM := 16.0
 
 var _board_size: float = REF_BOARD_SIZE
 var _power_chip_size: int = int(REF_POWER_CHIP)
+var _background_material: ShaderMaterial
+var _gym_title_hovered: bool = false
+
+const GYM_TITLE_COLOR := Color(0.12, 0.16, 0.24, 1)
+const GYM_TITLE_UNDERLINE_H := 2.0
+const GYM_TITLE_UNDERLINE_HOVER_H := 3.0
 
 
 func _ready() -> void:
@@ -128,6 +138,8 @@ func _ready() -> void:
 		DiceSprites.style_changed.connect(_on_dice_style_changed)
 	_setup_dice_roll_sfx()
 	_setup_dice_swish_sfx()
+	_setup_gym_background()
+	_setup_gym_title_hover()
 	_setup_dev_cheats()
 	call_deferred("_begin_run")
 
@@ -242,9 +254,19 @@ func _refresh_ui() -> void:
 			match_no,
 			opp.get("name", "Opponent"),
 		]
+		gym_title_wrap.tooltip_text = str(opp.get("description", ""))
 	else:
 		var gym: Dictionary = GameData.get_gym(session.gym_id)
-		gym_label.text = gym.get("name", "Alea")
+		gym_label.text = str(gym.get("name", "Alea"))
+		var subtitle: String = str(gym.get("subtitle", ""))
+		var description: String = str(gym.get("description", ""))
+		if subtitle.is_empty():
+			gym_title_wrap.tooltip_text = description
+		else:
+			gym_title_wrap.tooltip_text = "%s\n\n%s" % [subtitle, description]
+	call_deferred("_layout_gym_title_underline")
+	if background:
+		_update_gym_background_color()
 	level_label.text = "Level %d" % session.level
 	hearts_label.text = "♥ %d" % session.hearts
 	var lim: Dictionary = session.get_limits()
@@ -306,7 +328,56 @@ func _sync_grid() -> void:
 
 
 func _on_viewport_size_changed() -> void:
+	_sync_gym_background_aspect()
 	call_deferred("_layout_boards")
+	call_deferred("_layout_gym_title_underline")
+
+
+func _layout_gym_title_underline() -> void:
+	if gym_label == null or gym_title_underline == null:
+		return
+	var text_w: float = gym_label.get_minimum_size().x
+	if text_w < 8.0:
+		text_w = gym_label.size.x
+	gym_title_underline.custom_minimum_size = Vector2(
+		maxf(text_w, 8.0),
+		GYM_TITLE_UNDERLINE_HOVER_H if _gym_title_hovered else GYM_TITLE_UNDERLINE_H
+	)
+
+
+func _setup_gym_title_hover() -> void:
+	if gym_title_wrap == null:
+		return
+	if not gym_title_wrap.mouse_entered.is_connected(_on_gym_title_mouse_entered):
+		gym_title_wrap.mouse_entered.connect(_on_gym_title_mouse_entered)
+	if not gym_title_wrap.mouse_exited.is_connected(_on_gym_title_mouse_exited):
+		gym_title_wrap.mouse_exited.connect(_on_gym_title_mouse_exited)
+
+
+func _on_gym_title_mouse_entered() -> void:
+	_set_gym_title_highlight(true)
+
+
+func _on_gym_title_mouse_exited() -> void:
+	_set_gym_title_highlight(false)
+
+
+func _set_gym_title_highlight(hovering: bool) -> void:
+	_gym_title_hovered = hovering
+	if gym_label == null:
+		return
+	if hovering:
+		var accent: Color = GameData.get_gym_orb_color(
+			session.gym_id if session != null else GameState.selected_gym_id
+		)
+		gym_label.add_theme_color_override("font_color", accent.darkened(0.12))
+		if gym_title_underline != null:
+			gym_title_underline.color = accent.darkened(0.08)
+	else:
+		gym_label.add_theme_color_override("font_color", GYM_TITLE_COLOR)
+		if gym_title_underline != null:
+			gym_title_underline.color = GYM_TITLE_COLOR
+	call_deferred("_layout_gym_title_underline")
 
 
 func _layout_boards() -> void:
@@ -686,6 +757,40 @@ func _setup_dice_swish_sfx() -> void:
 	_dice_swish_player.stream = AudioSettings.get_dice_swish_stream()
 	_dice_swish_player.bus = &"Master"
 	add_child(_dice_swish_player)
+
+
+func _setup_gym_background() -> void:
+	if background == null or GYM_BACKGROUND_SHADER == null:
+		return
+	_background_material = ShaderMaterial.new()
+	_background_material.shader = GYM_BACKGROUND_SHADER
+	_background_material.set_shader_parameter("light_strength", 0.82)
+	background.material = _background_material
+	background.color = Color.WHITE
+	_sync_gym_background_aspect()
+	if session != null:
+		_update_gym_background_color()
+
+
+func _update_gym_background_color() -> void:
+	if session == null:
+		return
+	var base: Color = GameData.get_gym_background_color(session.gym_id)
+	if _background_material != null:
+		_background_material.set_shader_parameter("base_color", base)
+		_sync_gym_background_aspect()
+	else:
+		background.color = base
+
+
+func _sync_gym_background_aspect() -> void:
+	if _background_material == null:
+		return
+	var vp: Vector2 = get_viewport_rect().size
+	_background_material.set_shader_parameter(
+		"aspect_ratio",
+		vp.x / maxf(vp.y, 1.0)
+	)
 
 
 func _on_dice_swished() -> void:

@@ -8,15 +8,6 @@ const PILLAR_TEXTURE_VISIBLE_TOP := 75.0
 const TOOLTIP_GAP := 14.0
 const GAME_SCENE: PackedScene = preload("res://scenes/game.tscn")
 
-const GYM_ORB_COLORS: Dictionary = {
-	"vanilla": Color(0.52, 0.68, 0.54, 0.9),
-	"orderedReroll": Color(0.55, 0.62, 0.78, 0.9),
-	"countdownOne": Color(0.85, 0.68, 0.42, 0.9),
-	"countdownAll": Color(0.50, 0.66, 0.72, 0.9),
-	"twoSlots": Color(0.65, 0.55, 0.72, 0.9),
-	"middleStraight": Color(0.80, 0.52, 0.44, 0.9),
-}
-const GYM_ORB_FALLBACK_COLOR := Color(0.62, 0.60, 0.58, 0.9)
 const BADGE_ICON_SIZE := 40.0
 const BADGE_BOX_SIZE := 56.0
 const BADGE_SLIDE_DURATION := 0.55
@@ -243,9 +234,7 @@ func _build_orbs() -> void:
 
 
 func _orb_color_for_gym(gym_id: String) -> Color:
-	if GYM_ORB_COLORS.has(gym_id):
-		return GYM_ORB_COLORS[gym_id] as Color
-	return GYM_ORB_FALLBACK_COLOR
+	return GameData.get_gym_orb_color(gym_id)
 
 
 func _orb_position_above_pillar(pillar_index: int, seated: bool = false) -> Vector2:
@@ -313,8 +302,14 @@ func _populate_tooltip(gym: Dictionary) -> void:
 
 
 func _on_orb_hover(gym: Dictionary, orb: Control) -> void:
-	_hover_gym_id = gid_str(gym)
-	_populate_tooltip(gym)
+	var gid: String = gid_str(gym)
+	if _hover_gym_id == gid:
+		if gym_tooltip.visible:
+			call_deferred("_position_tooltip_near_orb", orb)
+			return
+	else:
+		_hover_gym_id = gid
+		_populate_tooltip(gym)
 	gym_tooltip.visible = true
 	call_deferred("_position_tooltip_near_orb", orb)
 
@@ -326,6 +321,9 @@ func _on_orb_unhover(gym: Dictionary) -> void:
 
 func _on_championship_hover() -> void:
 	if champion_portal == null or not champion_portal.visible:
+		return
+	if _hover_gym_id == "championship" and gym_tooltip.visible:
+		call_deferred("_position_tooltip_near_control", champion_portal)
 		return
 	_hover_gym_id = "championship"
 	if tooltip_badge:
