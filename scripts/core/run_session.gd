@@ -164,14 +164,19 @@ func rerolls_left() -> int:
 
 
 func check_win() -> bool:
+	var patterns: Array = _board_patterns()
+	var opp: String = tournament_opponent_id if is_tournament else ""
+	return TournamentRules.check_win_patterns(patterns, opp)
+
+
+func _board_patterns() -> Array:
 	var patterns: Array = []
 	for row in grid:
 		var vals: Array = []
 		for c in row:
 			vals.append(c.value)
 		patterns.append(PatternCheck.check_pattern(vals))
-	var opp: String = tournament_opponent_id if is_tournament else ""
-	return TournamentRules.check_win_patterns(patterns, opp)
+	return patterns
 
 
 func blocks_play() -> bool:
@@ -317,6 +322,16 @@ func _lock_row(row: Array) -> Array:
 
 func _check_win_flow() -> void:
 	if not check_win():
+		if (
+			is_tournament
+			and TournamentRules.mandate_failed(
+				_board_patterns(), tournament_opponent_id
+			)
+		):
+			game_over = true
+			current_modal = Modal.GAME_OVER
+			_emit()
+			return
 		if is_level_failed():
 			_handle_fail()
 		_emit()
@@ -644,19 +659,12 @@ func _handle_switch_rows(row: int) -> void:
 	active_power_type = ""
 	active_target_row = -1
 	process_row_completions()
+	_emit()
 
 
 func _swap_rows(first: int, second: int) -> void:
-	var has_sc: bool = unlocked_powers.has("secondChances")
 	for c in range(grid[0].size()):
-		var a: DiceCellData = grid[first][c]
-		var b: DiceCellData = grid[second][c]
-		var tv: int = a.value
-		a.value = b.value
-		b.value = tv
-		var th: Array = a.history.duplicate()
-		a.history = b.history.duplicate()
-		b.history = th
+		grid[first][c].swap_with(grid[second][c])
 	for ri in [first, second]:
 		var vals: Array = []
 		for cell in grid[ri]:
@@ -665,16 +673,6 @@ func _swap_rows(first: int, second: int) -> void:
 			awarded_rows.erase(ri)
 			for pt in PowerLogic.PATTERN_POWERS:
 				power_earned_rows.erase(PowerLogic.power_earn_key(ri, pt))
-			var new_row: Array = []
-			for cell in grid[ri]:
-				var nc: DiceCellData = cell.duplicate_cell()
-				nc.locked = false
-				if has_sc:
-					nc.vertical_swaps_remaining = int(
-						GameData.level_limits.get("second_chances_vertical_swaps", 2)
-					)
-				new_row.append(nc)
-			grid[ri] = new_row
 	dice_swished.emit()
 
 

@@ -12,6 +12,7 @@ var persist_unlock: bool = true
 var hint: String = ""
 
 var unlocked: bool = false
+var cheats_locked: bool = false
 var menu_minimized: bool = false
 
 var _type_buffer: String = ""
@@ -60,7 +61,9 @@ func _load_persisted_unlock() -> void:
 	if not persist_unlock:
 		return
 	if FileAccess.file_exists(SAVE_PATH):
-		unlocked = FileAccess.get_file_as_string(SAVE_PATH).strip_edges() == "1"
+		var saved: String = FileAccess.get_file_as_string(SAVE_PATH).strip_edges()
+		unlocked = saved == "1"
+		cheats_locked = saved == "0"
 
 
 func _save_persisted_unlock() -> void:
@@ -72,6 +75,8 @@ func _save_persisted_unlock() -> void:
 
 
 func is_active() -> bool:
+	if cheats_locked:
+		return false
 	if unlocked:
 		return true
 	if always_on_in_editor and Engine.is_editor_hint():
@@ -87,6 +92,7 @@ func try_unlock(raw: String) -> bool:
 		return false
 	if unlocked:
 		return true
+	cheats_locked = false
 	unlocked = true
 	_save_persisted_unlock()
 	unlock_state_changed.emit(true)
@@ -95,11 +101,12 @@ func try_unlock(raw: String) -> bool:
 
 
 func lock_cheats() -> void:
-	if not unlocked:
-		return
+	cheats_locked = true
 	unlocked = false
+	menu_minimized = false
 	_save_persisted_unlock()
 	unlock_state_changed.emit(false)
+	DebugLog.log("DevCheats", "locked")
 
 
 func feed_typed_key(key_unicode: int) -> bool:
@@ -135,6 +142,8 @@ func _is_code_char(ch: String) -> bool:
 
 
 func get_status_text() -> String:
+	if cheats_locked:
+		return "Dev cheats locked. Enter a code below to unlock."
 	if is_active():
 		if Engine.is_editor_hint() and always_on_in_editor and not unlocked:
 			return "Dev cheats ON (editor). Codes in data/dev_cheats.json also work."

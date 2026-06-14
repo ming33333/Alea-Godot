@@ -1,16 +1,13 @@
-[gd_scene load_steps=9 format=3 uid="uid://c8k2gameplaceholder"]
+[gd_scene load_steps=8 format=3 uid="uid://c8k2gameplaceholder"]
 
 [ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
 [ext_resource type="Texture2D" path="res://assets/textures/dice_board.png" id="2_board"]
-[ext_resource type="Texture2D" path="res://assets/textures/powerup_board.png" id="3_powerup"]
+[ext_resource type="Script" path="res://scripts/ui/draggable_panel.gd" id="4_drag"]
+[ext_resource type="Script" path="res://scripts/ui/level_up_peek_outline.gd" id="5_peek"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_dice_board_tile"]
 atlas = ExtResource("2_board")
 region = Rect2(124, 130, 264, 258)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_powerup_board_tile"]
-atlas = ExtResource("3_powerup")
-region = Rect2(39, 98, 178, 60)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_modal_card"]
 bg_color = Color(1, 1, 1, 1)
@@ -204,12 +201,26 @@ theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
 theme_override_font_sizes/font_size = 23
 text = "·"
 
-[node name="HeartsLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+[node name="HeartsGroup" type="HBoxContainer" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="HeartIcon" type="TextureRect" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow/HeartsGroup"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(18, 18)
+layout_mode = 2
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HeartsCount" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow/HeartsGroup"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.14, 0.2, 1)
 theme_override_font_sizes/font_size = 23
-text = "♥ 3"
+text = "3"
 
 [node name="StatsSep2" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
 layout_mode = 2
@@ -283,25 +294,10 @@ columns = 5
 
 [node name="PowerDock" type="Control" parent="Margin/VBox/Center/BoardColumn"]
 unique_name_in_owner = true
+clip_children = 0
 layout_mode = 2
-custom_minimum_size = Vector2(501, 100)
+custom_minimum_size = Vector2(501, 128)
 size_flags_horizontal = 4
-
-[node name="PowerBackdrop" type="NinePatchRect" parent="Margin/VBox/Center/BoardColumn/PowerDock"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-texture = SubResource("AtlasTexture_powerup_board_tile")
-texture_filter = 0
-patch_margin_left = 35
-patch_margin_top = 14
-patch_margin_right = 35
-patch_margin_bottom = 16
 
 [node name="DockMargin" type="MarginContainer" parent="Margin/VBox/Center/BoardColumn/PowerDock"]
 layout_mode = 1
@@ -322,6 +318,7 @@ theme_override_constants/separation = 8
 
 [node name="PowerBar" type="HBoxContainer" parent="Margin/VBox/Center/BoardColumn/PowerDock/DockMargin/DockVBox"]
 unique_name_in_owner = true
+clip_children = 0
 layout_mode = 2
 size_flags_vertical = 4
 alignment = 1
@@ -420,11 +417,14 @@ layout_mode = 2
 theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Emoji" type="Label" parent="ModalRound/Center/Card/CardMargin/VBox"]
+[node name="RoundIcon" type="TextureRect" parent="ModalRound/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 40)
 layout_mode = 2
-theme_override_font_sizes/font_size = 40
-text = "🎉"
-horizontal_alignment = 1
+size_flags_horizontal = 4
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Label" type="Label" parent="ModalRound/Center/Card/CardMargin/VBox"]
 layout_mode = 2
@@ -454,7 +454,8 @@ grow_vertical = 2
 mouse_filter = 0
 z_index = 50
 
-[node name="Backdrop" type="ColorRect" parent="ModalLevelUp"]
+[node name="LevelUpBackdrop" type="ColorRect" parent="ModalLevelUp"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -464,7 +465,7 @@ grow_vertical = 2
 mouse_filter = 0
 color = Color(0, 0, 0, 0.55)
 
-[node name="Center" type="CenterContainer" parent="ModalLevelUp"]
+[node name="Center" type="Control" parent="ModalLevelUp"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -473,42 +474,53 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Card" type="PanelContainer" parent="ModalLevelUp/Center"]
+[node name="LevelUpCard" type="PanelContainer" parent="ModalLevelUp/Center"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(480, 0)
-layout_mode = 2
+layout_mode = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_modal_card")
+script = ExtResource("4_drag")
+drag_handle = NodePath("CardMargin/VBox/Title")
 
-[node name="CardMargin" type="MarginContainer" parent="ModalLevelUp/Center/Card"]
+[node name="LevelUpPeekOutline" type="Control" parent="ModalLevelUp/Center"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+mouse_filter = 0
+script = ExtResource("5_peek")
+
+[node name="CardMargin" type="MarginContainer" parent="ModalLevelUp/Center/LevelUpCard"]
 layout_mode = 2
 theme_override_constants/margin_left = 28
 theme_override_constants/margin_top = 28
 theme_override_constants/margin_right = 28
 theme_override_constants/margin_bottom = 28
 
-[node name="VBox" type="VBoxContainer" parent="ModalLevelUp/Center/Card/CardMargin"]
+[node name="VBox" type="VBoxContainer" parent="ModalLevelUp/Center/LevelUpCard/CardMargin"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="ModalLevelUp/Center/Card/CardMargin/VBox"]
+[node name="Title" type="Label" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox"]
 layout_mode = 2
+mouse_filter = 0
 theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
 theme_override_font_sizes/font_size = 24
 text = "Level up — pick a power"
 horizontal_alignment = 1
 
-[node name="Scroll" type="ScrollContainer" parent="ModalLevelUp/Center/Card/CardMargin/VBox"]
+[node name="Scroll" type="ScrollContainer" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox"]
 custom_minimum_size = Vector2(0, 280)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="LevelUpOptions" type="VBoxContainer" parent="ModalLevelUp/Center/Card/CardMargin/VBox/Scroll"]
+[node name="LevelUpOptions" type="VBoxContainer" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox/Scroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="LevelUpDetail" type="Label" parent="ModalLevelUp/Center/Card/CardMargin/VBox"]
+[node name="LevelUpDetail" type="Label" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 56)
@@ -517,7 +529,7 @@ theme_override_font_sizes/font_size = 13
 text = "Hover a power to see what it does"
 autowrap_mode = 3
 
-[node name="LevelUpKeepPowers" type="Button" parent="ModalLevelUp/Center/Card/CardMargin/VBox"]
+[node name="LevelUpKeepPowers" type="Button" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
@@ -709,11 +721,14 @@ layout_mode = 2
 theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Emoji" type="Label" parent="ModalGameOver/Center/Card/CardMargin/VBox"]
+[node name="GameOverIcon" type="TextureRect" parent="ModalGameOver/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 40)
 layout_mode = 2
-theme_override_font_sizes/font_size = 40
-text = "💔"
-horizontal_alignment = 1
+size_flags_horizontal = 4
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="GameOverTitle" type="Label" parent="ModalGameOver/Center/Card/CardMargin/VBox"]
 unique_name_in_owner = true
@@ -790,11 +805,14 @@ layout_mode = 2
 theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Emoji" type="Label" parent="ModalStuck/Center/Card/CardMargin/VBox"]
+[node name="StuckIcon" type="TextureRect" parent="ModalStuck/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 40)
 layout_mode = 2
-theme_override_font_sizes/font_size = 40
-text = "😵"
-horizontal_alignment = 1
+size_flags_horizontal = 4
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="StuckTitle" type="Label" parent="ModalStuck/Center/Card/CardMargin/VBox"]
 unique_name_in_owner = true
@@ -819,7 +837,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.1, 0.15, 1)
 theme_override_font_sizes/font_size = 15
-text = "♥ 2 remaining"
+text = "Hearts 2 remaining"
 horizontal_alignment = 1
 autowrap_mode = 3
 
@@ -880,17 +898,20 @@ layout_mode = 2
 theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Emoji" type="Label" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
+[node name="TournamentWinIcon" type="TextureRect" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 40)
 layout_mode = 2
-theme_override_font_sizes/font_size = 40
-text = "⚔️"
-horizontal_alignment = 1
+size_flags_horizontal = 4
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Label" type="Label" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
 theme_override_font_sizes/font_size = 26
-text = "Match won!"
+text = "Game won!"
 horizontal_alignment = 1
 
 [node name="Continue" type="Button" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
@@ -1068,7 +1089,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.12, 0.18, 1)
 theme_override_font_sizes/font_size = 15
-text = "♥ 3 → ♥ 2 after restart"
+text = "Hearts 3 -> 2 after restart"
 horizontal_alignment = 1
 
 [node name="BtnRow" type="HBoxContainer" parent="ModalRestartConfirm/Center/Card/CardMargin/VBox"]
@@ -1089,9 +1110,9 @@ theme_override_font_sizes/font_size = 16
 theme_override_styles/normal = SubResource("StyleBoxFlat_modal_btn")
 theme_override_styles/hover = SubResource("StyleBoxFlat_modal_btn")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_modal_btn")
-text = "Restart (−1 ♥)"
+text = "Restart (-1 heart)"
 
-[connection signal="pressed" from="ModalLevelUp/Center/Card/CardMargin/VBox/LevelUpKeepPowers" to="." method="_on_level_up_keep_powers_pressed"]
+[connection signal="pressed" from="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox/LevelUpKeepPowers" to="." method="_on_level_up_keep_powers_pressed"]
 [connection signal="pressed" from="Margin/VBox/Header/TopRow/Back" to="." method="_on_back_pressed"]
 [connection signal="pressed" from="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow/LevelGroup/RestartBtn" to="." method="_on_restart_pressed"]
 [connection signal="pressed" from="ModalRound/Center/Card/CardMargin/VBox/Continue" to="." method="_on_continue_round_pressed"]

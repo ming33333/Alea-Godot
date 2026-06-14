@@ -1,68 +1,106 @@
 [gd_scene load_steps=3 format=3 uid="uid://bv4i82vy4gowy"]
 
 [ext_resource type="Script" path="res://scripts/ui/power_die_button.gd" id="1_pwr"]
-[ext_resource type="Script" path="res://scripts/ui/pixel_die_frame.gd" id="2_frame"]
+[ext_resource type="Script" path="res://scripts/ui/power_speech_bubble.gd" id="2_bubble"]
 
 [node name="PowerDieButton" type="Button"]
-custom_minimum_size = Vector2(124, 124)
+custom_minimum_size = Vector2(81, 106)
 focus_mode = 0
 flat = true
+clip_children = 0
 script = ExtResource("1_pwr")
 
-[node name="Wrap" type="Control" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="SpeechBubble" type="Control" parent="."]
+visible = false
+z_index = 8
+layout_mode = 0
+offset_right = 168.0
+offset_bottom = 52.0
+mouse_filter = 2
+script = ExtResource("2_bubble")
+
+[node name="Panel" type="PanelContainer" parent="SpeechBubble"]
+layout_mode = 0
+offset_right = 168.0
+offset_bottom = 44.0
 mouse_filter = 2
 
-[node name="Face" type="PanelContainer" parent="Wrap"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-
-[node name="PixelBorder" type="Control" parent="Wrap"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("2_frame")
-
-[node name="Margin" type="MarginContainer" parent="Wrap/Face"]
+[node name="Margin" type="MarginContainer" parent="SpeechBubble/Panel"]
 layout_mode = 2
-theme_override_constants/margin_left = 5
-theme_override_constants/margin_top = 5
-theme_override_constants/margin_right = 5
-theme_override_constants/margin_bottom = 5
 
-[node name="VBox" type="VBoxContainer" parent="Wrap/Face/Margin"]
+[node name="Label" type="Label" parent="SpeechBubble/Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 0
+theme_override_colors/font_color = Color(0.15, 0.35, 0.55, 1)
+theme_override_font_sizes/font_size = 11
+text = "Tap a die to use this power"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
 alignment = 1
 
-[node name="TitleLabel" type="Label" parent="Wrap/Face/Margin/VBox"]
+[node name="DieWrap" type="Control" parent="VBox"]
+custom_minimum_size = Vector2(81, 81)
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+
+[node name="HoverGlow" type="ColorRect" parent="VBox/DieWrap"]
+visible = false
+modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+offset_left = -7.0
+offset_top = -7.0
+offset_right = 123.0
+offset_bottom = 123.0
+mouse_filter = 2
+color = Color(1, 0.92, 0.55, 0.42)
+
+[node name="DieSprite" type="TextureRect" parent="VBox/DieWrap"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+texture_filter = 0
+
+[node name="ChargeLabel" type="Label" parent="VBox/DieWrap"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -34.0
+offset_top = -18.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.08, 0.1, 0.14, 1)
+theme_override_colors/font_outline_color = Color(1, 1, 1, 0.9)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 12
+text = "x2"
+horizontal_alignment = 2
+vertical_alignment = 2
+
+[node name="NameLabel" type="Label" parent="VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.1, 0.12, 0.18, 1)
-theme_override_font_sizes/font_size = 9
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 12
 text = "Power"
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
-
-[node name="ChargeLabel" type="Label" parent="Wrap/Face/Margin/VBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.35, 0.38, 0.45, 1)
-theme_override_font_sizes/font_size = 10
-text = "x2"
-horizontal_alignment = 1

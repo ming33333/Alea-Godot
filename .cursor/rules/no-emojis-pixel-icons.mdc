@@ -1,0 +1,29 @@
+---
+description: Never use emojis; use pixel-themed icon assets instead
+alwaysApply: true
+---
+
+# No emojis — pixel icons only
+
+Do not use emojis or Unicode pictographs in game UI, data, scenes, or copy (e.g. hearts, crowns, tools, faces, stars).
+
+## Instead
+
+- Add or reuse pixel art in `assets/icons/` (16–32px, nearest-neighbor scaling).
+- Load icons through `PixelIconArt` in `scripts/ui/pixel_icon_art.gd`.
+- Show icons with `TextureRect` or `Button.icon`, paired with `Label` text when needed.
+- Tournament opponents use an `icon` field (opponent id), not `emoji`.
+
+## Examples
+
+```gdscript
+# BAD
+label.text = "♥ %d" % hearts
+tooltip_body.text = "Win all three games 🎉"
+
+# GOOD
+hearts_count.text = str(hearts)
+icon_rect.texture = PixelIconArt.get_icon("heart")
+```
+
+When adding a new icon, draw it in `PixelIconArt` (or add a matching PNG under `assets/icons/`) and keep the palette consistent with existing badges and dice art.

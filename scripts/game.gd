@@ -6,7 +6,8 @@ const GYM_BACKGROUND_SHADER: Shader = preload("res://assets/shaders/gym_backgrou
 
 @onready var grid_container: GridContainer = %Grid
 @onready var level_label: Label = %LevelLabel
-@onready var hearts_label: Label = %HeartsLabel
+@onready var hearts_icon: TextureRect = %HeartIcon
+@onready var hearts_count: Label = %HeartsCount
 @onready var switches_label: Label = %SwitchesLabel
 @onready var rerolls_label: Label = %RerollsLabel
 @onready var gym_label: Label = %GymLabel
@@ -18,7 +19,6 @@ const GYM_BACKGROUND_SHADER: Shader = preload("res://assets/shaders/gym_backgrou
 @onready var board_backdrop: NinePatchRect = %BoardBackdrop
 @onready var board_margin: MarginContainer = %BoardMargin
 @onready var power_dock: Control = %PowerDock
-@onready var power_backdrop: NinePatchRect = %PowerBackdrop
 @onready var power_bar: HBoxContainer = %PowerBar
 @onready var power_hint: VBoxContainer = %PowerHint
 @onready var power_hint_label: Label = %PowerHintLabel
@@ -31,14 +31,20 @@ const ACTIVATABLE_POWERS: Array[String] = [
 @onready var safari_overlay: Label = %SafariOverlay
 @onready var modal_round: Control = %ModalRound
 @onready var modal_level_up: Control = %ModalLevelUp
+@onready var level_up_backdrop: ColorRect = %LevelUpBackdrop
+@onready var level_up_card: DraggablePanel = %LevelUpCard
+@onready var level_up_peek_outline: LevelUpPeekOutline = %LevelUpPeekOutline
 @onready var modal_number: Control = %ModalNumber
 @onready var modal_victory: Control = %ModalVictory
 @onready var victory_badge: TextureRect = %VictoryBadge
 @onready var modal_game_over: Control = %ModalGameOver
 @onready var modal_stuck: Control = %ModalStuck
+@onready var modal_round_icon: TextureRect = %RoundIcon
+@onready var modal_game_over_icon: TextureRect = %GameOverIcon
+@onready var modal_stuck_icon: TextureRect = %StuckIcon
 @onready var modal_tournament_win: Control = %ModalTournamentWin
+@onready var modal_tournament_win_icon: TextureRect = %TournamentWinIcon
 @onready var modal_swap: Control = %ModalSwap
-@onready var level_up_options: VBoxContainer = %LevelUpOptions
 @onready var level_up_detail: Label = %LevelUpDetail
 @onready var level_up_keep_powers: Button = %LevelUpKeepPowers
 
@@ -73,22 +79,26 @@ const SINGLE_CLICK_DELAY_SEC := 0.12
 const DOUBLE_CLICK_MS := 350
 
 const REF_BOARD_SIZE := 501.0
-const POWER_BOARD_HEIGHT_RATIO := 0.2
-const POWER_CHIP_SCALE := 2.0
+const REF_POWERUP_DIE := 58.0
+const REF_POWER_NAME_H := 22.0
+const POWER_CHIP_SCALE := 1.4
 const REF_DIE_CELL := 87.0
 const REF_GRID_SEP := 6.0
 const REF_BOARD_INSET := 21.0
-const REF_POWER_CHIP := 124.0
 const REF_POWER_BAR_SEP := 10.0
-const REF_POWER_PATCH_LEFT := 35.0
-const REF_POWER_PATCH_TOP := 14.0
-const REF_POWER_PATCH_RIGHT := 35.0
-const REF_POWER_PATCH_BOTTOM := 16.0
+const REF_POWER_DOCK_PAD := 6.0
 
 var _board_size: float = REF_BOARD_SIZE
-var _power_chip_size: int = int(REF_POWER_CHIP)
+var _power_chip_size: int = int(REF_POWERUP_DIE * POWER_CHIP_SCALE)
+var _power_bubble_track: String = ""
 var _background_material: ShaderMaterial
 var _gym_title_hovered: bool = false
+var _level_up_modal_was_open: bool = false
+var _level_up_eye_cursor_active: bool = false
+var _eye_cursor: ImageTexture
+
+enum LevelUpView { FULL, PEEK }
+var _level_up_view: LevelUpView = LevelUpView.FULL
 
 const GYM_TITLE_COLOR := Color(0.12, 0.16, 0.24, 1)
 const GYM_TITLE_UNDERLINE_H := 2.0
@@ -140,7 +150,12 @@ func _ready() -> void:
 	_setup_dice_swish_sfx()
 	_setup_gym_background()
 	_setup_gym_title_hover()
+	_setup_level_up_peek()
+	_setup_pixel_icons()
+	if not DevCheats.unlock_state_changed.is_connected(_on_dev_cheats_unlock_changed):
+		DevCheats.unlock_state_changed.connect(_on_dev_cheats_unlock_changed)
 	_setup_dev_cheats()
+	set_process(false)
 	call_deferred("_begin_run")
 
 
@@ -173,15 +188,29 @@ func _begin_run() -> void:
 	)
 
 
+func _setup_pixel_icons() -> void:
+	PixelIconArt.apply_texture_rect(hearts_icon, "heart", 18)
+	PixelIconArt.apply_texture_rect(modal_round_icon, "celebrate", 40)
+	PixelIconArt.apply_texture_rect(modal_game_over_icon, "broken_heart", 40)
+	PixelIconArt.apply_texture_rect(modal_stuck_icon, "dizzy", 40)
+	PixelIconArt.apply_texture_rect(modal_tournament_win_icon, "swords", 40)
+
+
 func _setup_dev_cheats() -> void:
 	if not DevCheats.is_active():
+		_teardown_dev_cheats()
+		return
+	if _dev_panel != null:
 		return
 	_dev_panel = DevCheatsPanel.new()
 	add_child(_dev_panel)
 	_dev_panel.setup(session)
 	_dev_panel.visible = not DevCheats.menu_minimized
 	_dev_toggle_btn = Button.new()
-	_dev_toggle_btn.text = "🔧"
+	_dev_toggle_btn.icon = PixelIconArt.get_icon("wrench")
+	_dev_toggle_btn.text = ""
+	_dev_toggle_btn.expand_icon = true
+	_dev_toggle_btn.custom_minimum_size = Vector2(36, 36)
 	_dev_toggle_btn.tooltip_text = "Dev cheats"
 	_dev_toggle_btn.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
 	_dev_toggle_btn.offset_left = -44.0
@@ -192,6 +221,22 @@ func _setup_dev_cheats() -> void:
 	add_child(_dev_toggle_btn)
 	if _dev_panel.visible:
 		_dev_toggle_btn.visible = false
+
+
+func _on_dev_cheats_unlock_changed(is_unlocked: bool) -> void:
+	if is_unlocked:
+		_setup_dev_cheats()
+	else:
+		_teardown_dev_cheats()
+
+
+func _teardown_dev_cheats() -> void:
+	if _dev_panel != null:
+		_dev_panel.queue_free()
+		_dev_panel = null
+	if _dev_toggle_btn != null:
+		_dev_toggle_btn.queue_free()
+		_dev_toggle_btn = null
 
 
 func _on_dev_toggle_pressed() -> void:
@@ -218,16 +263,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _start_tournament_match() -> void:
 	var opp_id: String = GameState.tournament_opponents[GameState.tournament_opponent_index]
-	var stolen: String = ""
-	if opp_id == "thief" and GameState.tournament_stolen_power.is_empty():
-		GameState.tournament_stolen_power = TournamentRules.pick_stolen_power(
-			GameState.tournament_loadout
-		)
-	stolen = GameState.tournament_stolen_power
 	session.start_tournament_match(
 		opp_id,
 		GameState.tournament_loadout,
-		stolen,
+		"",
 		_on_tournament_match_won
 	)
 
@@ -241,7 +280,6 @@ func _on_tournament_match_won() -> void:
 		SceneNav.go_to_main_menu()
 		return
 	GameState.tournament_opponent_index = idx
-	GameState.tournament_stolen_power = ""
 	_start_tournament_match()
 	_refresh_ui()
 
@@ -250,7 +288,7 @@ func _refresh_ui() -> void:
 	if session.is_tournament:
 		var opp: Dictionary = GameData.get_tournament_opponent(session.tournament_opponent_id)
 		var match_no: int = GameState.tournament_opponent_index + 1
-		gym_label.text = "Championship %d/3 · %s" % [
+		gym_label.text = "Dice Master Test · Game %d/3 · %s" % [
 			match_no,
 			opp.get("name", "Opponent"),
 		]
@@ -268,7 +306,7 @@ func _refresh_ui() -> void:
 	if background:
 		_update_gym_background_color()
 	level_label.text = "Level %d" % session.level
-	hearts_label.text = "♥ %d" % session.hearts
+	hearts_count.text = str(session.hearts)
 	var lim: Dictionary = session.get_limits()
 	switches_label.text = "Switch %d/%d" % [
 		session.switches_left(), lim.max_switches
@@ -380,6 +418,98 @@ func _set_gym_title_highlight(hovering: bool) -> void:
 	call_deferred("_layout_gym_title_underline")
 
 
+func _process(_delta: float) -> void:
+	if (
+		session == null
+		or session.current_modal != RunSession.Modal.LEVEL_UP
+		or _level_up_view != LevelUpView.FULL
+		or level_up_card == null
+	):
+		_clear_level_up_eye_cursor()
+		return
+	var mouse: Vector2 = get_global_mouse_position()
+	if level_up_card.get_global_rect().has_point(mouse):
+		_clear_level_up_eye_cursor()
+	elif _eye_cursor != null:
+		Input.set_custom_mouse_cursor(_eye_cursor, Input.CURSOR_ARROW, Vector2(12, 12))
+		_level_up_eye_cursor_active = true
+
+
+func _setup_level_up_peek() -> void:
+	_eye_cursor = _create_eye_cursor_texture()
+	if level_up_backdrop != null:
+		if not level_up_backdrop.gui_input.is_connected(_on_level_up_backdrop_gui_input):
+			level_up_backdrop.gui_input.connect(_on_level_up_backdrop_gui_input)
+	if level_up_peek_outline != null:
+		if not level_up_peek_outline.restore_requested.is_connected(_on_level_up_peek_restore):
+			level_up_peek_outline.restore_requested.connect(_on_level_up_peek_restore)
+
+
+func _on_level_up_backdrop_gui_input(event: InputEvent) -> void:
+	if _level_up_view != LevelUpView.FULL:
+		return
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+			_level_up_minimize_to_peek()
+
+
+func _on_level_up_peek_restore() -> void:
+	_level_up_restore_full()
+	set_process(true)
+
+
+func _level_up_minimize_to_peek() -> void:
+	if level_up_card == null or level_up_peek_outline == null:
+		return
+	var card_rect: Rect2 = level_up_card.get_rect()
+	level_up_peek_outline.position = card_rect.position
+	level_up_peek_outline.size = card_rect.size
+	level_up_peek_outline.visible = true
+	level_up_peek_outline.queue_redraw()
+	level_up_card.visible = false
+	if level_up_backdrop != null:
+		level_up_backdrop.visible = false
+	modal_level_up.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_level_up_view = LevelUpView.PEEK
+	_clear_level_up_eye_cursor()
+	set_process(false)
+
+
+func _level_up_restore_full() -> void:
+	_level_up_view = LevelUpView.FULL
+	if level_up_card != null:
+		level_up_card.visible = true
+	if level_up_backdrop != null:
+		level_up_backdrop.visible = true
+	if level_up_peek_outline != null:
+		level_up_peek_outline.visible = false
+	if modal_level_up != null:
+		modal_level_up.mouse_filter = Control.MOUSE_FILTER_STOP
+
+
+func _clear_level_up_eye_cursor() -> void:
+	if not _level_up_eye_cursor_active:
+		return
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+	_level_up_eye_cursor_active = false
+
+
+func _create_eye_cursor_texture() -> ImageTexture:
+	var size := 24
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var center := Vector2(float(size) * 0.5, float(size) * 0.5)
+	for y in range(size):
+		for x in range(size):
+			var dist: float = Vector2(float(x) + 0.5, float(y) + 0.5).distance_to(center)
+			if dist >= 7.0 and dist <= 9.0:
+				img.set_pixel(x, y, Color(1.0, 1.0, 1.0, 0.95))
+			elif dist <= 3.2:
+				img.set_pixel(x, y, Color(0.12, 0.16, 0.24, 1.0))
+	return ImageTexture.create_from_image(img)
+
+
 func _layout_boards() -> void:
 	_board_size = _compute_board_size()
 	var layout_scale: float = _board_size / REF_BOARD_SIZE
@@ -388,17 +518,10 @@ func _layout_boards() -> void:
 	var grid_sep: int = maxi(2, int(round(REF_GRID_SEP * layout_scale)))
 	var board_inset: int = maxi(8, int(round(REF_BOARD_INSET * layout_scale)))
 	var power_bar_sep: int = maxi(4, int(round(REF_POWER_BAR_SEP * layout_scale)))
-	var content_inset: int = maxi(8, int(round(18.0 * layout_scale)))
-	var dock_pad: int = maxi(2, int(round(4.0 * layout_scale)))
-	var chip_overhead: int = (
-		content_inset * 2
-		+ dock_pad * 2
-		+ maxi(4, int(round(8.0 * layout_scale)))
-	)
-	var base_power_h: int = int(round(_board_size * POWER_BOARD_HEIGHT_RATIO))
-	var base_chip: int = maxi(28, base_power_h - chip_overhead)
-	_power_chip_size = maxi(28, int(round(float(base_chip) * POWER_CHIP_SCALE)))
-	var power_h: int = base_power_h
+	var dock_pad: int = maxi(4, int(round(REF_POWER_DOCK_PAD * layout_scale)))
+	_power_chip_size = maxi(32, int(round(REF_POWERUP_DIE * POWER_CHIP_SCALE * layout_scale)))
+	var name_h: int = maxi(18, int(round(_power_chip_size * 0.28)))
+	var power_h: int = _power_chip_size + 2 + name_h + dock_pad * 2
 
 	if board_column:
 		board_column.custom_minimum_size = Vector2(board_px, 0)
@@ -421,11 +544,6 @@ func _layout_boards() -> void:
 		grid_container.add_theme_constant_override("v_separation", grid_sep)
 	if power_dock:
 		power_dock.custom_minimum_size = Vector2(board_px, power_h)
-	if power_backdrop:
-		power_backdrop.patch_margin_left = int(round(REF_POWER_PATCH_LEFT * layout_scale))
-		power_backdrop.patch_margin_top = int(round(REF_POWER_PATCH_TOP * layout_scale))
-		power_backdrop.patch_margin_right = int(round(REF_POWER_PATCH_RIGHT * layout_scale))
-		power_backdrop.patch_margin_bottom = int(round(REF_POWER_PATCH_BOTTOM * layout_scale))
 	if power_bar:
 		power_bar.add_theme_constant_override("separation", power_bar_sep)
 
@@ -436,11 +554,16 @@ func _layout_boards() -> void:
 func _compute_board_size() -> float:
 	var vp_h: float = get_viewport_rect().size.y
 	var chrome_h: float = 24.0 + 44.0 + 8.0 + 40.0 + 6.0 + 6.0
-	var available: float = vp_h - chrome_h
+	var power_chrome: float = (
+		REF_POWERUP_DIE * POWER_CHIP_SCALE
+		+ REF_POWER_NAME_H
+		+ REF_POWER_DOCK_PAD * 2.0
+		+ 14.0
+	)
+	var available: float = vp_h - chrome_h - power_chrome
 	if available <= 0.0:
 		return REF_BOARD_SIZE
-	var max_board: float = available / (1.0 + POWER_BOARD_HEIGHT_RATIO)
-	return floor(min(REF_BOARD_SIZE, max(280.0, max_board)))
+	return floor(min(REF_BOARD_SIZE, max(280.0, available)))
 
 
 func _apply_die_cell_sizes(die_cell: int = -1) -> void:
@@ -458,79 +581,55 @@ func _apply_power_chip_sizes() -> void:
 			(child as PowerDieButton).set_chip_size(_power_chip_size)
 
 
-func _power_short_label(power_type: String, def: Dictionary) -> String:
-	match power_type:
-		"chooseNumber":
-			return "5 of\na Kind"
-		"switchAnywhere":
-			return "Switch"
-		"setAnyNumber":
-			return "Set\nDie"
-		"switchRows":
-			return "Switch\nRows"
-		"rerollTrade":
-			return "Reroll\nTrade"
-		"switchHorizontal":
-			return "Side\nSwitch"
-		"verticalJump":
-			return "V.\nJump"
-		"secondChances":
-			return "2nd\nChance"
-		_:
-			var raw: String = str(def.get("label", power_type))
-			if raw.length() > 10:
-				return raw.substr(0, 10)
-			return raw
-
-
-func _power_accent_color(power_type: String) -> Color:
-	match power_type:
-		"chooseNumber":
-			return Color(0.18, 0.72, 0.42)
-		"switchAnywhere":
-			return Color(0.58, 0.32, 0.88)
-		"setAnyNumber":
-			return Color(0.96, 0.52, 0.08)
-		"switchRows":
-			return Color(0.28, 0.42, 0.95)
-		"switchHorizontal":
-			return Color(0.12, 0.68, 0.92)
-		"verticalJump":
-			return Color(0.88, 0.28, 0.58)
-		"secondChances":
-			return Color(0.95, 0.78, 0.12)
-		"rerollTrade":
-			return Color(0.42, 0.52, 0.78)
-		_:
-			return Color(0.45, 0.48, 0.55)
-
-
 func _add_power_die_chip(
-	title: String,
+	power_type: String,
+	power_name: String,
 	charge_text: String,
 	tooltip: String,
+	description_text: String,
 	is_active: bool,
-	is_disabled: bool,
-	accent: Color,
-	on_pressed: Callable = Callable()
+	is_unusable: bool,
+	on_pressed: Callable = Callable(),
+	active_hint: String = "",
+	bubble_accent: Color = Color(0.2, 0.35, 0.55),
+	bubble_animate: bool = true
 ) -> void:
 	var chip: PowerDieButton = POWER_DIE_BUTTON.instantiate() as PowerDieButton
 	chip.set_chip_size(_power_chip_size)
-	chip.setup_display(title, charge_text, is_active, is_disabled, accent)
+	chip.setup_display(power_type, power_name, charge_text, is_active, is_unusable)
+	chip.configure_messages(description_text, active_hint, bubble_accent)
+	chip.set_active_state(is_active, bubble_animate)
 	chip.tooltip_text = tooltip
 	if on_pressed.is_valid():
 		chip.pressed.connect(on_pressed)
 	power_bar.add_child(chip)
 
 
+func _get_power_chip(power_type: String) -> PowerDieButton:
+	if power_bar == null:
+		return null
+	for child in power_bar.get_children():
+		if child is PowerDieButton and (child as PowerDieButton).power_type == power_type:
+			return child as PowerDieButton
+	return null
+
+
+func _pulse_power_info(power_type: String) -> void:
+	var chip: PowerDieButton = _get_power_chip(power_type)
+	if chip:
+		chip.pulse_info_bubble()
+
+
 func _build_power_bar() -> void:
+	var previous_active: String = _power_bubble_track
 	for c in power_bar.get_children():
 		c.queue_free()
 	for t in session.unlocked_powers:
 		var def: Dictionary = GameData.get_power_def(t)
 		var ch: int = session.power_charges.get(t, 0)
-		var short: String = _power_short_label(t, def)
-		var tip: String = str(def.get("description", ""))
+		var power_name: String = str(def.get("label", t))
+		var description_text: String = str(def.get("description", ""))
+		var tip: String = "%s\n\n%s" % [power_name, description_text]
 		var charge_txt: String = ""
 		if PowerLogic.is_pattern_power(t) or t == "switchRows":
 			charge_txt = "×%d" % ch
@@ -539,31 +638,55 @@ func _build_power_bar() -> void:
 				session.level, session.switches_used, session.rerolls_used, session.unlocked_powers
 			)
 			_add_power_die_chip(
-				short,
+				t,
+				power_name,
 				"",
 				tip,
+				description_text,
 				false,
 				not can_trade,
-				_power_accent_color(t),
-				func(): session.reroll_trade()
+				func() -> void:
+					if can_trade:
+						session.reroll_trade()
+					else:
+						_pulse_power_info(t),
+				"",
+				_power_hint_color(t)
 			)
 			continue
 		if PowerLogic.is_permanent(t):
-			_add_power_die_chip(short, "", tip, false, true, _power_accent_color(t))
+			_add_power_die_chip(
+				t,
+				power_name,
+				"",
+				tip,
+				description_text,
+				false,
+				false,
+				Callable(),
+				"",
+				_power_hint_color(t)
+			)
 			continue
 		if t not in ACTIVATABLE_POWERS:
 			continue
 		var active: bool = session.active_power_type == t
 		var usable: bool = _power_can_use(t) or active
+		var hint_text: String = _power_hint_text(t)
 		_add_power_die_chip(
-			short,
+			t,
+			power_name,
 			charge_txt,
 			tip,
+			description_text,
 			active,
 			not usable,
-			_power_accent_color(t),
-			_on_power_pressed.bind(t)
+			_on_power_pressed.bind(t),
+			hint_text,
+			_power_hint_color(t),
+			active and previous_active != t
 		)
+	_power_bubble_track = session.active_power_type
 
 
 func _on_power_pressed(power_type: String) -> void:
@@ -587,6 +710,7 @@ func _on_power_pressed(power_type: String) -> void:
 			]
 		)
 		if not can_use:
+			_pulse_power_info(power_type)
 			return
 		session.activate_power(power_type)
 	_refresh_ui()
@@ -862,7 +986,22 @@ func _on_number_picked(n: int) -> void:
 
 func _update_modals() -> void:
 	modal_round.visible = session.current_modal == RunSession.Modal.ROUND_COMPLETE
-	modal_level_up.visible = session.current_modal == RunSession.Modal.LEVEL_UP
+	var level_up_open: bool = session.current_modal == RunSession.Modal.LEVEL_UP
+	modal_level_up.visible = level_up_open
+	if level_up_open:
+		if not _level_up_modal_was_open:
+			_level_up_restore_full()
+			if level_up_card != null:
+				level_up_card.reset_drag_state()
+		_build_level_up()
+		if not _level_up_modal_was_open and level_up_card != null:
+			level_up_card.call_deferred("ensure_centered")
+		set_process(_level_up_view == LevelUpView.FULL)
+	else:
+		_level_up_restore_full()
+		_clear_level_up_eye_cursor()
+		set_process(false)
+	_level_up_modal_was_open = level_up_open
 	modal_number.visible = session.current_modal == RunSession.Modal.NUMBER_PICKER
 	var show_victory: bool = session.current_modal == RunSession.Modal.GAME_VICTORY
 	modal_victory.visible = show_victory
@@ -879,8 +1018,6 @@ func _update_modals() -> void:
 	_update_restart_modal()
 	_update_fail_modals()
 	restart_btn.disabled = not session.can_offer_restart()
-	if session.current_modal == RunSession.Modal.LEVEL_UP:
-		_build_level_up()
 	if session.current_modal == RunSession.Modal.SWAP_POWER:
 		_build_swap()
 
@@ -918,7 +1055,7 @@ func _update_restart_modal() -> void:
 			"Restarting this level costs your last heart.\n"
 			+"You will fail the gym immediately after."
 		)
-		restart_hearts.text = "♥ 1 → gym failed"
+		restart_hearts.text = "Hearts 1 -> gym failed"
 	else:
 		restart_body.text = (
 			"Restart deals a fresh grid on this level.\n"
@@ -926,7 +1063,7 @@ func _update_restart_modal() -> void:
 		)
 		var after: int = h - 1
 		var word: String = "heart" if after == 1 else "hearts"
-		restart_hearts.text = "♥ %d → ♥ %d (%d %s left)" % [h, after, after, word]
+		restart_hearts.text = "Hearts %d -> %d (%d %s left)" % [h, after, after, word]
 
 
 func _on_restart_pressed() -> void:
@@ -957,18 +1094,18 @@ func _update_fail_modals() -> void:
 		var h: int = session.hearts
 		var heart_word: String = "heart" if h == 1 else "hearts"
 		stuck_hearts.text = (
-			"♥ %d %s remaining — tap Restart level to try again (you already lost 1 heart)"
+			"Hearts %d %s remaining — tap Restart level to try again (you already lost 1 heart)"
 			% [h, heart_word]
 		)
 	elif session.current_modal == RunSession.Modal.GAME_OVER:
 		if session.is_tournament:
-			game_over_title.text = "Championship over"
+			game_over_title.text = "Dice Master Test failed"
 			var opp: Dictionary = GameData.get_tournament_opponent(
 				session.tournament_opponent_id
 			)
 			game_over_body.text = (
-				"You lost to %s. Return to the menu to try again."
-				% opp.get("name", "your opponent")
+				"You lost game %d against %s. Return to the menu to try again."
+				% [GameState.tournament_opponent_index + 1, opp.get("name", "your opponent")]
 			)
 		else:
 			var gym: Dictionary = GameData.get_gym(session.gym_id)

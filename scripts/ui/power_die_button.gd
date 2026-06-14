@@ -1,191 +1,214 @@
 class_name PowerDieButton
 extends Button
 
-const DICE_BOARD_ATLAS: Texture2D = preload("res://assets/textures/dice_board.png")
-const DICE_BOARD_TILE_REGION := Rect2(124, 130, 264, 258)
+const HOVER_GLOW_COLOR := Color(1.0, 0.92, 0.55, 0.42)
+const HOVER_TWEEN_SEC := 0.12
 
-var _face: PanelContainer
-var _pixel_border: PixelDieFrame
-var _title_label: Label
+var power_type: String = ""
+
+var _die_wrap: Control
+var _die_sprite: TextureRect
 var _charge_label: Label
-var _board_face_style: StyleBoxTexture
-var _accent: Color = Color(0.45, 0.48, 0.55)
+var _name_label: Label
+var _hover_glow: ColorRect
+var _speech_bubble: PowerSpeechBubble
+var _hovering: bool = false
 var _is_active: bool = false
-var _is_disabled_state: bool = false
+var _chip_unusable: bool = false
+var _description_text: String = ""
+var _active_hint_text: String = ""
+var _bubble_accent: Color = Color(0.2, 0.35, 0.55)
+var _hover_tween: Tween
 
 
 func _ready() -> void:
-	_face = get_node_or_null("Wrap/Face") as PanelContainer
-	_pixel_border = get_node_or_null("Wrap/PixelBorder") as PixelDieFrame
-	_title_label = get_node_or_null("Wrap/Face/Margin/VBox/TitleLabel") as Label
-	_charge_label = get_node_or_null("Wrap/Face/Margin/VBox/ChargeLabel") as Label
-	_board_face_style = _make_board_face_style()
+	_die_wrap = get_node_or_null("VBox/DieWrap") as Control
+	_die_sprite = get_node_or_null("VBox/DieWrap/DieSprite") as TextureRect
+	_charge_label = get_node_or_null("VBox/DieWrap/ChargeLabel") as Label
+	_name_label = get_node_or_null("VBox/NameLabel") as Label
+	_hover_glow = get_node_or_null("VBox/DieWrap/HoverGlow") as ColorRect
+	_speech_bubble = get_node_or_null("SpeechBubble") as PowerSpeechBubble
 	var empty := StyleBoxEmpty.new()
+	add_theme_stylebox_override("normal", empty)
 	add_theme_stylebox_override("hover", empty)
 	add_theme_stylebox_override("pressed", empty)
 	add_theme_stylebox_override("focus", empty)
 	add_theme_stylebox_override("disabled", empty)
 	flat = true
 	focus_mode = Control.FOCUS_NONE
-	if not DiceSprites.style_changed.is_connected(_on_dice_style_changed):
-		DiceSprites.style_changed.connect(_on_dice_style_changed)
-
-
-func _on_dice_style_changed() -> void:
-	_apply_face_style()
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
 
 
 func setup_display(
-	title: String,
+	power_type_val: String,
+	power_name: String,
 	charge_text: String,
 	is_active: bool,
-	chip_disabled: bool,
-	accent: Color
+	chip_unusable: bool
 ) -> void:
-	if _title_label == null:
-		_title_label = get_node_or_null("Wrap/Face/Margin/VBox/TitleLabel") as Label
+	power_type = power_type_val
+	if _die_sprite == null:
+		_die_sprite = get_node_or_null("VBox/DieWrap/DieSprite") as TextureRect
 	if _charge_label == null:
-		_charge_label = get_node_or_null("Wrap/Face/Margin/VBox/ChargeLabel") as Label
-	if _title_label:
-		_title_label.text = title
+		_charge_label = get_node_or_null("VBox/DieWrap/ChargeLabel") as Label
+	if _name_label == null:
+		_name_label = get_node_or_null("VBox/NameLabel") as Label
+	var tex: Texture2D = PowerDiceArt.get_texture(power_type)
+	if _die_sprite:
+		_die_sprite.texture = tex
+		_die_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if _name_label:
+		_name_label.text = power_name
 	if _charge_label:
 		_charge_label.text = charge_text
 		_charge_label.visible = not charge_text.is_empty()
-	disabled = chip_disabled
-	_accent = accent
+	disabled = false
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	_chip_unusable = chip_unusable
 	_is_active = is_active
-	_is_disabled_state = chip_disabled
-	_apply_face_style()
-	scale = Vector2(1.06, 1.06) if is_active else Vector2.ONE
+	_hovering = false
+	z_index = 2 if is_active else 0
+	_apply_visual_state(is_active, chip_unusable)
+	_refresh_hover_visual(true)
 
 
-func set_chip_size(pixel_size: int) -> void:
-	var square := Vector2(pixel_size, pixel_size)
-	custom_minimum_size = square
-	size = square
+func configure_messages(description: String, active_hint: String, accent: Color) -> void:
+	_description_text = description
+	_active_hint_text = active_hint
+	_bubble_accent = accent
+
+
+func set_active_state(is_active: bool, animate_bubble: bool = true) -> void:
+	_is_active = is_active
+	z_index = 2 if is_active else 0
+	_apply_visual_state(is_active, _chip_unusable)
+	_refresh_hover_visual(true)
+	_update_bubble_for_state(animate_bubble)
+
+
+func pulse_info_bubble() -> void:
+	if _description_text.is_empty() or _speech_bubble == null:
+		return
+	_speech_bubble.show_message(_description_text, _bubble_accent, true)
+
+
+func set_chip_size(die_px: int) -> void:
+	var name_h: int = maxi(18, int(round(float(die_px) * 0.28)))
+	var total_h: int = die_px + 2 + name_h
+	custom_minimum_size = Vector2(die_px, total_h)
+	size = Vector2(die_px, total_h)
 	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	if _title_label == null:
-		_title_label = get_node_or_null("Wrap/Face/Margin/VBox/TitleLabel") as Label
-	if _charge_label == null:
-		_charge_label = get_node_or_null("Wrap/Face/Margin/VBox/ChargeLabel") as Label
-	var title_font: int = maxi(7, int(round(float(pixel_size) * 0.14)))
-	var charge_font: int = maxi(8, int(round(float(pixel_size) * 0.16)))
-	if _title_label:
-		_title_label.add_theme_font_size_override("font_size", title_font)
+	if _die_wrap:
+		_die_wrap.custom_minimum_size = Vector2(die_px, die_px)
+		_die_wrap.pivot_offset = Vector2(die_px * 0.5, die_px * 0.5)
+	if _hover_glow:
+		var glow_pad: float = float(die_px) * 0.06
+		var glow_size: float = float(die_px) + glow_pad * 2.0
+		_hover_glow.custom_minimum_size = Vector2(glow_size, glow_size)
+		_hover_glow.size = Vector2(glow_size, glow_size)
+		_hover_glow.position = Vector2(
+			(float(die_px) - glow_size) * 0.5,
+			(float(die_px) - glow_size) * 0.5
+		)
+		_hover_glow.color = HOVER_GLOW_COLOR
 	if _charge_label:
+		var charge_font: int = maxi(9, int(round(float(die_px) * 0.2)))
 		_charge_label.add_theme_font_size_override("font_size", charge_font)
-	_update_pixel_border_metrics(pixel_size)
-	_configure_fonts()
+	if _name_label:
+		var name_font: int = maxi(11, int(round(float(die_px) * 0.18)))
+		_name_label.add_theme_font_size_override("font_size", name_font)
+		_name_label.custom_minimum_size = Vector2(die_px, name_h)
+	if _speech_bubble:
+		_speech_bubble.configure(die_px)
 
 
-func _apply_face_style() -> void:
-	if _face == null:
-		_face = get_node_or_null("Wrap/Face") as PanelContainer
-	if _face == null:
+func _apply_visual_state(is_active: bool, chip_unusable: bool) -> void:
+	if _die_sprite:
+		_die_sprite.modulate = Color.WHITE
+	if _name_label == null:
 		return
-	if _is_pixel_font_style():
-		_apply_pixel_face()
+	if chip_unusable:
+		_name_label.add_theme_color_override("font_color", Color(0.38, 0.4, 0.44))
+	elif is_active:
+		_name_label.add_theme_color_override("font_color", Color(0.82, 0.1, 0.12))
 	else:
-		_apply_board_face()
-	_configure_fonts()
+		_name_label.add_theme_color_override("font_color", Color.BLACK)
 
 
-func _apply_pixel_face() -> void:
-	if _pixel_border:
-		_pixel_border.visible = true
-	var tint: float = 0.42 if _is_active else 0.32
-	var face_bg: Color = Color.WHITE.lerp(_accent, tint)
-	if _is_disabled_state:
-		face_bg = face_bg.lerp(Color(0.9, 0.91, 0.93), 0.45)
-	var style := StyleBoxFlat.new()
-	style.bg_color = face_bg
-	style.set_border_width_all(0)
-	style.set_corner_radius_all(0)
-	style.shadow_size = 0
-	style.shadow_offset = Vector2.ZERO
-	style.anti_aliasing = false
-	_face.add_theme_stylebox_override("panel", style)
-	if _pixel_border:
-		var border_color: Color = _accent if _is_active else _accent.darkened(0.08)
-		if _is_disabled_state:
-			border_color = Color(0.62, 0.65, 0.7)
-		_pixel_border.frame_color = border_color
-		_pixel_border.queue_redraw()
-	if _title_label:
-		_title_label.add_theme_color_override("font_color", _title_font_color())
-	if _charge_label:
-		_charge_label.add_theme_color_override("font_color", _charge_font_color())
+func _on_mouse_entered() -> void:
+	_hovering = true
+	_refresh_hover_visual()
 
 
-func _apply_board_face() -> void:
-	if _pixel_border:
-		_pixel_border.visible = false
-	var tint: float = 0.38 if _is_active else 0.28
-	var face_bg: Color = Color.WHITE.lerp(_accent, tint)
-	if _is_disabled_state:
-		face_bg = face_bg.lerp(Color(0.9, 0.91, 0.93), 0.45)
-	var style := StyleBoxFlat.new()
-	style.bg_color = face_bg
-	style.set_border_width_all(2)
-	style.border_color = _accent.darkened(0.1) if not _is_disabled_state else Color(0.62, 0.65, 0.7)
-	style.set_corner_radius_all(maxi(4, int(round(custom_minimum_size.x * 0.08))))
-	style.shadow_size = 2
-	style.shadow_offset = Vector2(0, 1)
-	_face.add_theme_stylebox_override("panel", style)
-	if _title_label:
-		_title_label.add_theme_color_override("font_color", _title_font_color())
-	if _charge_label:
-		_charge_label.add_theme_color_override("font_color", _charge_font_color())
+func _on_mouse_exited() -> void:
+	_hovering = false
+	_refresh_hover_visual()
 
 
-func _title_font_color() -> Color:
-	if _is_disabled_state:
-		return Color(0.4, 0.42, 0.46)
-	return Color(0.04, 0.06, 0.1)
+func _bubble_text() -> String:
+	return _active_hint_text if _is_active else ""
 
 
-func _charge_font_color() -> Color:
-	if _is_disabled_state:
-		return Color(0.46, 0.48, 0.52)
-	return Color(0.08, 0.1, 0.14)
+func _should_show_bubble() -> bool:
+	return _is_active and not _active_hint_text.is_empty()
 
 
-func _configure_fonts() -> void:
-	if _title_label == null and _charge_label == null:
+func _update_bubble_for_state(animate: bool) -> void:
+	if _speech_bubble == null:
 		return
-	if _is_pixel_font_style():
-		var font: Font = DiceSprites.get_pixel_font()
-		if font != null:
-			if _title_label:
-				_title_label.add_theme_font_override("font", font)
-			if _charge_label:
-				_charge_label.add_theme_font_override("font", font)
+	if _should_show_bubble():
+		_speech_bubble.show_message(_bubble_text(), _bubble_accent, animate)
 	else:
-		if _title_label:
-			_title_label.remove_theme_font_override("font")
-		if _charge_label:
-			_charge_label.remove_theme_font_override("font")
+		_speech_bubble.hide_message(true)
 
 
-func _update_pixel_border_metrics(chip_px: int) -> void:
-	if _pixel_border == null:
+func _die_hover_scale() -> float:
+	var scale_val: float = 1.06 if _is_active else 1.0
+	if _hovering:
+		scale_val += 0.04
+	return scale_val
+
+
+func _refresh_hover_visual(instant: bool = false) -> void:
+	if _die_wrap == null:
 		return
-	_pixel_border.line_thickness = maxi(2, int(round(float(chip_px) * 0.034)))
-	_pixel_border.corner_radius = maxi(1, int(round(float(chip_px) * 0.028)))
-
-
-func _is_pixel_font_style() -> bool:
-	return DiceSprites.is_pixel_font_style()
-
-
-func _make_board_face_style() -> StyleBoxTexture:
-	var atlas := AtlasTexture.new()
-	atlas.atlas = DICE_BOARD_ATLAS
-	atlas.region = DICE_BOARD_TILE_REGION
-	var box := StyleBoxTexture.new()
-	box.texture = atlas
-	box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
-	box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
-	box.set_content_margin_all(5)
-	return box
+	var target_scale: float = _die_hover_scale()
+	var show_glow: bool = _hovering
+	if _hover_glow:
+		if instant:
+			_hover_glow.visible = show_glow
+			_hover_glow.modulate.a = HOVER_GLOW_COLOR.a if show_glow else 0.0
+	if _hover_tween and _hover_tween.is_valid():
+		_hover_tween.kill()
+	if instant:
+		_die_wrap.scale = Vector2.ONE * target_scale
+		if _die_sprite:
+			_die_sprite.modulate = Color.WHITE
+		return
+	_hover_tween = create_tween()
+	_hover_tween.set_parallel(true)
+	_hover_tween.tween_property(
+		_die_wrap,
+		"scale",
+		Vector2.ONE * target_scale,
+		HOVER_TWEEN_SEC
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	if _hover_glow:
+		_hover_glow.visible = true
+		_hover_tween.tween_property(
+			_hover_glow,
+			"modulate:a",
+			HOVER_GLOW_COLOR.a if show_glow else 0.0,
+			HOVER_TWEEN_SEC
+		).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	if _die_sprite:
+		var sprite_modulate: Color = Color(1.06, 1.06, 1.02) if show_glow else Color.WHITE
+		_hover_tween.tween_property(
+			_die_sprite,
+			"modulate",
+			sprite_modulate,
+			HOVER_TWEEN_SEC
+		).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)

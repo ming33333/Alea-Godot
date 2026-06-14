@@ -14,12 +14,6 @@ static func pick_opponents(count: int) -> Array[String]:
 	return pool.slice(0, mini(count, pool.size()))
 
 
-static func pick_stolen_power(loadout: Array) -> String:
-	if loadout.is_empty():
-		return ""
-	return loadout[randi() % loadout.size()]
-
-
 static func build_unlocked(loadout: Array, stolen: String) -> Dictionary:
 	var d: Dictionary = {}
 	for p in loadout:
@@ -56,6 +50,8 @@ static func place_lucky_seven(grid: Array) -> Array:
 static func row_complete_for_opponent(pattern: String, opponent_id: String) -> bool:
 	if opponent_id == "straightSpecialist":
 		return pattern == PatternCheck.STRAIGHT
+	if opponent_id == "fullHouseSpecialist":
+		return pattern == PatternCheck.FULL_HOUSE
 	return pattern != PatternCheck.INCOMPLETE
 
 
@@ -69,8 +65,25 @@ static func check_win_patterns(patterns: Array, opponent_id: String) -> bool:
 		if counts.values().any(func(n): return n >= 3):
 			return false
 		return patterns.all(func(p): return p != PatternCheck.INCOMPLETE)
+	if opponent_id == "fiveOfAKindRequired":
+		var has_five_kind: bool = false
+		for p in patterns:
+			if p == PatternCheck.INCOMPLETE:
+				return false
+			if p == PatternCheck.FIVE_KIND:
+				has_five_kind = true
+		return has_five_kind
 	if opponent_id != "":
 		return patterns.all(
 			func(p): return row_complete_for_opponent(p, opponent_id)
 		)
 	return patterns.all(func(p): return p != PatternCheck.INCOMPLETE)
+
+
+static func mandate_failed(patterns: Array, opponent_id: String) -> bool:
+	if opponent_id != "fiveOfAKindRequired":
+		return false
+	for p in patterns:
+		if p == PatternCheck.INCOMPLETE:
+			return false
+	return not patterns.any(func(p): return p == PatternCheck.FIVE_KIND)

@@ -27,7 +27,9 @@ const PORTAL_CENTER_Y_FRACTION := 0.36
 @onready var badge_box_btn: TextureButton = %BadgeBoxBtn
 @onready var badge_slide_clip: Control = %BadgeSlideClip
 @onready var badges_row: HBoxContainer = %BadgesRow
-@onready var champion_badge: Label = %ChampionBadge
+@onready var champion_badge: HBoxContainer = %ChampionBadge
+@onready var champion_crown_icon: TextureRect = %CrownIcon
+@onready var celebration_icon: TextureRect = %CelebrationIcon
 @onready var celebration: PanelContainer = %ChampionCelebration
 @onready var how_to_play_overlay: Control = %HowToPlayOverlay
 @onready var how_to_play_sections: VBoxContainer = %HowToPlaySections
@@ -84,6 +86,8 @@ func _ready() -> void:
 	if how_to_play_overlay:
 		how_to_play_overlay.visible = false
 	call_deferred("_refresh_champion_portal")
+	PixelIconArt.apply_texture_rect(champion_crown_icon, "crown", 18)
+	PixelIconArt.apply_texture_rect(celebration_icon, "crown", 32)
 	champion_badge.visible = SaveService.is_dice_champion()
 	celebration.visible = GameState.show_champion_celebration
 	DebugLog.alea_log(
@@ -328,11 +332,11 @@ func _on_championship_hover() -> void:
 	_hover_gym_id = "championship"
 	if tooltip_badge:
 		tooltip_badge.visible = false
-	tooltip_name.text = "Dice Master Championship"
-	tooltip_subtitle.text = "Tournament mode"
+	tooltip_name.text = "Dice Master Test"
+	tooltip_subtitle.text = "Portal to the ultimate challenge"
 	tooltip_body.text = (
-		"Choose three powers, then beat three special opponents in a row. "
-		+ "Win the final match to earn the Dice Champion title on the map."
+		"Enter the portal to face three random games. "
+		+ "Win all three to become a Dice Master."
 	)
 	tooltip_footer.text = "All gym badges earned · click to enter"
 	gym_tooltip.visible = true

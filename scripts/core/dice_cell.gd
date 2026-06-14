@@ -22,6 +22,20 @@ func duplicate_cell() -> DiceCellData:
 	return c
 
 
+func swap_with(other: DiceCellData) -> void:
+	var saved: DiceCellData = duplicate_cell()
+	value = other.value
+	history = other.history.duplicate()
+	locked = other.locked
+	no_reroll = other.no_reroll
+	vertical_swaps_remaining = other.vertical_swaps_remaining
+	other.value = saved.value
+	other.history = saved.history.duplicate()
+	other.locked = saved.locked
+	other.no_reroll = saved.no_reroll
+	other.vertical_swaps_remaining = saved.vertical_swaps_remaining
+
+
 func push_history(v: int) -> void:
 	value = v
 	if history.is_empty() or history[history.size() - 1] != v:

@@ -38,7 +38,7 @@ layout_mode = 2
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
-text = "Bracket preview"
+text = "Your three games"
 
 [node name="List" type="VBoxContainer" parent="Margin/VBox"]
 unique_name_in_owner = true
@@ -55,7 +55,7 @@ text = "Back"
 [node name="Start" type="Button" parent="Margin/VBox/HBox"]
 layout_mode = 2
 size_flags_horizontal = 10
-text = "Start matches"
+text = "Begin test"
 
 [connection signal="pressed" from="Margin/VBox/HBox/Back" to="." method="_on_back"]
 [connection signal="pressed" from="Margin/VBox/HBox/Start" to="." method="_on_start"]

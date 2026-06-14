@@ -220,11 +220,24 @@ offset_bottom = 40.0
 theme_override_constants/separation = 6
 alignment = 1
 
-[node name="ChampionBadge" type="Label" parent="BadgeBlock"]
+[node name="ChampionBadge" type="HBoxContainer" parent="BadgeBlock"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-text = "👑 Champion"
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="CrownIcon" type="TextureRect" parent="BadgeBlock/ChampionBadge"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(18, 18)
+layout_mode = 2
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ChampionLabel" type="Label" parent="BadgeBlock/ChampionBadge"]
+layout_mode = 2
+text = "Dice Master"
 
 [node name="MenuActions" type="VBoxContainer" parent="."]
 z_index = 4
@@ -413,10 +426,20 @@ grow_vertical = 2
 
 [node name="VBox" type="VBoxContainer" parent="ChampionCelebration"]
 layout_mode = 2
+alignment = 1
+
+[node name="CelebrationIcon" type="TextureRect" parent="ChampionCelebration/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+size_flags_horizontal = 4
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Label" type="Label" parent="ChampionCelebration/VBox"]
 layout_mode = 2
-text = "Dice Champion!"
+text = "Dice Master!"
 horizontal_alignment = 1
 
 [node name="Ok" type="Button" parent="ChampionCelebration/VBox"]

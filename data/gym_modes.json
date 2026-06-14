@@ -7,7 +7,6 @@
       "description": "Standard rules — rerolls give a new random number (1–6). All powers and level limits as usual.",
       "badge_name": "Vanilla Victor",
       "badge_texture": "res://assets/badges/badge_vanilla.png",
-      "badge_emoji": "🎲",
       "enabled": true
     },
     {
@@ -17,7 +16,6 @@
       "description": "Same as Vanilla, but rerolls bump the die by 1 (1→2→…→6→1) instead of rolling random.",
       "badge_name": "Step Master",
       "badge_texture": "res://assets/badges/badge_step_up.png",
-      "badge_emoji": "📈",
       "enabled": true
     },
     {
@@ -27,7 +25,6 @@
       "description": "Every 3rd reroll: 3-2-1 countdown, then one random unlocked die gets a new number. Locked dice are skipped.",
       "badge_name": "Snap Scout",
       "badge_texture": "res://assets/badges/badge_safari_snap.png",
-      "badge_emoji": "⚡",
       "enabled": true
     },
     {
@@ -37,7 +34,6 @@
       "description": "Every 3rd reroll: 3-2-1 countdown, then every unlocked die gets a new number. Locked dice stay put.",
       "badge_name": "Surge Champion",
       "badge_texture": "res://assets/badges/badge_safari_surge.png",
-      "badge_emoji": "🌊",
       "enabled": true
     },
     {
@@ -47,7 +43,6 @@
       "description": "Same rules as Vanilla, but you can only hold 2 powers at once instead of 3.",
       "badge_name": "Minimalist",
       "badge_texture": "res://assets/badges/badge_tight_loadout.png",
-      "badge_emoji": "🎒",
       "enabled": true
     },
     {
@@ -57,7 +52,6 @@
       "description": "The center row starts locked as 1-2-3-4-5 (a straight). Clear the other four rows to win each level.",
       "badge_name": "Center Ace",
       "badge_texture": "res://assets/badges/badge_head_start.png",
-      "badge_emoji": "🎯",
       "enabled": true
     }
   ],

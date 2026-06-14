@@ -169,13 +169,13 @@ func _panel_style_for_face(face_key: String) -> StyleBox:
 	var style: StyleBox = _styles[face_key]
 	if not _is_pixel_font_style() or not style is StyleBoxFlat:
 		return style
-	var flat := style.duplicate() as StyleBoxFlat
-	flat.set_border_width_all(0)
-	flat.set_corner_radius_all(0)
-	flat.shadow_size = 0
-	flat.shadow_offset = Vector2.ZERO
-	flat.anti_aliasing = false
-	return flat
+	var flat_style := style.duplicate() as StyleBoxFlat
+	flat_style.set_border_width_all(0)
+	flat_style.set_corner_radius_all(0)
+	flat_style.shadow_size = 0
+	flat_style.shadow_offset = Vector2.ZERO
+	flat_style.anti_aliasing = false
+	return flat_style
 
 
 func _pixel_border_color(face_key: String) -> Color:

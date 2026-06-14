@@ -116,7 +116,7 @@ func _build_ui() -> void:
 	header.add_child(min_btn)
 	_build_power_grant_row(vbox)
 	_add_btn(vbox, "Complete level", _on_complete_level)
-	_complete_battle_btn = _add_btn(vbox, "Complete championship battle", _on_complete_championship_battle)
+	_complete_battle_btn = _add_btn(vbox, "Complete test game", _on_complete_championship_battle)
 	_complete_battle_btn.visible = false
 	_add_btn(vbox, "Refill switch + reroll", _on_refill)
 	_add_btn(vbox, "+1 heart", _on_add_heart)
@@ -181,7 +181,7 @@ func _on_complete_level() -> void:
 		return
 	session.dev_complete_level()
 	if session.is_tournament:
-		_show_status("Championship level advanced (same opponent)")
+		_show_status("Test game advanced (same opponent)")
 
 
 func _on_complete_championship_battle() -> void:
@@ -189,7 +189,7 @@ func _on_complete_championship_battle() -> void:
 		_show_status("No active run")
 		return
 	if not session.is_tournament:
-		_show_status("Championship runs only")
+		_show_status("Dice Master Test runs only")
 		return
 	session.dev_complete_championship_battle()
 	_show_status("Battle won — next opponent")
@@ -242,7 +242,7 @@ func _on_award_badge() -> void:
 		_show_status("No active run")
 		return
 	if session.is_tournament:
-		_show_status("Use this in a gym, not championship")
+		_show_status("Use this in a gym, not the Dice Master Test")
 		return
 	var gym: Dictionary = GameData.get_gym(session.gym_id)
 	var gym_name: String = str(gym.get("name", session.gym_id))
