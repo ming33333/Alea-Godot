@@ -134,9 +134,39 @@ text = "Unlock"
 layout_mode = 2
 text = "Lock dev cheats"
 
+[node name="DataSection" type="Label" parent="Margin/Scroll/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Save data"
+
+[node name="ResetHint" type="Label" parent="Margin/Scroll/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.68, 0.75, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 3
+text = "Clears gym badges, Dice Master progress, orb positions, audio/dice settings, and dev cheat unlock state."
+
+[node name="ResetDataBtn" type="Button" parent="Margin/Scroll/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.15, 0.2, 1)
+text = "Reset all progress"
+
+[node name="ResetStatus" type="Label" parent="Margin/Scroll/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.45, 0.72, 0.42, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 3
+
 [node name="Back" type="Button" parent="Margin/Scroll/VBox"]
 layout_mode = 2
 text = "Back to menu"
+
+[node name="ResetConfirm" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Reset all progress?"
+ok_button_text = "Reset"
+dialog_text = "This clears gym badges, Dice Master title, orb layout, settings, and dev cheat unlock. This cannot be undone."
 
 [connection signal="value_changed" from="Margin/Scroll/VBox/VolumeSlider" to="." method="_on_volume_changed"]
 [connection signal="value_changed" from="Margin/Scroll/VBox/MusicVolumeSlider" to="." method="_on_music_volume_changed"]
@@ -145,5 +175,7 @@ text = "Back to menu"
 [connection signal="item_selected" from="Margin/Scroll/VBox/DiceSoundOption" to="." method="_on_dice_sound_selected"]
 [connection signal="pressed" from="Margin/Scroll/VBox/CheatRow/CheatApply" to="." method="_on_cheat_apply_pressed"]
 [connection signal="pressed" from="Margin/Scroll/VBox/CheatLock" to="." method="_on_cheat_lock_pressed"]
+[connection signal="pressed" from="Margin/Scroll/VBox/ResetDataBtn" to="." method="_on_reset_data_pressed"]
+[connection signal="confirmed" from="ResetConfirm" to="." method="_on_reset_confirmed"]
 [connection signal="text_submitted" from="Margin/Scroll/VBox/CheatRow/CheatCodeInput" to="." method="_on_cheat_code_submitted"]
 [connection signal="pressed" from="Margin/Scroll/VBox/Back" to="." method="_on_back"]

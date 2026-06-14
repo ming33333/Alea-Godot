@@ -3,7 +3,7 @@ extends RefCounted
 
 signal state_changed
 signal dice_rerolled(row: int, col: int, new_value: int)
-signal dice_swished
+signal dice_swished(from_row: int, from_col: int, to_row: int, to_col: int)
 signal show_modal(modal: String)
 signal hide_modal(modal: String)
 
@@ -46,6 +46,9 @@ var current_modal: int = Modal.NONE
 var victory_badge_is_new: bool = false
 var max_owned_powers: int = 3
 var fail_heart_processed: bool = false
+var pending_row_swap_before: Array = []
+var pending_swap_before_from: DiceCellData
+var pending_swap_before_to: DiceCellData
 
 var _safari_timer: SceneTreeTimer = null
 
@@ -558,10 +561,12 @@ func _try_switch(row: int, col: int) -> bool:
 
 
 func _swap_values(r1: int, c1: int, r2: int, c2: int) -> void:
+	pending_swap_before_from = grid[r1][c1].duplicate_cell()
+	pending_swap_before_to = grid[r2][c2].duplicate_cell()
 	var t: int = grid[r1][c1].value
 	grid[r1][c1].value = grid[r2][c2].value
 	grid[r2][c2].value = t
-	dice_swished.emit()
+	dice_swished.emit(r1, c1, r2, c2)
 
 
 func _apply_second_chances(r1: int, r2: int, col: int) -> void:
@@ -654,7 +659,7 @@ func _handle_switch_rows(row: int) -> void:
 		_emit()
 		return
 	_log_power("switchRows swap rows %d <-> %d" % [active_target_row, row])
-	_swap_rows(active_target_row, row)
+	_swap_rows(active_target_row, row, true)
 	power_charges["switchRows"] = power_charges.get("switchRows", 0) - 1
 	active_power_type = ""
 	active_target_row = -1
@@ -662,7 +667,13 @@ func _handle_switch_rows(row: int) -> void:
 	_emit()
 
 
-func _swap_rows(first: int, second: int) -> void:
+func _swap_rows(first: int, second: int, emit_swish: bool = false) -> void:
+	pending_row_swap_before.clear()
+	for c in range(grid[0].size()):
+		pending_row_swap_before.append({
+			"from": grid[first][c].duplicate_cell(),
+			"to": grid[second][c].duplicate_cell(),
+		})
 	for c in range(grid[0].size()):
 		grid[first][c].swap_with(grid[second][c])
 	for ri in [first, second]:
@@ -673,7 +684,8 @@ func _swap_rows(first: int, second: int) -> void:
 			awarded_rows.erase(ri)
 			for pt in PowerLogic.PATTERN_POWERS:
 				power_earned_rows.erase(PowerLogic.power_earn_key(ri, pt))
-	dice_swished.emit()
+	if emit_swish:
+		dice_swished.emit(first, -1, second, -1)
 
 
 func _handle_pattern_pick(row: int, col: int) -> void:

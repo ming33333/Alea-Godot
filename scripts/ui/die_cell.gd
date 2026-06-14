@@ -35,14 +35,24 @@ var die_face: TextureRect
 var _face: PanelContainer
 var _pixel_border: PixelDieFrame
 var _shine: ColorRect
+var _swap_overlay: Control
+var _overlay_backdrop: ColorRect
+var _overlay_face: TextureRect
+var _overlay_label: Label
 var _styles: Dictionary = {}
 var _base_face_key: String = FACE_NORMAL
 var _highlight: Highlight = Highlight.NONE
 var _show_sprite: bool = true
 var _blurred: bool = false
+var _swap_overlay_active: bool = false
 var _blur_material: ShaderMaterial
 var grid_row: int = -1
 var grid_col: int = -1
+
+const SWAP_SLIDE_DURATION := 0.2
+
+var _wrap: Control
+var _swap_tween: Tween
 
 
 func _ready() -> void:
@@ -52,6 +62,10 @@ func _ready() -> void:
 	_shine = get_node_or_null("Wrap/Shine") as ColorRect
 	die_face = get_node_or_null("Wrap/Face/Margin/DieFace") as TextureRect
 	value_label = get_node_or_null("Wrap/ValueLabel") as Label
+	_swap_overlay = get_node_or_null("Wrap/SwapOverlay") as Control
+	_overlay_backdrop = get_node_or_null("Wrap/SwapOverlay/OverlayBackdrop") as ColorRect
+	_overlay_face = get_node_or_null("Wrap/SwapOverlay/OverlayFace") as TextureRect
+	_overlay_label = get_node_or_null("Wrap/SwapOverlay/OverlayLabel") as Label
 	if _face:
 		_face.add_theme_stylebox_override("panel", _styles[FACE_NORMAL])
 	var empty := StyleBoxEmpty.new()
@@ -344,6 +358,113 @@ func set_selected(selected: bool) -> void:
 	set_highlight(Highlight.SELECTED if selected else Highlight.NONE)
 
 
+func set_swap_overlay(cell: DiceCellData) -> void:
+	_swap_overlay_active = true
+	_configure_swap_overlay(cell)
+	if _swap_overlay != null:
+		_swap_overlay.visible = true
+	_apply_display()
+
+
+func commit_swap_result(cell: DiceCellData, blurred: bool) -> void:
+	set_swap_overlay(cell)
+	setup(grid_row, grid_col, cell, blurred)
+	var wrap := _ensure_wrap()
+	if wrap != null:
+		wrap.position = Vector2.ZERO
+	call_deferred("clear_swap_overlay")
+
+
+func clear_swap_overlay() -> void:
+	_swap_overlay_active = false
+	if _swap_overlay != null:
+		_swap_overlay.visible = false
+	_apply_display()
+
+
+func _configure_swap_overlay(cell: DiceCellData) -> void:
+	if _overlay_face == null or _overlay_label == null:
+		return
+	if _overlay_backdrop != null:
+		_overlay_backdrop.color = (
+			Color(0.82, 0.84, 0.88) if cell.locked else Color(0.96, 0.97, 0.99)
+		)
+	var tex: Texture2D = _face_texture_for(cell.value)
+	if tex != null:
+		_overlay_face.texture = tex
+		_overlay_face.visible = true
+		_overlay_face.modulate = (
+			Color(0.78, 0.8, 0.86) if cell.locked else Color.WHITE
+		)
+		_overlay_label.visible = false
+	else:
+		_overlay_face.visible = false
+		_overlay_label.visible = true
+		_overlay_label.text = str(cell.value)
+		_configure_overlay_label_font(cell)
+
+
+func _configure_overlay_label_font(cell: DiceCellData) -> void:
+	if _overlay_label == null:
+		return
+	var sprites := _dice_sprite_settings()
+	if sprites != null and sprites.is_pixel_font_style():
+		var font: Font = sprites.get_pixel_font()
+		if font != null:
+			_overlay_label.add_theme_font_override("font", font)
+		var cell_px: float = maxf(custom_minimum_size.x, custom_minimum_size.y)
+		_overlay_label.add_theme_font_size_override(
+			"font_size", maxi(16, int(round(cell_px * 0.58)))
+		)
+	else:
+		_overlay_label.remove_theme_font_override("font")
+		_overlay_label.add_theme_font_size_override(
+			"font_size",
+			maxi(16, int(round(maxf(custom_minimum_size.x, custom_minimum_size.y) * 0.45)))
+		)
+	if cell.value == 7:
+		_overlay_label.add_theme_color_override("font_color", Color(0.55, 0.12, 0.15))
+	elif _is_pixel_font_style():
+		if cell.locked:
+			_overlay_label.add_theme_color_override("font_color", Color(0.5, 0.53, 0.58))
+		else:
+			_overlay_label.add_theme_color_override("font_color", Color(0.1, 0.12, 0.16))
+	elif cell.locked:
+		_overlay_label.add_theme_color_override("font_color", Color(0.35, 0.38, 0.42))
+	else:
+		_overlay_label.add_theme_color_override("font_color", Color(0.1, 0.12, 0.18))
+
+
+func play_swap_to(
+	target_offset: Vector2,
+	duration: float = SWAP_SLIDE_DURATION,
+	on_complete: Callable = Callable()
+) -> Tween:
+	var wrap := _ensure_wrap()
+	if wrap == null:
+		if on_complete.is_valid():
+			on_complete.call()
+		return null
+	if _swap_tween != null and _swap_tween.is_valid():
+		_swap_tween.kill()
+	wrap.position = Vector2.ZERO
+	_swap_tween = create_tween()
+	_swap_tween.tween_property(
+		wrap, "position", target_offset, duration
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	_swap_tween.tween_callback(func() -> void:
+		if on_complete.is_valid():
+			on_complete.call()
+	)
+	return _swap_tween
+
+
+func _ensure_wrap() -> Control:
+	if _wrap == null:
+		_wrap = get_node_or_null("Wrap") as Control
+	return _wrap
+
+
 func _apply_display() -> void:
 	if _face == null:
 		_face = get_node_or_null("Wrap/Face") as PanelContainer
@@ -367,15 +488,25 @@ func _apply_display() -> void:
 	var panel_style: StyleBox = _panel_style_for_face(face_key)
 	if _face and panel_style != null:
 		_face.add_theme_stylebox_override("panel", panel_style)
+	_face.visible = not _swap_overlay_active
 	_update_pixel_border(face_key)
 	var face_tex: TextureRect = _ensure_die_face()
 	var label: Label = _ensure_value_label()
 	var blur_mat: ShaderMaterial = _blur_material_for_display() if _blurred else null
-	if face_tex:
+	var hide_base: bool = _swap_overlay_active
+	if hide_base:
+		if face_tex:
+			face_tex.visible = false
+		if label:
+			label.visible = false
+	elif face_tex:
 		face_tex.visible = _show_sprite
 		face_tex.modulate = _sprite_modulate(face_key)
 		face_tex.material = blur_mat
-	if label:
+		if label:
+			label.visible = not _show_sprite
+			label.material = blur_mat if _blurred and not _show_sprite else null
+	elif label:
 		label.visible = not _show_sprite
 		label.material = blur_mat if _blurred and not _show_sprite else null
 	var big: bool = (

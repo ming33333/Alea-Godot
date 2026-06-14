@@ -109,6 +109,18 @@ func lock_cheats() -> void:
 	DebugLog.log("DevCheats", "locked")
 
 
+func reset_saved_state() -> void:
+	unlocked = false
+	cheats_locked = false
+	menu_minimized = false
+	_clear_type_buffer()
+	var dir := DirAccess.open("user://")
+	if dir != null and dir.file_exists("dev_cheats_unlocked.dat"):
+		dir.remove("dev_cheats_unlocked.dat")
+	unlock_state_changed.emit(false)
+	DebugLog.log("DevCheats", "reset_saved_state")
+
+
 func feed_typed_key(key_unicode: int) -> bool:
 	if key_unicode == 0:
 		return false

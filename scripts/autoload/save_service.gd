@@ -124,6 +124,28 @@ func save_orb_position(gym_id: String, x: float, y: float) -> void:
 	_write(LAYOUT_KEY, JSON.stringify(layout))
 
 
+func reset_all_user_data() -> void:
+	for key in [BADGES_KEY, CHAMPION_KEY, LAYOUT_KEY, BADGE_BOX_OPEN_KEY]:
+		_delete_user_file("%s.dat" % key)
+	_delete_user_file("settings.cfg")
+	_delete_user_file("dev_cheats_unlocked.dat")
+	GameState.reset_tournament()
+	GameState.show_champion_celebration = false
+	DevCheats.reset_saved_state()
+	AudioSettings.load_settings()
+	DiceSprites.load_settings()
+	badges_changed.emit()
+	DebugLog.log("SaveService", "reset_all_user_data")
+
+
+func _delete_user_file(relative_path: String) -> void:
+	var dir := DirAccess.open("user://")
+	if dir == null:
+		return
+	if dir.file_exists(relative_path):
+		dir.remove(relative_path)
+
+
 func _read(key: String) -> String:
 	if not FileAccess.file_exists("user://%s.dat" % key):
 		return ""

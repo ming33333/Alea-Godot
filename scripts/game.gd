@@ -40,11 +40,15 @@ const ACTIVATABLE_POWERS: Array[String] = [
 @onready var modal_game_over: Control = %ModalGameOver
 @onready var modal_stuck: Control = %ModalStuck
 @onready var modal_round_icon: TextureRect = %RoundIcon
+@onready var round_label: Label = %RoundLabel
+@onready var round_detail: Label = %RoundDetail
+@onready var round_continue: Button = %RoundContinue
 @onready var modal_game_over_icon: TextureRect = %GameOverIcon
 @onready var modal_stuck_icon: TextureRect = %StuckIcon
 @onready var modal_tournament_win: Control = %ModalTournamentWin
 @onready var modal_tournament_win_icon: TextureRect = %TournamentWinIcon
 @onready var modal_swap: Control = %ModalSwap
+@onready var level_up_options: VBoxContainer = %LevelUpOptions
 @onready var level_up_detail: Label = %LevelUpDetail
 @onready var level_up_keep_powers: Button = %LevelUpKeepPowers
 
@@ -75,6 +79,7 @@ var _dev_toggle_btn: Button
 var _dice_roll_player: AudioStreamPlayer
 var _dice_swish_player: AudioStreamPlayer
 var _die_cells: Dictionary = {}
+var _swap_animating: Dictionary = {}
 const SINGLE_CLICK_DELAY_SEC := 0.12
 const DOUBLE_CLICK_MS := 350
 
@@ -103,6 +108,16 @@ var _level_up_view: LevelUpView = LevelUpView.FULL
 const GYM_TITLE_COLOR := Color(0.12, 0.16, 0.24, 1)
 const GYM_TITLE_UNDERLINE_H := 2.0
 const GYM_TITLE_UNDERLINE_HOVER_H := 3.0
+
+const STATS_BAR_WHITE_BG := Color(0.96, 0.97, 0.99, 1)
+const STATS_BAR_WHITE_BORDER := Color(0.84, 0.87, 0.92, 1)
+const STATS_BAR_GOLD_BG := Color(0.99, 0.91, 0.55, 1)
+const STATS_BAR_GOLD_BORDER := Color(0.85, 0.72, 0.28, 1)
+const STATS_BAR_GOLD_SHINE := Color(1.12, 1.05, 0.82, 1)
+
+var _stats_bar_style: StyleBoxFlat
+var _stats_bar_tween: Tween
+var _stats_bar_is_golden: bool = false
 
 
 func _ready() -> void:
@@ -152,6 +167,7 @@ func _ready() -> void:
 	_setup_gym_title_hover()
 	_setup_level_up_peek()
 	_setup_pixel_icons()
+	_setup_stats_bar_style()
 	if not DevCheats.unlock_state_changed.is_connected(_on_dev_cheats_unlock_changed):
 		DevCheats.unlock_state_changed.connect(_on_dev_cheats_unlock_changed)
 	_setup_dev_cheats()
@@ -306,6 +322,7 @@ func _refresh_ui() -> void:
 	if background:
 		_update_gym_background_color()
 	level_label.text = "Level %d" % session.level
+	_update_stats_bar_theme()
 	hearts_count.text = str(session.hearts)
 	var lim: Dictionary = session.get_limits()
 	switches_label.text = "Switch %d/%d" % [
@@ -357,12 +374,17 @@ func _sync_grid() -> void:
 				btn.pressed.connect(_on_die_pressed.bind(r, c))
 	for r in range(rows):
 		for c in range(cols):
+			var key: String = _die_key(r, c)
 			var cell: DiceCellData = session.grid[r][c]
 			var blur_key: String = "%d:%d" % [r, c]
 			var blurred: bool = session.blurred_cell_key == blur_key
-			var btn: DieCell = _die_cells[_die_key(r, c)] as DieCell
+			var btn: DieCell = _die_cells[key] as DieCell
+			var highlight: DieCell.Highlight = _cell_highlight(r, c, cell, blurred)
+			if _swap_animating.has(key):
+				btn.set_highlight(highlight)
+				continue
 			btn.setup(r, c, cell, blurred)
-			btn.set_highlight(_cell_highlight(r, c, cell, blurred))
+			btn.set_highlight(highlight)
 
 
 func _on_viewport_size_changed() -> void:
@@ -917,9 +939,149 @@ func _sync_gym_background_aspect() -> void:
 	)
 
 
-func _on_dice_swished() -> void:
+func _on_dice_swished(from_row: int, from_col: int, to_row: int, to_col: int) -> void:
 	if _dice_swish_player and _dice_swish_player.stream:
 		_dice_swish_player.play()
+	if from_col < 0:
+		_play_row_swap_animation(from_row, to_row)
+	else:
+		_play_die_swap_animation(
+			from_row,
+			from_col,
+			to_row,
+			to_col,
+			session.pending_swap_before_from,
+			session.pending_swap_before_to
+		)
+		session.pending_swap_before_from = null
+		session.pending_swap_before_to = null
+
+
+func _play_die_swap_animation(
+	r1: int,
+	c1: int,
+	r2: int,
+	c2: int,
+	before_a: DiceCellData = null,
+	before_b: DiceCellData = null
+) -> void:
+	var key_a: String = _die_key(r1, c1)
+	var key_b: String = _die_key(r2, c2)
+	var btn_a: DieCell = _die_cells.get(key_a) as DieCell
+	var btn_b: DieCell = _die_cells.get(key_b) as DieCell
+	if btn_a == null or btn_b == null:
+		return
+	_swap_animating[key_a] = true
+	_swap_animating[key_b] = true
+	call_deferred(
+		"_begin_swap_animation",
+		r1,
+		c1,
+		r2,
+		c2,
+		before_a,
+		before_b
+	)
+
+
+func _begin_swap_animation(
+	r1: int,
+	c1: int,
+	r2: int,
+	c2: int,
+	before_a: DiceCellData = null,
+	before_b: DiceCellData = null
+) -> void:
+	var key_a: String = _die_key(r1, c1)
+	var key_b: String = _die_key(r2, c2)
+	var btn_a: DieCell = _die_cells.get(key_a) as DieCell
+	var btn_b: DieCell = _die_cells.get(key_b) as DieCell
+	if btn_a == null or btn_b == null:
+		_swap_animating.erase(key_a)
+		_swap_animating.erase(key_b)
+		return
+	_apply_swap_slide_visuals(r1, c1, r2, c2, before_a, before_b)
+	var offset: Vector2 = btn_b.position - btn_a.position
+	var duration: float = DieCell.SWAP_SLIDE_DURATION
+	var remaining: int = 2
+	var on_complete := func() -> void:
+		remaining -= 1
+		if remaining != 0:
+			return
+		_finish_swap_animation(r1, c1, r2, c2)
+	btn_a.play_swap_to(offset, duration, on_complete)
+	btn_b.play_swap_to(-offset, duration, on_complete)
+	var tree := get_tree()
+	if tree != null:
+		tree.create_timer(duration + 0.08).timeout.connect(
+			func() -> void:
+				_finish_swap_animation(r1, c1, r2, c2),
+			CONNECT_ONE_SHOT
+		)
+
+
+func _apply_swap_slide_visuals(
+	r1: int,
+	c1: int,
+	r2: int,
+	c2: int,
+	before_a: DiceCellData,
+	before_b: DiceCellData
+) -> void:
+	if before_a == null or before_b == null:
+		return
+	var pairs: Array = [
+		[r1, c1, before_a],
+		[r2, c2, before_b],
+	]
+	for entry in pairs:
+		var r: int = entry[0]
+		var c: int = entry[1]
+		var slide_cell: DiceCellData = entry[2]
+		var key: String = _die_key(r, c)
+		var btn: DieCell = _die_cells.get(key) as DieCell
+		if btn == null:
+			continue
+		var blur_key: String = "%d:%d" % [r, c]
+		var blurred: bool = session.blurred_cell_key == blur_key
+		btn.clear_swap_overlay()
+		btn.setup(r, c, slide_cell, blurred)
+		btn.set_highlight(_cell_highlight(r, c, session.grid[r][c], blurred))
+
+
+func _play_row_swap_animation(row_a: int, row_b: int) -> void:
+	if session.grid.is_empty():
+		return
+	for c in range(session.grid[0].size()):
+		var snap: Dictionary = (
+			session.pending_row_swap_before[c]
+			if c < session.pending_row_swap_before.size()
+			else {}
+		)
+		var before_a: DiceCellData = snap.get("from") as DiceCellData
+		var before_b: DiceCellData = snap.get("to") as DiceCellData
+		_play_die_swap_animation(row_a, c, row_b, c, before_a, before_b)
+	session.pending_row_swap_before.clear()
+
+
+func _finish_swap_animation(r1: int, c1: int, r2: int, c2: int) -> void:
+	var key_a: String = _die_key(r1, c1)
+	var key_b: String = _die_key(r2, c2)
+	if not _swap_animating.has(key_a) and not _swap_animating.has(key_b):
+		return
+	_swap_animating.erase(key_a)
+	_swap_animating.erase(key_b)
+	for coords in [Vector2i(r1, c1), Vector2i(r2, c2)]:
+		var r: int = coords.x
+		var c: int = coords.y
+		var btn: DieCell = _die_cells.get(_die_key(r, c)) as DieCell
+		if btn == null:
+			continue
+		var cell: DiceCellData = session.grid[r][c]
+		var blur_key: String = "%d:%d" % [r, c]
+		var blurred: bool = session.blurred_cell_key == blur_key
+		btn.commit_swap_result(cell, blurred)
+		btn.set_highlight(_cell_highlight(r, c, cell, blurred))
 
 
 func _on_dice_style_changed() -> void:
@@ -984,8 +1146,94 @@ func _on_number_picked(n: int) -> void:
 	session.apply_number_pick(n)
 
 
+func _setup_stats_bar_style() -> void:
+	if stats_bar == null:
+		return
+	var base := stats_bar.get_theme_stylebox("panel") as StyleBoxFlat
+	if base == null:
+		return
+	_stats_bar_style = base.duplicate() as StyleBoxFlat
+	stats_bar.add_theme_stylebox_override("panel", _stats_bar_style)
+
+
+func _update_stats_bar_theme() -> void:
+	if stats_bar == null or _stats_bar_style == null or session == null:
+		return
+	if session.is_tournament:
+		_reset_stats_bar_white(false)
+		return
+	var max_lvl: int = int(GameData.level_limits.get("max_level", 8))
+	if session.level >= max_lvl:
+		_animate_stats_bar_golden()
+	elif _stats_bar_is_golden:
+		_reset_stats_bar_white(false)
+
+
+func _reset_stats_bar_white(animate: bool) -> void:
+	_stats_bar_is_golden = false
+	if _stats_bar_tween != null and _stats_bar_tween.is_valid():
+		_stats_bar_tween.kill()
+	if animate:
+		_stats_bar_tween = create_tween().set_parallel(true)
+		_stats_bar_tween.tween_property(
+			_stats_bar_style, "bg_color", STATS_BAR_WHITE_BG, 0.4
+		)
+		_stats_bar_tween.tween_property(
+			_stats_bar_style, "border_color", STATS_BAR_WHITE_BORDER, 0.4
+		)
+	else:
+		_stats_bar_style.bg_color = STATS_BAR_WHITE_BG
+		_stats_bar_style.border_color = STATS_BAR_WHITE_BORDER
+	stats_bar.modulate = Color.WHITE
+
+
+func _animate_stats_bar_golden() -> void:
+	if _stats_bar_is_golden:
+		return
+	_stats_bar_is_golden = true
+	if _stats_bar_tween != null and _stats_bar_tween.is_valid():
+		_stats_bar_tween.kill()
+	_stats_bar_tween = create_tween().set_parallel(true)
+	_stats_bar_tween.tween_property(
+		_stats_bar_style, "bg_color", STATS_BAR_GOLD_BG, 0.9
+	).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_stats_bar_tween.tween_property(
+		_stats_bar_style, "border_color", STATS_BAR_GOLD_BORDER, 0.9
+	).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	stats_bar.modulate = STATS_BAR_GOLD_SHINE
+	var shine := create_tween()
+	shine.tween_property(stats_bar, "modulate", Color.WHITE, 0.55).set_delay(0.25)
+
+
+func _is_final_level_announcement() -> bool:
+	if session.is_tournament:
+		return false
+	var max_lvl: int = int(GameData.level_limits.get("max_level", 8))
+	return session.level == max_lvl - 1
+
+
+func _update_round_modal() -> void:
+	if not _is_final_level_announcement():
+		round_label.text = "Level complete!"
+		round_detail.visible = false
+		PixelIconArt.apply_texture_rect(modal_round_icon, "celebrate", 40)
+		round_continue.text = "Choose power"
+		return
+	round_label.text = "Level %d complete!" % session.level
+	round_detail.text = (
+		"Next is Level %d — the final level. Beat it to earn this gym's badge!"
+		% (session.level + 1)
+	)
+	round_detail.visible = true
+	PixelIconArt.apply_texture_rect(modal_round_icon, "crown", 40)
+	round_continue.text = "Continue to final level"
+
+
 func _update_modals() -> void:
-	modal_round.visible = session.current_modal == RunSession.Modal.ROUND_COMPLETE
+	var round_open: bool = session.current_modal == RunSession.Modal.ROUND_COMPLETE
+	modal_round.visible = round_open
+	if round_open:
+		_update_round_modal()
 	var level_up_open: bool = session.current_modal == RunSession.Modal.LEVEL_UP
 	modal_level_up.visible = level_up_open
 	if level_up_open:

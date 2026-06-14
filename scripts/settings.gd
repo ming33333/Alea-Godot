@@ -8,6 +8,8 @@ extends Control
 @onready var cheat_hint: Label = %CheatHint
 @onready var cheat_status: Label = %CheatStatus
 @onready var cheat_code_input: LineEdit = %CheatCodeInput
+@onready var reset_confirm: ConfirmationDialog = %ResetConfirm
+@onready var reset_status: Label = %ResetStatus
 
 var _dice_style_ids: Array[String] = []
 var _dice_sound_ids: Array[String] = []
@@ -107,6 +109,30 @@ func _try_apply_cheat_code() -> void:
 func _on_cheat_lock_pressed() -> void:
 	DevCheats.lock_cheats()
 	cheat_status.text = "Dev cheats locked."
+	_refresh_cheat_ui()
+
+
+func _on_reset_data_pressed() -> void:
+	reset_status.text = ""
+	reset_confirm.popup_centered()
+
+
+func _on_reset_confirmed() -> void:
+	SaveService.reset_all_user_data()
+	_reload_settings_ui()
+	reset_status.text = (
+		"Progress reset. Gym badges, Dice Master title, map layout, "
+		+ "and settings were cleared."
+	)
+
+
+func _reload_settings_ui() -> void:
+	AudioSettings.load_settings()
+	volume_slider.value = AudioSettings.get_master_volume_linear()
+	music_volume_slider.value = AudioSettings.get_music_volume_linear()
+	music_mute.button_pressed = AudioSettings.is_music_muted()
+	_populate_dice_style_options()
+	_populate_dice_sound_options()
 	_refresh_cheat_ui()
 
 
