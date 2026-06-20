@@ -94,6 +94,42 @@ func pulse_info_bubble() -> void:
 	_speech_bubble.show_message(_description_text, _bubble_accent, true)
 
 
+func get_die_global_center() -> Vector2:
+	if _die_wrap != null:
+		var rect: Rect2 = _die_wrap.get_global_rect()
+		return rect.position + rect.size * 0.5
+	return get_global_rect().get_center()
+
+
+func set_fly_reveal_pending(pending: bool) -> void:
+	var alpha: float = 0.0 if pending else 1.0
+	if _die_wrap != null:
+		_die_wrap.modulate = Color(1.0, 1.0, 1.0, alpha)
+	if _charge_label != null:
+		_charge_label.modulate = Color(1.0, 1.0, 1.0, alpha)
+
+
+func play_reward_arrival_pop() -> void:
+	if _die_wrap == null:
+		return
+	if _reward_pop_tween != null and _reward_pop_tween.is_valid():
+		_reward_pop_tween.kill()
+	_die_wrap.modulate = Color.WHITE
+	if _charge_label != null:
+		_charge_label.modulate = Color.WHITE
+	_die_wrap.scale = Vector2(0.55, 0.55)
+	_reward_pop_tween = create_tween()
+	_reward_pop_tween.tween_property(
+		_die_wrap,
+		"scale",
+		Vector2.ONE,
+		0.22
+	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+var _reward_pop_tween: Tween
+
+
 func set_chip_size(die_px: int) -> void:
 	var name_h: int = maxi(18, int(round(float(die_px) * 0.28)))
 	var total_h: int = die_px + 2 + name_h

@@ -31,6 +31,7 @@ const PORTAL_CENTER_Y_FRACTION := 0.36
 @onready var champion_crown_icon: TextureRect = %CrownIcon
 @onready var celebration_icon: TextureRect = %CelebrationIcon
 @onready var celebration: PanelContainer = %ChampionCelebration
+@onready var celebration_label: Label = %ChampionCelebrationLabel
 @onready var how_to_play_overlay: Control = %HowToPlayOverlay
 @onready var how_to_play_sections: VBoxContainer = %HowToPlaySections
 @onready var gym_tooltip: PanelContainer = %GymTooltip
@@ -39,8 +40,6 @@ const PORTAL_CENTER_Y_FRACTION := 0.36
 @onready var tooltip_subtitle: Label = %TooltipSubtitle
 @onready var tooltip_body: Label = %TooltipBody
 @onready var tooltip_footer: Label = %TooltipFooter
-@onready var river_video: VideoStreamPlayer = %River
-
 var _hover_gym_id: String = ""
 var _launching: bool = false
 var _click_seq: int = 0
@@ -49,13 +48,13 @@ var _portal_layout_attempts: int = 0
 var _badge_box_open: bool = false
 var _badge_box_animating: bool = false
 var _badge_slide_tween: Tween
+var _celebration_backdrop: ColorRect
 const MAX_ORB_BUILD_ATTEMPTS := 60
 const MAX_PORTAL_LAYOUT_ATTEMPTS := 40
 
 
 func _ready() -> void:
 	DebugLog.alea_log("MainMenu", "========== MENU _ready ==========")
-	_setup_river_background()
 	if not resized.is_connected(_layout_deck_pillars):
 		resized.connect(_layout_deck_pillars)
 	gym_tooltip.visible = false
@@ -89,21 +88,7 @@ func _ready() -> void:
 	PixelIconArt.apply_texture_rect(champion_crown_icon, "crown", 18)
 	PixelIconArt.apply_texture_rect(celebration_icon, "crown", 32)
 	champion_badge.visible = SaveService.is_dice_champion()
-	celebration.visible = GameState.show_champion_celebration
-	DebugLog.alea_log(
-		"MainMenu",
-		"celebration_visible=%s menu_gym_count=%d game_scene=%s"
-		% [
-			celebration.visible,
-			GameData.menu_gym_modes.size(),
-			"OK" if GAME_SCENE != null else "MISSING",
-		]
-	)
-	if celebration.visible:
-		celebration.mouse_filter = Control.MOUSE_FILTER_STOP
-		DebugLog.alea_log("MainMenu", "WARN: champion popup is open — dismiss it to click gyms")
-	else:
-		celebration.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_present_champion_celebration_if_needed()
 	if champion_portal:
 		champion_portal.tooltip_text = ""
 
@@ -602,10 +587,52 @@ func _on_championship_pressed() -> void:
 	SceneNav.go_to_tournament_pick()
 
 
+func _present_champion_celebration_if_needed() -> void:
+	if celebration == null:
+		return
+	if not GameState.show_champion_celebration:
+		_hide_champion_celebration()
+		return
+	_ensure_celebration_backdrop()
+	_celebration_backdrop.visible = true
+	celebration.visible = true
+	celebration.z_index = 50
+	celebration.mouse_filter = Control.MOUSE_FILTER_STOP
+	if celebration_label != null:
+		celebration_label.text = "You are a Dice Master!"
+	champion_badge.visible = SaveService.is_dice_champion()
+	move_child(_celebration_backdrop, get_child_count() - 1)
+	move_child(celebration, get_child_count() - 1)
+	DebugLog.alea_log("MainMenu", "champion celebration shown")
+
+
+func _ensure_celebration_backdrop() -> void:
+	if _celebration_backdrop != null:
+		return
+	_celebration_backdrop = ColorRect.new()
+	_celebration_backdrop.name = "ChampionCelebrationBackdrop"
+	_celebration_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_celebration_backdrop.anchor_right = 1.0
+	_celebration_backdrop.anchor_bottom = 1.0
+	_celebration_backdrop.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_celebration_backdrop.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_celebration_backdrop.color = Color(0.0, 0.0, 0.0, 0.62)
+	_celebration_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	_celebration_backdrop.z_index = 49
+	add_child(_celebration_backdrop)
+
+
+func _hide_champion_celebration() -> void:
+	if _celebration_backdrop != null:
+		_celebration_backdrop.visible = false
+	if celebration != null:
+		celebration.visible = false
+		celebration.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
 func _on_celebration_dismiss() -> void:
 	GameState.show_champion_celebration = false
-	celebration.visible = false
-	celebration.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hide_champion_celebration()
 
 
 func _on_settings_pressed() -> void:
@@ -642,23 +669,6 @@ func _close_how_to_play() -> void:
 		return
 	how_to_play_overlay.visible = false
 	how_to_play_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-
-func _setup_river_background() -> void:
-	if river_video == null:
-		return
-	if river_video.stream == null:
-		push_warning("Main menu: assign res://assets/textures/river.ogv on the River node")
-		return
-	if not river_video.finished.is_connected(_on_river_video_finished):
-		river_video.finished.connect(_on_river_video_finished)
-	if not river_video.is_playing():
-		river_video.play()
-
-
-func _on_river_video_finished() -> void:
-	if river_video:
-		river_video.play()
 
 
 func _unhandled_input(event: InputEvent) -> void:

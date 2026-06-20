@@ -4,6 +4,7 @@ extends PanelContainer
 var session: RunSession
 var _status_label: Label
 var _power_picker: OptionButton
+var _remove_power_btn: Button
 var _complete_battle_btn: Button
 var _power_type_ids: Array[String] = []
 
@@ -27,6 +28,7 @@ func setup(run_session: RunSession) -> void:
 func refresh_for_session() -> void:
 	if _complete_battle_btn != null:
 		_complete_battle_btn.visible = session != null and session.is_tournament
+	_populate_power_picker()
 	_update_badge_button()
 
 
@@ -36,32 +38,36 @@ func _build_power_grant_row(parent: VBoxContainer) -> void:
 	cap.add_theme_font_size_override("font_size", 9)
 	cap.add_theme_color_override("font_color", Color(0.55, 0.58, 0.65))
 	parent.add_child(cap)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
-	parent.add_child(row)
 	_power_picker = OptionButton.new()
-	_power_picker.custom_minimum_size = Vector2(96, 28)
+	_power_picker.custom_minimum_size = Vector2(0, 28)
 	_power_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_power_picker.clip_text = false
 	_power_picker.add_theme_font_size_override("font_size", 10)
-	row.add_child(_power_picker)
+	_power_picker.item_selected.connect(_on_power_picker_changed)
+	parent.add_child(_power_picker)
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 4)
+	parent.add_child(btn_row)
 	var add_btn := Button.new()
 	add_btn.text = "Add"
-	add_btn.custom_minimum_size = Vector2(44, 28)
+	add_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add_btn.custom_minimum_size = Vector2(0, 28)
 	add_btn.add_theme_font_size_override("font_size", 10)
 	add_btn.pressed.connect(_on_grant_power)
-	row.add_child(add_btn)
-	var remove_btn := Button.new()
-	remove_btn.text = "Remove"
-	remove_btn.custom_minimum_size = Vector2(56, 28)
-	remove_btn.add_theme_font_size_override("font_size", 10)
-	remove_btn.pressed.connect(_on_remove_power)
-	row.add_child(remove_btn)
+	btn_row.add_child(add_btn)
+	_remove_power_btn = Button.new()
+	_remove_power_btn.text = "Remove"
+	_remove_power_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_remove_power_btn.custom_minimum_size = Vector2(0, 28)
+	_remove_power_btn.add_theme_font_size_override("font_size", 10)
+	_remove_power_btn.pressed.connect(_on_remove_power)
+	btn_row.add_child(_remove_power_btn)
 
 
 func _populate_power_picker() -> void:
 	if _power_picker == null:
 		return
+	var selected_type: String = _selected_power_type()
 	_power_picker.clear()
 	_power_type_ids.clear()
 	for p in GameData.powers:
@@ -75,13 +81,40 @@ func _populate_power_picker() -> void:
 		_power_picker.add_item(label)
 	if _power_type_ids.is_empty():
 		_power_picker.add_item("(no powers)")
-	else:
-		_power_picker.selected = 0
+		_update_power_action_buttons()
+		return
+	var restore_idx: int = _power_type_ids.find(selected_type)
+	_power_picker.selected = restore_idx if restore_idx >= 0 else 0
+	_update_power_action_buttons()
+
+
+func _selected_power_type() -> String:
+	if _power_type_ids.is_empty():
+		return ""
+	var idx: int = _power_picker.selected
+	if idx < 0 or idx >= _power_type_ids.size():
+		return ""
+	return _power_type_ids[idx]
+
+
+func _power_is_owned(power_type: String) -> bool:
+	return session != null and session.unlocked_powers.has(power_type)
+
+
+func _update_power_action_buttons() -> void:
+	if _remove_power_btn == null:
+		return
+	var power_type: String = _selected_power_type()
+	_remove_power_btn.disabled = power_type.is_empty() or not _power_is_owned(power_type)
+
+
+func _on_power_picker_changed(_idx: int) -> void:
+	_update_power_action_buttons()
 
 
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	offset_left = -168.0
+	offset_left = -184.0
 	offset_right = -8.0
 	offset_top = -280.0
 	offset_bottom = 280.0
@@ -123,7 +156,7 @@ func _build_ui() -> void:
 	_add_btn(vbox, "Award gym badge", _on_award_badge)
 	_status_label = Label.new()
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status_label.custom_minimum_size = Vector2(140, 0)
+	_status_label.custom_minimum_size = Vector2(156, 0)
 	_status_label.add_theme_font_size_override("font_size", 9)
 	_status_label.add_theme_color_override("font_color", Color(0.65, 0.85, 0.55))
 	vbox.add_child(_status_label)
@@ -207,11 +240,11 @@ func _on_grant_power() -> void:
 	if _power_type_ids.is_empty():
 		_show_status("No powers in data/powers.json")
 		return
-	var idx: int = _power_picker.selected
-	if idx < 0 or idx >= _power_type_ids.size():
+	var power_type: String = _selected_power_type()
+	if power_type.is_empty():
 		_show_status("Pick a power")
 		return
-	var msg: String = session.dev_grant_power(_power_type_ids[idx])
+	var msg: String = session.dev_grant_power(power_type)
 	_show_status(msg)
 	_populate_power_picker()
 
@@ -223,11 +256,16 @@ func _on_remove_power() -> void:
 	if _power_type_ids.is_empty():
 		_show_status("No powers in data/powers.json")
 		return
-	var idx: int = _power_picker.selected
-	if idx < 0 or idx >= _power_type_ids.size():
+	var power_type: String = _selected_power_type()
+	if power_type.is_empty():
 		_show_status("Pick a power")
 		return
-	var msg: String = session.dev_remove_power(_power_type_ids[idx])
+	if not _power_is_owned(power_type):
+		var def: Dictionary = GameData.get_power_def(power_type)
+		_show_status("Not in loadout: %s" % str(def.get("label", power_type)))
+		_update_power_action_buttons()
+		return
+	var msg: String = session.dev_remove_power(power_type)
 	_show_status(msg)
 	_populate_power_picker()
 

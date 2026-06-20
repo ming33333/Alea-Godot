@@ -4,6 +4,8 @@ extends RefCounted
 signal state_changed
 signal dice_rerolled(row: int, col: int, new_value: int)
 signal dice_swished(from_row: int, from_col: int, to_row: int, to_col: int)
+signal rows_locked(row_indices: Array)
+signal power_rewarded(power_type: String, source_row: int, previous_charge: int, is_new_unlock: bool)
 signal show_modal(modal: String)
 signal hide_modal(modal: String)
 
@@ -126,7 +128,7 @@ func _start_level(lvl: int, new_run: bool) -> void:
 	elif not is_tournament:
 		_apply_charges_for_new_level()
 		charges_at_level_start = _snapshot_charges()
-	process_row_completions()
+	process_row_completions(false)
 	_emit()
 
 
@@ -231,7 +233,7 @@ func is_level_failed() -> bool:
 	)
 
 
-func process_row_completions() -> void:
+func process_row_completions(emit_lock_fx: bool = true) -> void:
 	var skip_rows: Dictionary = skip_choose_earn_rows.duplicate()
 	skip_choose_earn_rows = {}
 	var rows_done: Array = []
@@ -262,16 +264,22 @@ func process_row_completions() -> void:
 	if rows_done.is_empty():
 		_maybe_fail_level()
 		return
-	var charges_add: Dictionary = {}
+	var newly_locked: Array = []
 	for item in rows_done:
 		var row_item: Dictionary = item
 		var idx: int = int(row_item["index"])
 		var pat: String = str(row_item["pattern"])
 		awarded_rows[idx] = true
-		_add_pattern_charges_for_row(idx, pat, skip_rows, charges_add)
+		newly_locked.append(idx)
+		var row_charges: Dictionary = {}
+		_add_pattern_charges_for_row(idx, pat, skip_rows, row_charges)
+		for t in row_charges:
+			var prev_charge: int = power_charges.get(t, 0)
+			power_rewarded.emit(t, idx, prev_charge, false)
+			power_charges[t] = prev_charge + int(row_charges[t])
 		grid[idx] = _lock_row(grid[idx])
-	for t in charges_add:
-		power_charges[t] = power_charges.get(t, 0) + charges_add[t]
+	if not newly_locked.is_empty() and emit_lock_fx:
+		rows_locked.emit(newly_locked)
 	_check_win_flow()
 
 
@@ -676,16 +684,45 @@ func _swap_rows(first: int, second: int, emit_swish: bool = false) -> void:
 		})
 	for c in range(grid[0].size()):
 		grid[first][c].swap_with(grid[second][c])
-	for ri in [first, second]:
-		var vals: Array = []
-		for cell in grid[ri]:
-			vals.append(cell.value)
-		if PatternCheck.check_pattern(vals) == PatternCheck.INCOMPLETE:
-			awarded_rows.erase(ri)
-			for pt in PowerLogic.PATTERN_POWERS:
-				power_earned_rows.erase(PowerLogic.power_earn_key(ri, pt))
+	_swap_row_meta(first, second)
 	if emit_swish:
 		dice_swished.emit(first, -1, second, -1)
+
+
+func _swap_row_meta(row_a: int, row_b: int) -> void:
+	var a_awarded: bool = awarded_rows.has(row_a)
+	var b_awarded: bool = awarded_rows.has(row_b)
+	if b_awarded:
+		awarded_rows[row_a] = true
+	else:
+		awarded_rows.erase(row_a)
+	if a_awarded:
+		awarded_rows[row_b] = true
+	else:
+		awarded_rows.erase(row_b)
+	for pt in PowerLogic.PATTERN_POWERS:
+		var key_a: String = PowerLogic.power_earn_key(row_a, pt)
+		var key_b: String = PowerLogic.power_earn_key(row_b, pt)
+		var a_earned: bool = power_earned_rows.has(key_a)
+		var b_earned: bool = power_earned_rows.has(key_b)
+		if b_earned:
+			power_earned_rows[key_a] = true
+		else:
+			power_earned_rows.erase(key_a)
+		if a_earned:
+			power_earned_rows[key_b] = true
+		else:
+			power_earned_rows.erase(key_b)
+	var a_skip: bool = skip_choose_earn_rows.has(row_a)
+	var b_skip: bool = skip_choose_earn_rows.has(row_b)
+	if b_skip:
+		skip_choose_earn_rows[row_a] = true
+	else:
+		skip_choose_earn_rows.erase(row_a)
+	if a_skip:
+		skip_choose_earn_rows[row_b] = true
+	else:
+		skip_choose_earn_rows.erase(row_b)
 
 
 func _handle_pattern_pick(row: int, col: int) -> void:
@@ -787,14 +824,16 @@ func choose_level_up_power(power_type: String) -> void:
 func swap_out_power(replaced: String) -> void:
 	if pending_swap_in == "":
 		return
+	var gained: String = pending_swap_in
 	unlocked_powers.erase(replaced)
-	unlocked_powers[pending_swap_in] = true
+	unlocked_powers[gained] = true
 	if active_power_type == replaced:
 		active_power_type = ""
-	if PowerLogic.is_pattern_power(pending_swap_in):
-		level_power_goal = pending_swap_in
+	if PowerLogic.is_pattern_power(gained):
+		level_power_goal = gained
 	pending_swap_in = ""
 	current_modal = Modal.NONE
+	power_rewarded.emit(gained, -1, 0, true)
 	level += 1
 	_start_level(level, false)
 
@@ -811,6 +850,7 @@ func _apply_level_up(power_type: String) -> void:
 	unlocked_powers[power_type] = true
 	if PowerLogic.is_pattern_power(power_type):
 		level_power_goal = power_type
+	power_rewarded.emit(power_type, -1, 0, true)
 	level += 1
 	_start_level(level, false)
 
@@ -951,6 +991,7 @@ func dev_grant_power(power_type: String) -> String:
 			unlocked_powers.size(), max_owned_powers
 		]
 	unlocked_powers[power_type] = true
+	power_rewarded.emit(power_type, -1, 0, true)
 	if PowerLogic.is_per_level(power_type):
 		power_charges[power_type] = maxi(power_charges.get(power_type, 0), 1)
 	elif PowerLogic.is_pattern_power(power_type):

@@ -50,22 +50,43 @@ var grid_row: int = -1
 var grid_col: int = -1
 
 const SWAP_SLIDE_DURATION := 0.2
+const FLOAT_PERIOD_SEC := 2.9
+const FLOAT_BOB_RATIO := 0.024
+const FLOAT_TILT_DEG := 1.1
+const LOCK_POP_RISE_SEC := 0.1
+const LOCK_POP_SETTLE_SEC := 0.12
+const LOCK_POP_TOTAL_SEC := LOCK_POP_RISE_SEC + LOCK_POP_SETTLE_SEC
+const LOCK_POP_LIFT_PX := 10.0
+const LOCK_POP_SCALE := 1.16
+const REROLL_SCRAMBLE_DURATION := 0.5
+const REROLL_SCRAMBLE_STEPS := 21
+const REROLL_SCRAMBLE_INTERVAL := REROLL_SCRAMBLE_DURATION / float(REROLL_SCRAMBLE_STEPS - 1)
 
 var _wrap: Control
+var _float_root: Control
 var _swap_tween: Tween
+var _lock_pop_tween: Tween
+var _reroll_scramble_tween: Tween
+var _float_phase: float = 0.0
+var _float_paused: bool = false
+var _float_disabled: bool = false
+var _lock_pop_active: bool = false
+var _reroll_scramble_active: bool = false
 
 
 func _ready() -> void:
 	_cache_styles()
-	_face = get_node_or_null("Wrap/Face") as PanelContainer
-	_pixel_border = get_node_or_null("Wrap/PixelBorder") as PixelDieFrame
-	_shine = get_node_or_null("Wrap/Shine") as ColorRect
-	die_face = get_node_or_null("Wrap/Face/Margin/DieFace") as TextureRect
-	value_label = get_node_or_null("Wrap/ValueLabel") as Label
-	_swap_overlay = get_node_or_null("Wrap/SwapOverlay") as Control
-	_overlay_backdrop = get_node_or_null("Wrap/SwapOverlay/OverlayBackdrop") as ColorRect
-	_overlay_face = get_node_or_null("Wrap/SwapOverlay/OverlayFace") as TextureRect
-	_overlay_label = get_node_or_null("Wrap/SwapOverlay/OverlayLabel") as Label
+	_wrap = get_node_or_null("Wrap") as Control
+	_float_root = get_node_or_null("Wrap/FloatRoot") as Control
+	_face = get_node_or_null("Wrap/FloatRoot/Face") as PanelContainer
+	_pixel_border = get_node_or_null("Wrap/FloatRoot/PixelBorder") as PixelDieFrame
+	_shine = get_node_or_null("Wrap/FloatRoot/Shine") as ColorRect
+	die_face = get_node_or_null("Wrap/FloatRoot/Face/Margin/DieFace") as TextureRect
+	value_label = get_node_or_null("Wrap/FloatRoot/ValueLabel") as Label
+	_swap_overlay = get_node_or_null("Wrap/FloatRoot/SwapOverlay") as Control
+	_overlay_backdrop = get_node_or_null("Wrap/FloatRoot/SwapOverlay/OverlayBackdrop") as ColorRect
+	_overlay_face = get_node_or_null("Wrap/FloatRoot/SwapOverlay/OverlayFace") as TextureRect
+	_overlay_label = get_node_or_null("Wrap/FloatRoot/SwapOverlay/OverlayLabel") as Label
 	if _face:
 		_face.add_theme_stylebox_override("panel", _styles[FACE_NORMAL])
 	var empty := StyleBoxEmpty.new()
@@ -73,6 +94,86 @@ func _ready() -> void:
 	add_theme_stylebox_override("pressed", empty)
 	add_theme_stylebox_override("focus", empty)
 	add_theme_stylebox_override("disabled", empty)
+	set_process(true)
+
+
+func _process(_delta: float) -> void:
+	_update_float_bob()
+
+
+func _update_float_bob() -> void:
+	if _float_root == null or _float_paused or _float_disabled:
+		return
+	var cell_px: float = maxf(custom_minimum_size.x, custom_minimum_size.y)
+	var amplitude: float = maxf(1.4, cell_px * FLOAT_BOB_RATIO)
+	var t: float = Time.get_ticks_msec() * 0.001
+	var bob: float = sin((t + _float_phase) * TAU / FLOAT_PERIOD_SEC) * amplitude
+	var tilt: float = (
+		sin((t + _float_phase * 1.37) * TAU / (FLOAT_PERIOD_SEC * 1.35))
+		* deg_to_rad(FLOAT_TILT_DEG)
+	)
+	_float_root.position = Vector2(0.0, bob)
+	_float_root.rotation = tilt
+
+
+func _sync_float_phase() -> void:
+	if grid_row < 0 or grid_col < 0:
+		_float_phase = randf() * FLOAT_PERIOD_SEC
+	else:
+		_float_phase = float(grid_row) * 1.73 + float(grid_col) * 2.17
+
+
+func pause_float_bob() -> void:
+	_float_paused = true
+	if _float_root != null and not _lock_pop_active:
+		_float_root.position = Vector2.ZERO
+		_float_root.rotation = 0.0
+		_float_root.scale = Vector2.ONE
+
+
+func resume_float_bob() -> void:
+	if _float_disabled:
+		return
+	_float_paused = false
+
+
+func play_lock_pop() -> void:
+	if _float_root == null:
+		return
+	_lock_pop_active = true
+	_float_disabled = true
+	_float_paused = true
+	if _lock_pop_tween != null and _lock_pop_tween.is_valid():
+		_lock_pop_tween.kill()
+	_float_root.rotation = 0.0
+	_float_root.position = Vector2.ZERO
+	_float_root.scale = Vector2.ONE
+	_lock_pop_tween = create_tween()
+	_lock_pop_tween.tween_property(
+		_float_root, "position:y", -LOCK_POP_LIFT_PX, LOCK_POP_RISE_SEC
+	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_lock_pop_tween.parallel().tween_property(
+		_float_root, "scale", Vector2(LOCK_POP_SCALE, LOCK_POP_SCALE), LOCK_POP_RISE_SEC
+	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_lock_pop_tween.tween_property(
+		_float_root, "position:y", 0.0, LOCK_POP_SETTLE_SEC
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_lock_pop_tween.parallel().tween_property(
+		_float_root, "scale", Vector2.ONE, LOCK_POP_SETTLE_SEC
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_lock_pop_tween.finished.connect(_on_lock_pop_finished, CONNECT_ONE_SHOT)
+
+
+func _on_lock_pop_finished() -> void:
+	_lock_pop_active = false
+	if _float_root != null:
+		_float_root.position = Vector2.ZERO
+		_float_root.rotation = 0.0
+		_float_root.scale = Vector2.ONE
+
+
+func is_lock_pop_active() -> bool:
+	return _lock_pop_active
 
 
 func _cache_styles() -> void:
@@ -220,7 +321,7 @@ func _pixel_border_color(face_key: String) -> Color:
 
 func _update_pixel_border(face_key: String) -> void:
 	if _pixel_border == null:
-		_pixel_border = get_node_or_null("Wrap/PixelBorder") as PixelDieFrame
+		_pixel_border = get_node_or_null("Wrap/FloatRoot/PixelBorder") as PixelDieFrame
 	if _pixel_border == null:
 		return
 	var show_frame: bool = _is_pixel_font_style() and not _show_sprite
@@ -286,9 +387,29 @@ func _configure_value_label_font(blurred: bool) -> void:
 
 
 func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
+	if _reroll_scramble_active:
+		cancel_reroll_scramble()
 	grid_row = row
 	grid_col = col
 	_highlight = Highlight.NONE
+	_sync_float_phase()
+	_float_disabled = cell.locked
+	if cell.locked and not _lock_pop_active:
+		pause_float_bob()
+	elif not _lock_pop_active and not _float_disabled and not _float_paused:
+		resume_float_bob()
+	_apply_cell_face(cell, blurred)
+	if blurred:
+		tooltip_text = ""
+	elif cell.no_reroll:
+		tooltip_text = "Cannot reroll"
+	elif cell.locked:
+		tooltip_text = ""
+	else:
+		tooltip_text = "Click to select · double-click to reroll"
+
+
+func _apply_cell_face(cell: DiceCellData, blurred: bool) -> void:
 	var label: Label = _ensure_value_label()
 	var face_tex: TextureRect = _ensure_die_face()
 	if label == null or face_tex == null:
@@ -321,15 +442,64 @@ func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
 		_set_fallback_label_colors(cell)
 	if _shine:
 		_shine.visible = false
-	if blurred:
-		tooltip_text = ""
-	elif cell.no_reroll:
-		tooltip_text = "Cannot reroll"
-	elif cell.locked:
-		tooltip_text = ""
-	else:
-		tooltip_text = "Click to select · double-click to reroll"
 	_apply_display()
+
+
+func play_reroll_scramble(
+	row: int,
+	col: int,
+	final_cell: DiceCellData,
+	blurred: bool,
+	on_complete: Callable = Callable()
+) -> void:
+	cancel_reroll_scramble()
+	if _lock_pop_active or _swap_overlay_active:
+		setup(row, col, final_cell, blurred)
+		if on_complete.is_valid():
+			on_complete.call()
+		return
+	pause_float_bob()
+	_reroll_scramble_active = true
+	_apply_cell_face(DiceCellData.new(randi_range(1, 6), final_cell.locked), blurred)
+	_reroll_scramble_tween = create_tween()
+	for step in range(REROLL_SCRAMBLE_STEPS):
+		_reroll_scramble_tween.tween_callback(
+			_reroll_scramble_step.bind(step, row, col, final_cell, blurred, on_complete)
+		)
+		if step < REROLL_SCRAMBLE_STEPS - 1:
+			_reroll_scramble_tween.tween_interval(REROLL_SCRAMBLE_INTERVAL)
+
+
+func _reroll_scramble_step(
+	step: int,
+	row: int,
+	col: int,
+	final_cell: DiceCellData,
+	blurred: bool,
+	on_complete: Callable
+) -> void:
+	if not _reroll_scramble_active:
+		return
+	if step == REROLL_SCRAMBLE_STEPS - 1:
+		_reroll_scramble_active = false
+		_reroll_scramble_tween = null
+		setup(row, col, final_cell, blurred)
+		if on_complete.is_valid():
+			on_complete.call()
+	else:
+		var flash_cell := DiceCellData.new(randi_range(1, 6), final_cell.locked)
+		_apply_cell_face(flash_cell, blurred)
+
+
+func cancel_reroll_scramble() -> void:
+	_reroll_scramble_active = false
+	if _reroll_scramble_tween != null and _reroll_scramble_tween.is_valid():
+		_reroll_scramble_tween.kill()
+	_reroll_scramble_tween = null
+
+
+func is_reroll_scramble_active() -> bool:
+	return _reroll_scramble_active
 
 
 func _set_fallback_label_colors(cell: DiceCellData) -> void:
@@ -367,12 +537,18 @@ func set_swap_overlay(cell: DiceCellData) -> void:
 
 
 func commit_swap_result(cell: DiceCellData, blurred: bool) -> void:
+	pause_float_bob()
 	set_swap_overlay(cell)
 	setup(grid_row, grid_col, cell, blurred)
 	var wrap := _ensure_wrap()
 	if wrap != null:
 		wrap.position = Vector2.ZERO
-	call_deferred("clear_swap_overlay")
+	call_deferred("_deferred_commit_uncover")
+
+
+func _deferred_commit_uncover() -> void:
+	clear_swap_overlay()
+	resume_float_bob()
 
 
 func clear_swap_overlay() -> void:
@@ -447,6 +623,7 @@ func play_swap_to(
 		return null
 	if _swap_tween != null and _swap_tween.is_valid():
 		_swap_tween.kill()
+	pause_float_bob()
 	wrap.position = Vector2.ZERO
 	_swap_tween = create_tween()
 	_swap_tween.tween_property(
@@ -467,7 +644,7 @@ func _ensure_wrap() -> Control:
 
 func _apply_display() -> void:
 	if _face == null:
-		_face = get_node_or_null("Wrap/Face") as PanelContainer
+		_face = get_node_or_null("Wrap/FloatRoot/Face") as PanelContainer
 	var face_key: String = _base_face_key
 	match _highlight:
 		Highlight.SELECTED:
@@ -534,12 +711,12 @@ func _blur_material_for_display() -> ShaderMaterial:
 func _ensure_die_face() -> TextureRect:
 	if die_face != null:
 		return die_face
-	die_face = get_node_or_null("Wrap/Face/Margin/DieFace") as TextureRect
+	die_face = get_node_or_null("Wrap/FloatRoot/Face/Margin/DieFace") as TextureRect
 	return die_face
 
 
 func _ensure_value_label() -> Label:
 	if value_label != null:
 		return value_label
-	value_label = get_node_or_null("Wrap/ValueLabel") as Label
+	value_label = get_node_or_null("Wrap/FloatRoot/ValueLabel") as Label
 	return value_label

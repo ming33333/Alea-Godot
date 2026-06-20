@@ -919,14 +919,25 @@ texture_filter = 0
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Label" type="Label" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
+[node name="TournamentWinLabel" type="Label" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
 theme_override_font_sizes/font_size = 26
 text = "Game won!"
 horizontal_alignment = 1
 
-[node name="Continue" type="Button" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
+[node name="TournamentWinDetail" type="Label" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.28, 0.32, 0.4, 1)
+theme_override_font_sizes/font_size = 15
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="TournamentWinContinue" type="Button" parent="ModalTournamentWin/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 16
@@ -1132,7 +1143,7 @@ text = "Restart (-1 heart)"
 [connection signal="pressed" from="ModalVictory/Center/Card/CardMargin/VBox/Menu" to="." method="_on_menu_from_over_pressed"]
 [connection signal="pressed" from="ModalGameOver/Center/Card/CardMargin/VBox/Menu" to="." method="_on_menu_from_over_pressed"]
 [connection signal="pressed" from="ModalStuck/Center/Card/CardMargin/VBox/Retry" to="." method="_on_retry_pressed"]
-[connection signal="pressed" from="ModalTournamentWin/Center/Card/CardMargin/VBox/Continue" to="." method="_on_tournament_continue_pressed"]
+[connection signal="pressed" from="ModalTournamentWin/Center/Card/CardMargin/VBox/TournamentWinContinue" to="." method="_on_tournament_continue_pressed"]
 [connection signal="pressed" from="ModalSwap/Center/Card/CardMargin/VBox/SwapCancel" to="." method="_on_cancel_swap_pressed"]
 [connection signal="pressed" from="ModalRestartConfirm/Center/Card/CardMargin/VBox/BtnRow/CancelRestart" to="." method="_on_cancel_restart_pressed"]
 [connection signal="pressed" from="ModalRestartConfirm/Center/Card/CardMargin/VBox/BtnRow/ConfirmRestart" to="." method="_on_confirm_restart_pressed"]
