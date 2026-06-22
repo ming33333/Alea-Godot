@@ -2,7 +2,7 @@ extends Node
 
 const TAG := "GameState"
 
-var selected_gym_id: String = "vanilla"
+var selected_challenge_orb_id: String = "vanilla"
 var championship_active: bool = false
 var tournament_loadout: Array = []
 var tournament_opponents: Array = []

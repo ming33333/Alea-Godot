@@ -34,13 +34,13 @@ const PORTAL_CENTER_Y_FRACTION := 0.36
 @onready var celebration_label: Label = %ChampionCelebrationLabel
 @onready var how_to_play_overlay: Control = %HowToPlayOverlay
 @onready var how_to_play_sections: VBoxContainer = %HowToPlaySections
-@onready var gym_tooltip: PanelContainer = %GymTooltip
+@onready var challenge_orb_tooltip: PanelContainer = %ChallengeOrbTooltip
 @onready var tooltip_badge: TextureRect = %TooltipBadge
 @onready var tooltip_name: Label = %TooltipName
 @onready var tooltip_subtitle: Label = %TooltipSubtitle
 @onready var tooltip_body: Label = %TooltipBody
 @onready var tooltip_footer: Label = %TooltipFooter
-var _hover_gym_id: String = ""
+var _hover_challenge_orb_id: String = ""
 var _launching: bool = false
 var _click_seq: int = 0
 var _orb_build_attempts: int = 0
@@ -57,7 +57,7 @@ func _ready() -> void:
 	DebugLog.alea_log("MainMenu", "========== MENU _ready ==========")
 	if not resized.is_connected(_layout_deck_pillars):
 		resized.connect(_layout_deck_pillars)
-	gym_tooltip.visible = false
+	challenge_orb_tooltip.visible = false
 	if map_area == null:
 		DebugLog.log_error("MainMenu", "@onready MapArea is null")
 	else:
@@ -125,7 +125,7 @@ func _layout_deck_pillars() -> void:
 
 
 func _should_show_champion_portal() -> bool:
-	var menu_count: int = GameData.menu_gym_modes.size()
+	var menu_count: int = GameData.menu_challenge_orbs.size()
 	if menu_count <= 0:
 		return false
 	return SaveService.get_earned_badges().size() >= menu_count and SaveService.has_all_menu_badges()
@@ -196,12 +196,12 @@ func _build_orbs() -> void:
 		% [map_area.size, map_area.get_global_rect()]
 	)
 	var pillar_idx := 0
-	for gym in GameData.menu_gym_modes:
-		var gid: String = str(gym.get("id", ""))
+	for challenge_orb in GameData.menu_challenge_orbs:
+		var gid: String = str(challenge_orb.get("id", ""))
 		if gid.is_empty():
 			continue
 		var defeated: bool = SaveService.has_badge(gid)
-		var orb := _make_orb(gym, pillar_idx)
+		var orb := _make_orb(challenge_orb, pillar_idx)
 		var base_pos := _orb_position_above_pillar(pillar_idx, defeated)
 		orb.set_float_base(base_pos)
 		if defeated:
@@ -218,12 +218,12 @@ func _build_orbs() -> void:
 	DebugLog.alea_log(
 		"MainMenu",
 		"built %d orbs (map_area children=%d)"
-		% [GameData.menu_gym_modes.size(), map_area.get_child_count()]
+		% [GameData.menu_challenge_orbs.size(), map_area.get_child_count()]
 	)
 
 
-func _orb_color_for_gym(gym_id: String) -> Color:
-	return GameData.get_gym_orb_color(gym_id)
+func _orb_color_for_challenge_orb(challenge_orb_id: String) -> Color:
+	return GameData.get_challenge_orb_color(challenge_orb_id)
 
 
 func _orb_position_above_pillar(pillar_index: int, seated: bool = false) -> Vector2:
@@ -248,73 +248,73 @@ func _orb_position_above_pillar(pillar_index: int, seated: bool = false) -> Vect
 	)
 
 
-func _make_orb(gym: Dictionary, pillar_index: int) -> PixelGymOrb:
-	var gid: String = gid_str(gym)
-	var btn := PixelGymOrb.new()
+func _make_orb(challenge_orb: Dictionary, pillar_index: int) -> PixelChallengeOrb:
+	var gid: String = orb_id_str(challenge_orb)
+	var btn := PixelChallengeOrb.new()
 	btn.name = "Orb_%s" % gid
 	btn.z_index = 2
 	btn.custom_minimum_size = Vector2(ORB_SIZE, ORB_SIZE)
 	btn.size = Vector2(ORB_SIZE, ORB_SIZE)
-	btn.set_orb_color(_orb_color_for_gym(gid))
-	btn.mouse_entered.connect(_on_orb_hover.bind(gym, btn))
-	btn.mouse_exited.connect(_on_orb_unhover.bind(gym))
+	btn.set_orb_color(_orb_color_for_challenge_orb(gid))
+	btn.mouse_entered.connect(_on_orb_hover.bind(challenge_orb, btn))
+	btn.mouse_exited.connect(_on_orb_unhover.bind(challenge_orb))
 	btn.pressed.connect(_on_orb_pressed.bind(gid))
-	btn.set_meta("gym_id", gid)
+	btn.set_meta("challenge_orb_id", gid)
 	btn.set_meta("pillar_index", pillar_index)
 	return btn
 
 
-func _make_badge_icon(gym_id: String) -> TextureRect:
+func _make_badge_icon(challenge_orb_id: String) -> TextureRect:
 	var icon := TextureRect.new()
 	icon.custom_minimum_size = Vector2(BADGE_ICON_SIZE, BADGE_ICON_SIZE)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	icon.texture = GameData.get_badge_texture(gym_id)
+	icon.texture = GameData.get_badge_texture(challenge_orb_id)
 	return icon
 
 
-func _populate_tooltip(gym: Dictionary) -> void:
-	var gid: String = gid_str(gym)
+func _populate_tooltip(challenge_orb: Dictionary) -> void:
+	var gid: String = orb_id_str(challenge_orb)
 	if tooltip_badge:
 		tooltip_badge.texture = GameData.get_badge_texture(gid)
 		tooltip_badge.visible = tooltip_badge.texture != null
-	tooltip_name.text = str(gym.get("name", "Gym"))
-	tooltip_subtitle.text = str(gym.get("subtitle", ""))
-	tooltip_body.text = str(gym.get("description", ""))
+	tooltip_name.text = str(challenge_orb.get("name", "Challenge Orb"))
+	tooltip_subtitle.text = str(challenge_orb.get("subtitle", ""))
+	tooltip_body.text = str(challenge_orb.get("description", ""))
 	var earned: bool = SaveService.has_badge(gid)
 	var badge_label: String = "Badge earned" if earned else "Badge locked"
 	tooltip_footer.text = "%s · %s · click to play" % [
-		gym.get("badge_name", ""),
+		challenge_orb.get("badge_name", ""),
 		badge_label,
 	]
 
 
-func _on_orb_hover(gym: Dictionary, orb: Control) -> void:
-	var gid: String = gid_str(gym)
-	if _hover_gym_id == gid:
-		if gym_tooltip.visible:
+func _on_orb_hover(challenge_orb: Dictionary, orb: Control) -> void:
+	var gid: String = orb_id_str(challenge_orb)
+	if _hover_challenge_orb_id == gid:
+		if challenge_orb_tooltip.visible:
 			call_deferred("_position_tooltip_near_orb", orb)
 			return
 	else:
-		_hover_gym_id = gid
-		_populate_tooltip(gym)
-	gym_tooltip.visible = true
+		_hover_challenge_orb_id = gid
+		_populate_tooltip(challenge_orb)
+	challenge_orb_tooltip.visible = true
 	call_deferred("_position_tooltip_near_orb", orb)
 
 
-func _on_orb_unhover(gym: Dictionary) -> void:
-	if gid_str(gym) == _hover_gym_id:
-		_hide_gym_tooltip()
+func _on_orb_unhover(challenge_orb: Dictionary) -> void:
+	if orb_id_str(challenge_orb) == _hover_challenge_orb_id:
+		_hide_challenge_orb_tooltip()
 
 
 func _on_championship_hover() -> void:
 	if champion_portal == null or not champion_portal.visible:
 		return
-	if _hover_gym_id == "championship" and gym_tooltip.visible:
+	if _hover_challenge_orb_id == "championship" and challenge_orb_tooltip.visible:
 		call_deferred("_position_tooltip_near_control", champion_portal)
 		return
-	_hover_gym_id = "championship"
+	_hover_challenge_orb_id = "championship"
 	if tooltip_badge:
 		tooltip_badge.visible = false
 	tooltip_name.text = "Dice Master Test"
@@ -323,19 +323,19 @@ func _on_championship_hover() -> void:
 		"Enter the portal to face three random games. "
 		+ "Win all three to become a Dice Master."
 	)
-	tooltip_footer.text = "All gym badges earned · click to enter"
-	gym_tooltip.visible = true
+	tooltip_footer.text = "All challenge orb badges earned · click to enter"
+	challenge_orb_tooltip.visible = true
 	call_deferred("_position_tooltip_near_control", champion_portal)
 
 
 func _on_championship_unhover() -> void:
-	if _hover_gym_id == "championship":
-		_hide_gym_tooltip()
+	if _hover_challenge_orb_id == "championship":
+		_hide_challenge_orb_tooltip()
 
 
-func _hide_gym_tooltip() -> void:
-	_hover_gym_id = ""
-	gym_tooltip.visible = false
+func _hide_challenge_orb_tooltip() -> void:
+	_hover_challenge_orb_id = ""
+	challenge_orb_tooltip.visible = false
 
 
 func _position_tooltip_near_orb(orb: Control) -> void:
@@ -343,12 +343,12 @@ func _position_tooltip_near_orb(orb: Control) -> void:
 
 
 func _position_tooltip_near_control(anchor: Control) -> void:
-	if not gym_tooltip.visible:
+	if not challenge_orb_tooltip.visible:
 		return
-	gym_tooltip.reset_size()
+	challenge_orb_tooltip.reset_size()
 	var center: Vector2 = anchor.get_global_rect().get_center()
 	var local: Vector2 = get_global_transform_with_canvas().affine_inverse() * center
-	var tip_size: Vector2 = gym_tooltip.size
+	var tip_size: Vector2 = challenge_orb_tooltip.size
 	var x: float = clampf(
 		local.x - tip_size.x * 0.5,
 		12.0,
@@ -357,11 +357,11 @@ func _position_tooltip_near_control(anchor: Control) -> void:
 	var y: float = local.y - tip_size.y - TOOLTIP_GAP
 	if y < 12.0:
 		y = local.y + anchor.size.y + TOOLTIP_GAP
-	gym_tooltip.position = Vector2(x, y)
+	challenge_orb_tooltip.position = Vector2(x, y)
 
 
-func gid_str(gym: Dictionary) -> String:
-	return str(gym.get("id", ""))
+func orb_id_str(challenge_orb: Dictionary) -> String:
+	return str(challenge_orb.get("id", ""))
 
 
 func _mark_input_handled() -> void:
@@ -372,37 +372,37 @@ func _mark_input_handled() -> void:
 		vp.set_input_as_handled()
 
 
-func _log_gym_click(phase: String, gym_id: String, detail: String = "") -> void:
-	var label: String = gym_id if not gym_id.is_empty() else "(none)"
-	if not gym_id.is_empty():
-		var gym: Dictionary = GameData.get_gym(gym_id)
-		var display_name: String = str(gym.get("name", ""))
+func _log_challenge_orb_click(phase: String, challenge_orb_id: String, detail: String = "") -> void:
+	var label: String = challenge_orb_id if not challenge_orb_id.is_empty() else "(none)"
+	if not challenge_orb_id.is_empty():
+		var challenge_orb: Dictionary = GameData.get_challenge_orb(challenge_orb_id)
+		var display_name: String = str(challenge_orb.get("name", ""))
 		if not display_name.is_empty():
-			label = "%s / %s" % [gym_id, display_name]
-	var line := "*** GYM CLICK [%s] seq=%d gym=%s" % [phase, _click_seq, label]
+			label = "%s / %s" % [challenge_orb_id, display_name]
+	var line := "*** CHALLENGE ORB CLICK [%s] seq=%d challenge_orb=%s" % [phase, _click_seq, label]
 	if not detail.is_empty():
 		line += " | " + detail
 	DebugLog.alea_log("MainMenu", line)
 
 
-func _on_orb_pressed(gym_id: String) -> void:
+func _on_orb_pressed(challenge_orb_id: String) -> void:
 	_click_seq += 1
-	_log_gym_click("PRESSED", gym_id, "launching gym")
-	_hide_gym_tooltip()
-	_launch_gym(gym_id)
+	_log_challenge_orb_click("PRESSED", challenge_orb_id, "launching challenge orb")
+	_hide_challenge_orb_tooltip()
+	_launch_challenge_orb(challenge_orb_id)
 
 
-func _launch_gym(gym_id: String) -> void:
-	if gym_id.is_empty():
-		DebugLog.log_error("MainMenu", "_launch_gym called with empty gym_id")
+func _launch_challenge_orb(challenge_orb_id: String) -> void:
+	if challenge_orb_id.is_empty():
+		DebugLog.log_error("MainMenu", "_launch_challenge_orb called with empty challenge_orb_id")
 		return
 	if _launching:
-		_log_gym_click("SKIPPED", gym_id, "launch already in progress")
+		_log_challenge_orb_click("SKIPPED", challenge_orb_id, "launch already in progress")
 		return
 	_launching = true
-	_log_gym_click("LAUNCH", gym_id, "starting scene change")
-	_hide_gym_tooltip()
-	GameState.selected_gym_id = gym_id
+	_log_challenge_orb_click("LAUNCH", challenge_orb_id, "starting scene change")
+	_hide_challenge_orb_tooltip()
+	GameState.selected_challenge_orb_id = challenge_orb_id
 	GameState.reset_tournament()
 	var tree := get_tree()
 	if tree == null:
@@ -422,7 +422,7 @@ func _launch_gym(gym_id: String) -> void:
 	var after: String = "null"
 	if tree.current_scene != null:
 		after = str(tree.current_scene.name)
-	_log_gym_click("LOADED", gym_id, "scene=%s err=%s" % [after, err])
+	_log_challenge_orb_click("LOADED", challenge_orb_id, "scene=%s err=%s" % [after, err])
 
 
 func _on_scene_nav_succeeded(scene_path: String) -> void:
@@ -582,7 +582,7 @@ func _on_badges_changed() -> void:
 
 
 func _on_championship_pressed() -> void:
-	_hide_gym_tooltip()
+	_hide_challenge_orb_tooltip()
 	GameState.start_championship_prep()
 	SceneNav.go_to_tournament_pick()
 
@@ -636,7 +636,7 @@ func _on_celebration_dismiss() -> void:
 
 
 func _on_settings_pressed() -> void:
-	_hide_gym_tooltip()
+	_hide_challenge_orb_tooltip()
 	_close_how_to_play()
 	SceneNav.go_to_settings()
 
@@ -646,7 +646,7 @@ func _populate_how_to_play() -> void:
 
 
 func _on_how_to_play_pressed() -> void:
-	_hide_gym_tooltip()
+	_hide_challenge_orb_tooltip()
 	if how_to_play_overlay == null:
 		return
 	how_to_play_overlay.visible = true

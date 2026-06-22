@@ -7,7 +7,7 @@
 [ext_resource type="Texture2D" path="res://assets/textures/closed_box.png" id="5_closed_box"]
 [ext_resource type="Texture2D" path="res://assets/textures/opened_box.png" id="6_opened_box"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gym_tooltip"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_challenge_orb_tooltip"]
 bg_color = Color(0.08, 0.1, 0.14, 0.96)
 border_width_left = 1
 border_width_top = 1
@@ -283,7 +283,7 @@ layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 1
 
-[node name="GymTooltip" type="PanelContainer" parent="."]
+[node name="ChallengeOrbTooltip" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 visible = false
 z_index = 30
@@ -291,20 +291,20 @@ layout_mode = 0
 offset_right = 300.0
 offset_bottom = 120.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_gym_tooltip")
+theme_override_styles/panel = SubResource("StyleBoxFlat_challenge_orb_tooltip")
 
-[node name="Margin" type="MarginContainer" parent="GymTooltip"]
+[node name="Margin" type="MarginContainer" parent="ChallengeOrbTooltip"]
 layout_mode = 2
 theme_override_constants/margin_left = 4
 theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 4
 theme_override_constants/margin_bottom = 4
 
-[node name="VBox" type="VBoxContainer" parent="GymTooltip/Margin"]
+[node name="VBox" type="VBoxContainer" parent="ChallengeOrbTooltip/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="TooltipBadge" type="TextureRect" parent="GymTooltip/Margin/VBox"]
+[node name="TooltipBadge" type="TextureRect" parent="ChallengeOrbTooltip/Margin/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
@@ -313,30 +313,30 @@ expand_mode = 1
 stretch_mode = 5
 texture_filter = 0
 
-[node name="TooltipName" type="Label" parent="GymTooltip/Margin/VBox"]
+[node name="TooltipName" type="Label" parent="ChallengeOrbTooltip/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.82, 0.45, 1)
 theme_override_font_sizes/font_size = 15
-text = "Gym name"
+text = "Challenge orb name"
 
-[node name="TooltipSubtitle" type="Label" parent="GymTooltip/Margin/VBox"]
+[node name="TooltipSubtitle" type="Label" parent="ChallengeOrbTooltip/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.78, 0.5, 1)
 theme_override_font_sizes/font_size = 12
 text = "Subtitle"
 
-[node name="TooltipBody" type="Label" parent="GymTooltip/Margin/VBox"]
+[node name="TooltipBody" type="Label" parent="ChallengeOrbTooltip/Margin/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.88, 0.9, 0.94, 1)
 theme_override_font_sizes/font_size = 12
-text = "How this gym works."
+text = "How this challenge orb works."
 autowrap_mode = 3
 
-[node name="TooltipFooter" type="Label" parent="GymTooltip/Margin/VBox"]
+[node name="TooltipFooter" type="Label" parent="ChallengeOrbTooltip/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.68, 0.75, 1)

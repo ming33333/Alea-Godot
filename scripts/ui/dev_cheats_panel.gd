@@ -153,7 +153,7 @@ func _build_ui() -> void:
 	_complete_battle_btn.visible = false
 	_add_btn(vbox, "Refill switch + reroll", _on_refill)
 	_add_btn(vbox, "+1 heart", _on_add_heart)
-	_add_btn(vbox, "Award gym badge", _on_award_badge)
+	_add_btn(vbox, "Award challenge orb badge", _on_award_badge)
 	_status_label = Label.new()
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status_label.custom_minimum_size = Vector2(156, 0)
@@ -187,13 +187,13 @@ func _update_badge_button() -> void:
 	if session == null:
 		return
 	if session.is_tournament:
-		_show_status("Badge cheat: gym runs only")
+		_show_status("Badge cheat: challenge orb runs only")
 		return
-	var gym: Dictionary = GameData.get_gym(session.gym_id)
-	if SaveService.has_badge(session.gym_id):
-		_show_status("Badge earned: %s" % gym.get("badge_name", ""))
+	var challenge_orb: Dictionary = GameData.get_challenge_orb(session.challenge_orb_id)
+	if SaveService.has_badge(session.challenge_orb_id):
+		_show_status("Badge earned: %s" % challenge_orb.get("badge_name", ""))
 	else:
-		_show_status("Tap to award: %s" % gym.get("badge_name", ""))
+		_show_status("Tap to award: %s" % challenge_orb.get("badge_name", ""))
 
 
 func _on_badges_changed() -> void:
@@ -280,15 +280,15 @@ func _on_award_badge() -> void:
 		_show_status("No active run")
 		return
 	if session.is_tournament:
-		_show_status("Use this in a gym, not the Dice Master Test")
+		_show_status("Use this in a challenge orb, not the Dice Master Test")
 		return
-	var gym: Dictionary = GameData.get_gym(session.gym_id)
-	var gym_name: String = str(gym.get("name", session.gym_id))
-	var badge_name: String = str(gym.get("badge_name", "Badge"))
-	if not SaveService.force_award_badge(session.gym_id):
-		_show_status("Could not award (%s)" % gym_name)
+	var challenge_orb: Dictionary = GameData.get_challenge_orb(session.challenge_orb_id)
+	var challenge_orb_name: String = str(challenge_orb.get("name", session.challenge_orb_id))
+	var badge_name: String = str(challenge_orb.get("badge_name", "Badge"))
+	if not SaveService.force_award_badge(session.challenge_orb_id):
+		_show_status("Could not award (%s)" % challenge_orb_name)
 		return
-	if SaveService.has_badge(session.gym_id):
-		_show_status("Awarded: %s (%s)" % [badge_name, gym_name])
+	if SaveService.has_badge(session.challenge_orb_id):
+		_show_status("Awarded: %s (%s)" % [badge_name, challenge_orb_name])
 	else:
 		_show_status("Save failed — check Output")

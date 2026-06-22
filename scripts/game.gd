@@ -2,7 +2,7 @@ extends Control
 
 const DIE_CELL := preload("res://scenes/die_cell.tscn")
 const POWER_DIE_BUTTON: PackedScene = preload("res://scenes/power_die_button.tscn")
-const GYM_BACKGROUND_SHADER: Shader = preload("res://assets/shaders/gym_background.gdshader")
+const CHALLENGE_ORB_BACKGROUND_SHADER: Shader = preload("res://assets/shaders/challenge_orb_background.gdshader")
 
 @onready var grid_container: GridContainer = %Grid
 @onready var level_label: Label = %LevelLabel
@@ -10,9 +10,9 @@ const GYM_BACKGROUND_SHADER: Shader = preload("res://assets/shaders/gym_backgrou
 @onready var hearts_count: Label = %HeartsCount
 @onready var switches_label: Label = %SwitchesLabel
 @onready var rerolls_label: Label = %RerollsLabel
-@onready var gym_label: Label = %GymLabel
-@onready var gym_title_wrap: VBoxContainer = %GymTitleWrap
-@onready var gym_title_underline: ColorRect = %GymTitleUnderline
+@onready var challenge_orb_label: Label = %ChallengeOrbLabel
+@onready var challenge_orb_title_wrap: VBoxContainer = %ChallengeOrbTitleWrap
+@onready var challenge_orb_title_underline: ColorRect = %ChallengeOrbTitleUnderline
 @onready var board_column: VBoxContainer = %BoardColumn
 @onready var stats_bar: PanelContainer = %StatsBar
 @onready var grid_board: Control = %GridBoard
@@ -110,7 +110,7 @@ var _board_size: float = REF_BOARD_SIZE
 var _power_chip_size: int = int(REF_POWERUP_DIE * POWER_CHIP_SCALE)
 var _power_bubble_track: String = ""
 var _background_material: ShaderMaterial
-var _gym_title_hovered: bool = false
+var _challenge_orb_title_hovered: bool = false
 var _level_up_modal_was_open: bool = false
 var _level_up_eye_cursor_active: bool = false
 var _eye_cursor: ImageTexture
@@ -118,9 +118,9 @@ var _eye_cursor: ImageTexture
 enum LevelUpView { FULL, PEEK }
 var _level_up_view: LevelUpView = LevelUpView.FULL
 
-const GYM_TITLE_COLOR := Color(0.12, 0.16, 0.24, 1)
-const GYM_TITLE_UNDERLINE_H := 2.0
-const GYM_TITLE_UNDERLINE_HOVER_H := 3.0
+const CHALLENGE_ORB_TITLE_COLOR := Color(0.12, 0.16, 0.24, 1)
+const CHALLENGE_ORB_TITLE_UNDERLINE_H := 2.0
+const CHALLENGE_ORB_TITLE_UNDERLINE_HOVER_H := 3.0
 
 const STATS_BAR_WHITE_BG := Color(0.96, 0.97, 0.99, 1)
 const STATS_BAR_WHITE_BORDER := Color(0.84, 0.87, 0.92, 1)
@@ -141,15 +141,16 @@ var _stats_reveal_active: bool = false
 var _power_fly_layer: Control
 var _power_fly_queue: Array = []
 var _power_fly_display: Dictionary = {}
+var _pattern_toast_layer: Control
 
 
 func _ready() -> void:
 	DebugLog.alea_log("Game", "========== GAME _ready ==========")
 	DebugLog.alea_log(
 		"Game",
-		"selected_gym=%s championship=%s opponents=%d grid_node=%s"
+		"selected_challenge_orb=%s championship=%s opponents=%d grid_node=%s"
 		% [
-			GameState.selected_gym_id,
+			GameState.selected_challenge_orb_id,
 			GameState.championship_active,
 			GameState.tournament_opponents.size(),
 			"OK" if grid_container != null else "MISSING",
@@ -189,8 +190,9 @@ func _ready() -> void:
 	_setup_dice_roll_sfx()
 	_setup_dice_swish_sfx()
 	_setup_power_fly_layer()
-	_setup_gym_background()
-	_setup_gym_title_hover()
+	_setup_pattern_toast_layer()
+	_setup_challenge_orb_background()
+	_setup_challenge_orb_title_hover()
 	_setup_level_up_peek()
 	_setup_pixel_icons()
 	_setup_stats_bar_style()
@@ -213,10 +215,10 @@ func _begin_run() -> void:
 	if GameState.is_championship_run():
 		_start_tournament_match()
 	else:
-		var gym_id := GameState.selected_gym_id
-		if gym_id.is_empty():
-			gym_id = "vanilla"
-		session.start_gym_run(gym_id)
+		var challenge_orb_id := GameState.selected_challenge_orb_id
+		if challenge_orb_id.is_empty():
+			challenge_orb_id = "vanilla"
+		session.start_challenge_orb_run(challenge_orb_id)
 	_refresh_ui()
 	if session.grid.is_empty():
 		push_error("Game: run started with an empty grid (check GameData / level_limits.json)")
@@ -224,9 +226,9 @@ func _begin_run() -> void:
 		_sync_grid()
 	DebugLog.alea_log(
 		"Game",
-		"run started gym=%s level=%d grid=%dx%d ui_cells=%d"
+		"run started challenge_orb=%s level=%d grid=%dx%d ui_cells=%d"
 		% [
-			session.gym_id,
+			session.challenge_orb_id,
 			session.level,
 			session.grid.size(),
 			session.grid[0].size() if session.grid.size() > 0 else 0,
@@ -335,23 +337,23 @@ func _refresh_ui() -> void:
 	if session.is_tournament:
 		var opp: Dictionary = GameData.get_tournament_opponent(session.tournament_opponent_id)
 		var match_no: int = GameState.tournament_opponent_index + 1
-		gym_label.text = "Dice Master Test · Game %d/3 · %s" % [
+		challenge_orb_label.text = "Dice Master Test · Game %d/3 · %s" % [
 			match_no,
 			opp.get("name", "Opponent"),
 		]
-		gym_title_wrap.tooltip_text = str(opp.get("description", ""))
+		challenge_orb_title_wrap.tooltip_text = str(opp.get("description", ""))
 	else:
-		var gym: Dictionary = GameData.get_gym(session.gym_id)
-		gym_label.text = str(gym.get("name", "Alea"))
-		var subtitle: String = str(gym.get("subtitle", ""))
-		var description: String = str(gym.get("description", ""))
+		var challenge_orb: Dictionary = GameData.get_challenge_orb(session.challenge_orb_id)
+		challenge_orb_label.text = str(challenge_orb.get("name", "Alea"))
+		var subtitle: String = str(challenge_orb.get("subtitle", ""))
+		var description: String = str(challenge_orb.get("description", ""))
 		if subtitle.is_empty():
-			gym_title_wrap.tooltip_text = description
+			challenge_orb_title_wrap.tooltip_text = description
 		else:
-			gym_title_wrap.tooltip_text = "%s\n\n%s" % [subtitle, description]
-	call_deferred("_layout_gym_title_underline")
+			challenge_orb_title_wrap.tooltip_text = "%s\n\n%s" % [subtitle, description]
+	call_deferred("_layout_challenge_orb_title_underline")
 	if background:
-		_update_gym_background_color()
+		_update_challenge_orb_background_color()
 	_refresh_stats_labels()
 	_update_stats_bar_theme()
 	hearts_count.text = str(session.hearts)
@@ -414,56 +416,56 @@ func _sync_grid() -> void:
 
 
 func _on_viewport_size_changed() -> void:
-	_sync_gym_background_aspect()
+	_sync_challenge_orb_background_aspect()
 	call_deferred("_layout_boards")
-	call_deferred("_layout_gym_title_underline")
+	call_deferred("_layout_challenge_orb_title_underline")
 
 
-func _layout_gym_title_underline() -> void:
-	if gym_label == null or gym_title_underline == null:
+func _layout_challenge_orb_title_underline() -> void:
+	if challenge_orb_label == null or challenge_orb_title_underline == null:
 		return
-	var text_w: float = gym_label.get_minimum_size().x
+	var text_w: float = challenge_orb_label.get_minimum_size().x
 	if text_w < 8.0:
-		text_w = gym_label.size.x
-	gym_title_underline.custom_minimum_size = Vector2(
+		text_w = challenge_orb_label.size.x
+	challenge_orb_title_underline.custom_minimum_size = Vector2(
 		maxf(text_w, 8.0),
-		GYM_TITLE_UNDERLINE_HOVER_H if _gym_title_hovered else GYM_TITLE_UNDERLINE_H
+		CHALLENGE_ORB_TITLE_UNDERLINE_HOVER_H if _challenge_orb_title_hovered else CHALLENGE_ORB_TITLE_UNDERLINE_H
 	)
 
 
-func _setup_gym_title_hover() -> void:
-	if gym_title_wrap == null:
+func _setup_challenge_orb_title_hover() -> void:
+	if challenge_orb_title_wrap == null:
 		return
-	if not gym_title_wrap.mouse_entered.is_connected(_on_gym_title_mouse_entered):
-		gym_title_wrap.mouse_entered.connect(_on_gym_title_mouse_entered)
-	if not gym_title_wrap.mouse_exited.is_connected(_on_gym_title_mouse_exited):
-		gym_title_wrap.mouse_exited.connect(_on_gym_title_mouse_exited)
+	if not challenge_orb_title_wrap.mouse_entered.is_connected(_on_challenge_orb_title_mouse_entered):
+		challenge_orb_title_wrap.mouse_entered.connect(_on_challenge_orb_title_mouse_entered)
+	if not challenge_orb_title_wrap.mouse_exited.is_connected(_on_challenge_orb_title_mouse_exited):
+		challenge_orb_title_wrap.mouse_exited.connect(_on_challenge_orb_title_mouse_exited)
 
 
-func _on_gym_title_mouse_entered() -> void:
-	_set_gym_title_highlight(true)
+func _on_challenge_orb_title_mouse_entered() -> void:
+	_set_challenge_orb_title_highlight(true)
 
 
-func _on_gym_title_mouse_exited() -> void:
-	_set_gym_title_highlight(false)
+func _on_challenge_orb_title_mouse_exited() -> void:
+	_set_challenge_orb_title_highlight(false)
 
 
-func _set_gym_title_highlight(hovering: bool) -> void:
-	_gym_title_hovered = hovering
-	if gym_label == null:
+func _set_challenge_orb_title_highlight(hovering: bool) -> void:
+	_challenge_orb_title_hovered = hovering
+	if challenge_orb_label == null:
 		return
 	if hovering:
-		var accent: Color = GameData.get_gym_orb_color(
-			session.gym_id if session != null else GameState.selected_gym_id
+		var accent: Color = GameData.get_challenge_orb_color(
+			session.challenge_orb_id if session != null else GameState.selected_challenge_orb_id
 		)
-		gym_label.add_theme_color_override("font_color", accent.darkened(0.12))
-		if gym_title_underline != null:
-			gym_title_underline.color = accent.darkened(0.08)
+		challenge_orb_label.add_theme_color_override("font_color", accent.darkened(0.12))
+		if challenge_orb_title_underline != null:
+			challenge_orb_title_underline.color = accent.darkened(0.08)
 	else:
-		gym_label.add_theme_color_override("font_color", GYM_TITLE_COLOR)
-		if gym_title_underline != null:
-			gym_title_underline.color = GYM_TITLE_COLOR
-	call_deferred("_layout_gym_title_underline")
+		challenge_orb_label.add_theme_color_override("font_color", CHALLENGE_ORB_TITLE_COLOR)
+		if challenge_orb_title_underline != null:
+			challenge_orb_title_underline.color = CHALLENGE_ORB_TITLE_COLOR
+	call_deferred("_layout_challenge_orb_title_underline")
 
 
 func _process(_delta: float) -> void:
@@ -804,6 +806,43 @@ func _finish_power_fly(power_type: String) -> void:
 	chip.play_reward_arrival_pop()
 
 
+func _row_global_rect(row: int) -> Rect2:
+	if session == null or session.grid.is_empty() or row < 0:
+		return Rect2(_grid_board_center(), Vector2.ZERO)
+	var cols: int = session.grid[0].size()
+	var rect := Rect2()
+	var has_rect: bool = false
+	for c in range(cols):
+		var btn: DieCell = _die_cells.get(_die_key(row, c)) as DieCell
+		if btn == null:
+			continue
+		var cell_rect: Rect2 = btn.get_global_rect()
+		if not has_rect:
+			rect = cell_rect
+			has_rect = true
+		else:
+			rect = rect.merge(cell_rect)
+	if not has_rect:
+		return Rect2(_grid_board_center(), Vector2.ZERO)
+	return rect
+
+
+func _play_pattern_toast(row: int, pattern: String) -> void:
+	if pattern.is_empty() or pattern == PatternCheck.INCOMPLETE:
+		return
+	if _pattern_toast_layer == null:
+		return
+	var row_rect: Rect2 = _row_global_rect(row)
+	if row_rect.size == Vector2.ZERO:
+		return
+	var viewport_w: float = get_viewport_rect().size.x
+	var est_toast_w: float = 120.0
+	var fits_right: bool = (
+		row_rect.position.x + row_rect.size.x + est_toast_w + 16.0 <= viewport_w
+	)
+	PatternRowToast.spawn(_pattern_toast_layer, pattern, row_rect, fits_right)
+
+
 func _row_global_center(row: int) -> Vector2:
 	if session == null or session.grid.is_empty() or row < 0:
 		return _grid_board_center()
@@ -1128,31 +1167,31 @@ func _setup_dice_swish_sfx() -> void:
 	add_child(_dice_swish_player)
 
 
-func _setup_gym_background() -> void:
-	if background == null or GYM_BACKGROUND_SHADER == null:
+func _setup_challenge_orb_background() -> void:
+	if background == null or CHALLENGE_ORB_BACKGROUND_SHADER == null:
 		return
 	_background_material = ShaderMaterial.new()
-	_background_material.shader = GYM_BACKGROUND_SHADER
+	_background_material.shader = CHALLENGE_ORB_BACKGROUND_SHADER
 	_background_material.set_shader_parameter("light_strength", 0.82)
 	background.material = _background_material
 	background.color = Color.WHITE
-	_sync_gym_background_aspect()
+	_sync_challenge_orb_background_aspect()
 	if session != null:
-		_update_gym_background_color()
+		_update_challenge_orb_background_color()
 
 
-func _update_gym_background_color() -> void:
+func _update_challenge_orb_background_color() -> void:
 	if session == null:
 		return
-	var base: Color = GameData.get_gym_background_color(session.gym_id)
+	var base: Color = GameData.get_challenge_orb_background_color(session.challenge_orb_id)
 	if _background_material != null:
 		_background_material.set_shader_parameter("base_color", base)
-		_sync_gym_background_aspect()
+		_sync_challenge_orb_background_aspect()
 	else:
 		background.color = base
 
 
-func _sync_gym_background_aspect() -> void:
+func _sync_challenge_orb_background_aspect() -> void:
 	if _background_material == null:
 		return
 	var vp: Vector2 = get_viewport_rect().size
@@ -1180,30 +1219,42 @@ func _on_dice_swished(from_row: int, from_col: int, to_row: int, to_col: int) ->
 		session.pending_swap_before_to = null
 
 
-func _on_rows_locked(row_indices: Array) -> void:
-	if row_indices.is_empty() or session.grid.is_empty():
+func _on_rows_locked(completions: Array) -> void:
+	if completions.is_empty() or session.grid.is_empty():
 		return
-	for row in row_indices:
-		var row_index: int = int(row)
+	for item in completions:
+		var row_index: int = int(item.get("index", -1))
+		if row_index < 0:
+			continue
 		for c in range(session.grid[0].size()):
 			_row_lock_animating[_die_key(row_index, c)] = true
-	call_deferred("_play_row_lock_batch", row_indices, 0)
+	call_deferred("_play_row_lock_batch", completions, 0)
 
 
-func _play_row_lock_batch(row_indices: Array, batch_index: int) -> void:
-	if batch_index >= row_indices.size():
+func _play_row_lock_batch(completions: Array, batch_index: int) -> void:
+	if batch_index >= completions.size():
 		return
-	var row: int = int(row_indices[batch_index])
-	_play_row_lock_sequence(row, func() -> void:
-		_play_row_lock_batch(row_indices, batch_index + 1)
+	var item: Dictionary = completions[batch_index]
+	var row: int = int(item.get("index", -1))
+	var pattern: String = str(item.get("pattern", ""))
+	if row < 0:
+		_play_row_lock_batch(completions, batch_index + 1)
+		return
+	_play_row_lock_sequence(row, pattern, func() -> void:
+		_play_row_lock_batch(completions, batch_index + 1)
 	)
 
 
-func _play_row_lock_sequence(row: int, on_complete: Callable = Callable()) -> void:
+func _play_row_lock_sequence(
+	row: int,
+	pattern: String,
+	on_complete: Callable = Callable()
+) -> void:
 	if session.grid.is_empty():
 		if on_complete.is_valid():
 			on_complete.call()
 		return
+	_play_pattern_toast(row, pattern)
 	var cols: int = session.grid[0].size()
 	for c in range(cols):
 		var key: String = _die_key(row, c)
@@ -1637,7 +1688,7 @@ func _update_round_modal() -> void:
 		return
 	round_label.text = "Level %d complete!" % session.level
 	round_detail.text = (
-		"Next is Level %d — the final level. Beat it to earn this gym's badge!"
+		"Next is Level %d — the final level. Beat it to earn this challenge orb's badge!"
 		% (session.level + 1)
 	)
 	round_detail.visible = true
@@ -1670,7 +1721,7 @@ func _update_modals() -> void:
 	var show_victory: bool = session.current_modal == RunSession.Modal.GAME_VICTORY
 	modal_victory.visible = show_victory
 	if show_victory and victory_badge:
-		victory_badge.texture = GameData.get_badge_texture(session.gym_id)
+		victory_badge.texture = GameData.get_badge_texture(session.challenge_orb_id)
 		victory_badge.visible = victory_badge.texture != null
 	modal_game_over.visible = session.current_modal == RunSession.Modal.GAME_OVER
 	modal_stuck.visible = session.current_modal == RunSession.Modal.STUCK
@@ -1750,9 +1801,9 @@ func _update_restart_modal() -> void:
 	if h <= 1:
 		restart_body.text = (
 			"Restarting this level costs your last heart.\n"
-			+"You will fail the gym immediately after."
+			+"You will fail the challenge immediately after."
 		)
-		restart_hearts.text = "Hearts 1 -> gym failed"
+		restart_hearts.text = "Hearts 1 -> challenge failed"
 	else:
 		restart_body.text = (
 			"Restart deals a fresh grid on this level.\n"
@@ -1805,13 +1856,13 @@ func _update_fail_modals() -> void:
 				% [GameState.tournament_opponent_index + 1, opp.get("name", "your opponent")]
 			)
 		else:
-			var gym: Dictionary = GameData.get_gym(session.gym_id)
+			var challenge_orb: Dictionary = GameData.get_challenge_orb(session.challenge_orb_id)
 			var max_hearts: int = int(GameData.level_limits.get("max_hearts", 3))
-			game_over_title.text = "Gym failed"
+			game_over_title.text = "Challenge failed"
 			game_over_body.text = (
 				"You ran out of hearts in %s.\n"
-				+"You used all %d lives — this gym run is over."
-			) % [gym.get("name", "this gym"), max_hearts]
+				+"You used all %d lives — this challenge run is over."
+			) % [challenge_orb.get("name", "this challenge orb"), max_hearts]
 
 
 func _build_swap() -> void:

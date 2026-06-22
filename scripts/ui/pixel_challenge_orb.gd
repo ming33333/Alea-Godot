@@ -1,4 +1,4 @@
-class_name PixelGymOrb
+class_name PixelChallengeOrb
 extends Button
 
 const CELL_SIZE := 2

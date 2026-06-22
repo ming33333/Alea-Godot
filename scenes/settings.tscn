@@ -144,7 +144,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.68, 0.75, 1)
 theme_override_font_sizes/font_size = 12
 autowrap_mode = 3
-text = "Clears gym badges, Dice Master progress, orb positions, audio/dice settings, and dev cheat unlock state."
+text = "Clears challenge orb badges, Dice Master progress, orb positions, audio/dice settings, and dev cheat unlock state."
 
 [node name="ResetDataBtn" type="Button" parent="Margin/Scroll/VBox"]
 layout_mode = 2
@@ -166,7 +166,7 @@ text = "Back to menu"
 unique_name_in_owner = true
 title = "Reset all progress?"
 ok_button_text = "Reset"
-dialog_text = "This clears gym badges, Dice Master title, orb layout, settings, and dev cheat unlock. This cannot be undone."
+dialog_text = "This clears challenge orb badges, Dice Master title, orb layout, settings, and dev cheat unlock. This cannot be undone."
 
 [connection signal="value_changed" from="Margin/Scroll/VBox/VolumeSlider" to="." method="_on_volume_changed"]
 [connection signal="value_changed" from="Margin/Scroll/VBox/MusicVolumeSlider" to="." method="_on_music_volume_changed"]

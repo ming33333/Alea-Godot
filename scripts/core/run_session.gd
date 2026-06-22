@@ -4,7 +4,7 @@ extends RefCounted
 signal state_changed
 signal dice_rerolled(row: int, col: int, new_value: int)
 signal dice_swished(from_row: int, from_col: int, to_row: int, to_col: int)
-signal rows_locked(row_indices: Array)
+signal rows_locked(completions: Array)
 signal power_rewarded(power_type: String, source_row: int, previous_charge: int, is_new_unlock: bool)
 signal show_modal(modal: String)
 signal hide_modal(modal: String)
@@ -14,7 +14,7 @@ enum Modal {
 	GAME_OVER, TOURNAMENT_WIN, SWAP_POWER, STUCK, RESTART_CONFIRM
 }
 
-var gym_id: String = "vanilla"
+var challenge_orb_id: String = "vanilla"
 var is_tournament: bool = false
 var tournament_opponent_id: String = ""
 var tournament_loadout: Array = []
@@ -55,11 +55,11 @@ var pending_swap_before_to: DiceCellData
 var _safari_timer: SceneTreeTimer = null
 
 
-func start_gym_run(gym: String) -> void:
-	gym_id = gym
+func start_challenge_orb_run(challenge_orb: String) -> void:
+	challenge_orb_id = challenge_orb
 	is_tournament = false
 	tournament_opponent_id = ""
-	max_owned_powers = GameData.max_owned_powers_for_gym(gym_id)
+	max_owned_powers = GameData.max_owned_powers_for_challenge_orb(challenge_orb_id)
 	_reset_meta()
 	_start_level(1, true)
 
@@ -70,7 +70,7 @@ func start_tournament_match(
 	stolen: String,
 	on_win: Callable
 ) -> void:
-	gym_id = "vanilla"
+	challenge_orb_id = "vanilla"
 	is_tournament = true
 	tournament_opponent_id = opponent_id
 	tournament_loadout = loadout.duplicate()
@@ -118,11 +118,11 @@ func _start_level(lvl: int, new_run: bool) -> void:
 	current_modal = Modal.NONE
 	awarded_rows = {}
 	power_earned_rows = {}
-	for r in GymRules.initial_awarded_rows(gym_id):
+	for r in ChallengeOrbRules.initial_awarded_rows(challenge_orb_id):
 		awarded_rows[r] = true
 	var has_sc: bool = unlocked_powers.has("secondChances")
 	var lucky: bool = is_tournament and tournament_opponent_id == "luckySeven"
-	grid = GymRules.build_grid(gym_id, has_sc, lucky)
+	grid = ChallengeOrbRules.build_grid(challenge_orb_id, has_sc, lucky)
 	if new_run:
 		charges_at_level_start = _snapshot_charges()
 	elif not is_tournament:
@@ -279,7 +279,7 @@ func process_row_completions(emit_lock_fx: bool = true) -> void:
 			power_charges[t] = prev_charge + int(row_charges[t])
 		grid[idx] = _lock_row(grid[idx])
 	if not newly_locked.is_empty() and emit_lock_fx:
-		rows_locked.emit(newly_locked)
+		rows_locked.emit(rows_done)
 	_check_win_flow()
 
 
@@ -354,7 +354,7 @@ func _check_win_flow() -> void:
 	var max_lvl: int = int(GameData.level_limits.get("max_level", 8))
 	if level >= max_lvl and not endless_mode:
 		if not is_tournament:
-			victory_badge_is_new = SaveService.award_gym_badge(gym_id)
+			victory_badge_is_new = SaveService.award_challenge_orb_badge(challenge_orb_id)
 		current_modal = Modal.GAME_VICTORY
 		_emit()
 		return
@@ -459,12 +459,12 @@ func reroll_die(row: int, col: int) -> void:
 		return
 	if rerolls_left() <= 0:
 		return
-	var new_val: int = GymRules.reroll_value(cell.value, gym_id)
+	var new_val: int = ChallengeOrbRules.reroll_value(cell.value, challenge_orb_id)
 	cell.push_history(new_val)
 	rerolls_used += 1
 	dice_rerolled.emit(row, col, new_val)
 	var pending: Dictionary = {"row": row, "col": col, "value": new_val}
-	if GameData.is_countdown_gym(gym_id) and rerolls_used % int(
+	if GameData.is_countdown_challenge_orb(challenge_orb_id) and rerolls_used % int(
 		GameData.level_limits.get("safari_reroll_interval", 3)
 	) == 0:
 		_trigger_safari(pending)
@@ -496,7 +496,7 @@ func tick_safari_countdown() -> void:
 		return
 	safari_countdown -= 1
 	if safari_countdown <= 0:
-		grid = SafariRules.apply_wave(grid, gym_id, _pending_safari)
+		grid = SafariRules.apply_wave(grid, challenge_orb_id, _pending_safari)
 		_after_reroll_side_effects(_pending_safari)
 		process_row_completions()
 	_emit()
@@ -506,7 +506,7 @@ func _apply_random_die_change() -> void:
 	var pick: Dictionary = _pick_random_unlocked_pos()
 	if pick.is_empty():
 		return
-	var v: int = GymRules.roll_die()
+	var v: int = ChallengeOrbRules.roll_die()
 	grid[int(pick["row"])][int(pick["col"])].push_history(v)
 
 

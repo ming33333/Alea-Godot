@@ -121,7 +121,7 @@ func _on_reset_confirmed() -> void:
 	SaveService.reset_all_user_data()
 	_reload_settings_ui()
 	reset_status.text = (
-		"Progress reset. Gym badges, Dice Master title, map layout, "
+		"Progress reset. Challenge orb badges, Dice Master title, map layout, "
 		+ "and settings were cleared."
 	)
 

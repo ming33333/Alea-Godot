@@ -14,15 +14,15 @@
     },
     {
       "heading": "Levels & hearts",
-      "text": "Clear every row to finish the level. Pick a new power on level-up (up to three in your loadout). You have limited switches and rerolls each level. Run out of moves and you lose a heart — lose all hearts and the gym run ends."
+      "text": "Clear every row to finish the level. Pick a new power on level-up (up to three in your loadout). You have limited switches and rerolls each level. Run out of moves and you lose a heart — lose all hearts and the challenge run ends."
     },
     {
-      "heading": "Gyms",
-      "text": "Each gym orb on the map changes the rules — ordered rerolls, safari countdowns, tighter loadouts, and more. Hover an orb to read its rules. Earn that gym's badge by beating level 8."
+      "heading": "Challenge Orbs",
+      "text": "Each challenge orb on the map changes the rules — ordered rerolls, safari countdowns, tighter loadouts, and more. Hover an orb to read its rules. Earn that challenge orb's badge by beating level 8."
     },
     {
       "heading": "Dice Master Test",
-      "text": "Collect every gym badge to unlock the portal. Enter the Dice Master Test to face three random games — win all three to become a Dice Master."
+      "text": "Collect every challenge orb badge to unlock the portal. Enter the Dice Master Test to face three random games — win all three to become a Dice Master."
     }
   ]
 }

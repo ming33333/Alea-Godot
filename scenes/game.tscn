@@ -110,23 +110,23 @@ text = "Menu"
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="GymTitleWrap" type="VBoxContainer" parent="Margin/VBox/Header/TopRow/TopCenter"]
+[node name="ChallengeOrbTitleWrap" type="VBoxContainer" parent="Margin/VBox/Header/TopRow/TopCenter"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 0
 theme_override_constants/separation = 3
 alignment = 1
 
-[node name="GymLabel" type="Label" parent="Margin/VBox/Header/TopRow/TopCenter/GymTitleWrap"]
+[node name="ChallengeOrbLabel" type="Label" parent="Margin/VBox/Header/TopRow/TopCenter/ChallengeOrbTitleWrap"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.16, 0.24, 1)
-theme_override_font_sizes/font_size = 31
-text = "Gym"
+theme_override_font_sizes/font_size = 47
+text = "Challenge Orb"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="GymTitleUnderline" type="ColorRect" parent="Margin/VBox/Header/TopRow/TopCenter/GymTitleWrap"]
+[node name="ChallengeOrbTitleUnderline" type="ColorRect" parent="Margin/VBox/Header/TopRow/TopCenter/ChallengeOrbTitleWrap"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(48, 2)
 layout_mode = 2
@@ -441,7 +441,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.42, 0.12, 1)
 theme_override_font_sizes/font_size = 16
 autowrap_mode = 3
-text = "Next is Level 8 — the final level. Beat it to earn this gym's badge!"
+text = "Next is Level 8 — the final level. Beat it to earn this challenge orb's badge!"
 horizontal_alignment = 1
 
 [node name="RoundContinue" type="Button" parent="ModalRound/Center/Card/CardMargin/VBox"]
@@ -669,7 +669,7 @@ texture_filter = 0
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
 theme_override_font_sizes/font_size = 26
-text = "Gym cleared!"
+text = "Challenge cleared!"
 horizontal_alignment = 1
 
 [node name="Endless" type="Button" parent="ModalVictory/Center/Card/CardMargin/VBox"]
@@ -747,7 +747,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
 theme_override_font_sizes/font_size = 26
-text = "Gym failed"
+text = "Challenge failed"
 horizontal_alignment = 1
 
 [node name="GameOverBody" type="Label" parent="ModalGameOver/Center/Card/CardMargin/VBox"]

@@ -2,9 +2,11 @@ extends Node
 
 signal badges_changed
 
-const BADGES_KEY := "gym_badges"
+const BADGES_KEY := "challenge_orb_badges"
+const LEGACY_BADGES_KEY := "gym_badges"
 const CHAMPION_KEY := "dice_champion"
-const LAYOUT_KEY := "gym_menu_layout"
+const LAYOUT_KEY := "challenge_orb_menu_layout"
+const LEGACY_LAYOUT_KEY := "gym_menu_layout"
 const BADGE_BOX_OPEN_KEY := "badge_box_open"
 
 
@@ -13,7 +15,7 @@ func _ready() -> void:
 
 
 func get_earned_badges() -> Array[String]:
-	var raw: String = _read(BADGES_KEY)
+	var raw: String = _read_with_legacy(BADGES_KEY, LEGACY_BADGES_KEY)
 	if raw.is_empty():
 		return []
 	var parsed: Variant = JSON.parse_string(raw)
@@ -21,7 +23,7 @@ func get_earned_badges() -> Array[String]:
 		return []
 	var out: Array[String] = []
 	var valid: Dictionary = {}
-	for g in GameData.menu_gym_modes:
+	for g in GameData.menu_challenge_orbs:
 		valid[str(g.get("id", ""))] = true
 	for id in parsed:
 		if valid.has(str(id)):
@@ -29,8 +31,8 @@ func get_earned_badges() -> Array[String]:
 	return out
 
 
-func has_badge(gym_id: String) -> bool:
-	var gid: String = str(gym_id)
+func has_badge(challenge_orb_id: String) -> bool:
+	var gid: String = str(challenge_orb_id)
 	for b in get_earned_badges():
 		if b == gid:
 			return true
@@ -38,25 +40,25 @@ func has_badge(gym_id: String) -> bool:
 
 
 func has_all_menu_badges() -> bool:
-	if GameData.menu_gym_modes.is_empty():
+	if GameData.menu_challenge_orbs.is_empty():
 		return false
-	for g in GameData.menu_gym_modes:
+	for g in GameData.menu_challenge_orbs:
 		if not has_badge(str(g.get("id", ""))):
 			return false
 	return true
 
 
-func _is_valid_menu_gym(gym_id: String) -> bool:
-	for g in GameData.menu_gym_modes:
-		if str(g.get("id", "")) == gym_id:
+func _is_valid_menu_challenge_orb(challenge_orb_id: String) -> bool:
+	for g in GameData.menu_challenge_orbs:
+		if str(g.get("id", "")) == challenge_orb_id:
 			return true
 	return false
 
 
-func force_award_badge(gym_id: String) -> bool:
-	var gid: String = str(gym_id)
-	if not _is_valid_menu_gym(gid):
-		DebugLog.log_error("SaveService", "force_award_badge: invalid gym '%s'" % gid)
+func force_award_badge(challenge_orb_id: String) -> bool:
+	var gid: String = str(challenge_orb_id)
+	if not _is_valid_menu_challenge_orb(gid):
+		DebugLog.log_error("SaveService", "force_award_badge: invalid challenge orb '%s'" % gid)
 		return false
 	if has_badge(gid):
 		DebugLog.log("SaveService", "force_award_badge: already had '%s'" % gid)
@@ -73,9 +75,9 @@ func force_award_badge(gym_id: String) -> bool:
 	return true
 
 
-func award_gym_badge(gym_id: String) -> bool:
-	var gid: String = str(gym_id)
-	if not _is_valid_menu_gym(gid):
+func award_challenge_orb_badge(challenge_orb_id: String) -> bool:
+	var gid: String = str(challenge_orb_id)
+	if not _is_valid_menu_challenge_orb(gid):
 		return false
 	if has_badge(gid):
 		return false
@@ -106,26 +108,29 @@ func set_badge_box_open(open: bool) -> void:
 
 
 func get_menu_layout() -> Dictionary:
-	var raw: String = _read(LAYOUT_KEY)
+	var raw: String = _read_with_legacy(LAYOUT_KEY, LEGACY_LAYOUT_KEY)
 	if raw.is_empty():
-		return GameData.gym_menu_layout.duplicate()
+		return GameData.challenge_orb_menu_layout.duplicate()
 	var parsed: Variant = JSON.parse_string(raw)
 	if parsed is Dictionary:
-		var merged: Dictionary = GameData.gym_menu_layout.duplicate()
+		var merged: Dictionary = GameData.challenge_orb_menu_layout.duplicate()
 		for k in parsed:
 			merged[k] = parsed[k]
 		return merged
-	return GameData.gym_menu_layout.duplicate()
+	return GameData.challenge_orb_menu_layout.duplicate()
 
 
-func save_orb_position(gym_id: String, x: float, y: float) -> void:
+func save_orb_position(challenge_orb_id: String, x: float, y: float) -> void:
 	var layout: Dictionary = get_menu_layout()
-	layout[gym_id] = {"x": clampf(x, 5.0, 95.0), "y": clampf(y, 5.0, 95.0)}
+	layout[challenge_orb_id] = {"x": clampf(x, 5.0, 95.0), "y": clampf(y, 5.0, 95.0)}
 	_write(LAYOUT_KEY, JSON.stringify(layout))
 
 
 func reset_all_user_data() -> void:
-	for key in [BADGES_KEY, CHAMPION_KEY, LAYOUT_KEY, BADGE_BOX_OPEN_KEY]:
+	for key in [
+		BADGES_KEY, LEGACY_BADGES_KEY, CHAMPION_KEY,
+		LAYOUT_KEY, LEGACY_LAYOUT_KEY, BADGE_BOX_OPEN_KEY
+	]:
 		_delete_user_file("%s.dat" % key)
 	_delete_user_file("settings.cfg")
 	_delete_user_file("dev_cheats_unlocked.dat")
@@ -144,6 +149,15 @@ func _delete_user_file(relative_path: String) -> void:
 		return
 	if dir.file_exists(relative_path):
 		dir.remove(relative_path)
+
+
+func _read_with_legacy(key: String, legacy_key: String) -> String:
+	var text: String = _read(key)
+	if text.is_empty() and not legacy_key.is_empty():
+		text = _read(legacy_key)
+		if not text.is_empty():
+			_write(key, text)
+	return text
 
 
 func _read(key: String) -> String:

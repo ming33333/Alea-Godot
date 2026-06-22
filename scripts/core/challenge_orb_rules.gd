@@ -1,4 +1,4 @@
-class_name GymRules
+class_name ChallengeOrbRules
 extends RefCounted
 
 const MIDDLE_ROW: int = 2
@@ -9,21 +9,21 @@ static func roll_die() -> int:
 	return randi_range(1, 6)
 
 
-static func reroll_value(current: int, gym_id: String) -> int:
-	if gym_id == "orderedReroll":
+static func reroll_value(current: int, challenge_orb_id: String) -> int:
+	if challenge_orb_id == "orderedReroll":
 		var n: int = clampi(current, 1, 6)
 		return 1 if n >= 6 else n + 1
 	return roll_die()
 
 
-static func initial_awarded_rows(gym_id: String) -> Array[int]:
-	if gym_id == "middleStraight":
+static func initial_awarded_rows(challenge_orb_id: String) -> Array[int]:
+	if challenge_orb_id == "middleStraight":
 		return [MIDDLE_ROW]
 	return []
 
 
 static func build_grid(
-	gym_id: String,
+	challenge_orb_id: String,
 	has_second_chances: bool,
 	place_lucky_seven: bool = false
 ) -> Array:
@@ -33,7 +33,7 @@ static func build_grid(
 		var row: Array = []
 		for col_index in range(size):
 			var cell := DiceCellData.new()
-			if gym_id == "middleStraight" and row_index == MIDDLE_ROW:
+			if challenge_orb_id == "middleStraight" and row_index == MIDDLE_ROW:
 				var v: int = HEAD_START[col_index]
 				cell = DiceCellData.new(v, true)
 			else:

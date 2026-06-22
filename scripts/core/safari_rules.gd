@@ -11,29 +11,29 @@ static func apply_pending_reroll(grid: Array, row: int, col: int, value: int) ->
 	return new_grid
 
 
-static func apply_wave(grid: Array, gym_id: String, pending: Dictionary) -> Array:
+static func apply_wave(grid: Array, challenge_orb_id: String, pending: Dictionary) -> Array:
 	var g: Array = apply_pending_reroll(
 		grid, int(pending["row"]), int(pending["col"]), int(pending["value"])
 	)
-	return apply_grid_change(g, gym_id)
+	return apply_grid_change(g, challenge_orb_id)
 
 
-static func apply_grid_change(grid: Array, gym_id: String) -> Array:
-	if gym_id == "countdownOne":
+static func apply_grid_change(grid: Array, challenge_orb_id: String) -> Array:
+	if challenge_orb_id == "countdownOne":
 		var pick: Dictionary = _pick_random_unlocked(grid)
 		if pick.is_empty():
 			return grid
 		var new_grid: Array = _clone_grid(grid)
-		var v: int = GymRules.roll_die()
+		var v: int = ChallengeOrbRules.roll_die()
 		new_grid[int(pick["row"])][int(pick["col"])].push_history(v)
 		return new_grid
-	if gym_id == "countdownAll":
+	if challenge_orb_id == "countdownAll":
 		var new_grid: Array = _clone_grid(grid)
 		for r in range(new_grid.size()):
 			for c in range(new_grid[r].size()):
 				var cell: DiceCellData = new_grid[r][c]
 				if not cell.locked:
-					cell.push_history(GymRules.roll_die())
+					cell.push_history(ChallengeOrbRules.roll_die())
 		return new_grid
 	return grid
 
