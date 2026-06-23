@@ -19,7 +19,9 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	z_index = 8
 	_panel = get_node_or_null("Panel") as PanelContainer
-	_label = get_node_or_null("Panel/Margin/Label") as Label
+	_label = get_node_or_null("Panel/Margin/VBox/Label") as Label
+	if _label == null:
+		_label = get_node_or_null("Panel/Margin/Label") as Label
 	visible = false
 	modulate.a = 0.0
 

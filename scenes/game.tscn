@@ -328,13 +328,14 @@ theme_override_constants/separation = 10
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 8
 
 [node name="PowerHintLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/PowerDock/DockMargin/DockVBox/PowerHint"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.2, 0.35, 0.55, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 16
 text = "Tap a die to use this power"
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -342,9 +343,10 @@ autowrap_mode = 3
 [node name="CancelPowerBtn" type="Button" parent="Margin/VBox/Center/BoardColumn/PowerDock/DockMargin/DockVBox/PowerHint"]
 unique_name_in_owner = true
 layout_mode = 2
+custom_minimum_size = Vector2(0, 32)
 size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.75, 0.15, 0.2, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 15
 text = "Cancel power-up"
 flat = true
 
@@ -521,24 +523,26 @@ text = "Level up — pick a power"
 horizontal_alignment = 1
 
 [node name="Scroll" type="ScrollContainer" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox"]
-custom_minimum_size = Vector2(0, 280)
+custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="LevelUpOptions" type="VBoxContainer" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox/Scroll"]
+[node name="LevelUpOptions" type="HBoxContainer" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox/Scroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 24
+alignment = 1
 
 [node name="LevelUpDetail" type="Label" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(0, 56)
-theme_override_colors/font_color = Color(0.35, 0.38, 0.45, 1)
-theme_override_font_sizes/font_size = 13
+custom_minimum_size = Vector2(0, 72)
+theme_override_colors/font_color = Color(0.22, 0.26, 0.34, 1)
+theme_override_font_sizes/font_size = 14
 text = "Hover a power to see what it does"
+horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="LevelUpKeepPowers" type="Button" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox"]
@@ -595,11 +599,34 @@ layout_mode = 2
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="Label" type="Label" parent="ModalNumber/Center/Card/CardMargin/VBox"]
+[node name="NumberPowerWrap" type="VBoxContainer" parent="ModalNumber/Center/Card/CardMargin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="NumberPowerDie" type="TextureRect" parent="ModalNumber/Center/Card/CardMargin/VBox/NumberPowerWrap"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 2
+size_flags_horizontal = 4
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="NumberPowerName" type="Label" parent="ModalNumber/Center/Card/CardMargin/VBox/NumberPowerWrap"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.38, 0.1, 1)
+theme_override_font_sizes/font_size = 15
+text = "Set Any Die"
+horizontal_alignment = 1
+
+[node name="NumberPickerPrompt" type="Label" parent="ModalNumber/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
-theme_override_font_sizes/font_size = 22
-text = "Pick a number (1–6)"
+theme_override_font_sizes/font_size = 18
+text = "Pick a number for this die (uses 1 reroll)"
 horizontal_alignment = 1
 
 [node name="NumberButtons" type="HBoxContainer" parent="ModalNumber/Center/Card/CardMargin/VBox"]
@@ -607,6 +634,15 @@ unique_name_in_owner = true
 layout_mode = 2
 alignment = 1
 theme_override_constants/separation = 10
+
+[node name="NumberPickerCancel" type="Button" parent="ModalNumber/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.75, 0.15, 0.2, 1)
+theme_override_font_sizes/font_size = 14
+text = "Cancel power-up"
+flat = true
 
 [node name="ModalVictory" type="Control" parent="."]
 unique_name_in_owner = true
@@ -1000,46 +1036,93 @@ theme_override_font_sizes/font_size = 24
 text = "Replace a power"
 horizontal_alignment = 1
 
-[node name="SwapInLabel" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+[node name="SwapPickSection" type="VBoxContainer" parent="ModalSwap/Center/Card/CardMargin/VBox"]
 unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SwapIncomingLabel" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapPickSection"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.15, 0.4, 0.2, 1)
-theme_override_font_sizes/font_size = 18
-text = "Adding: (power)"
+theme_override_font_sizes/font_size = 16
+text = "Adding this power:"
 horizontal_alignment = 1
 
-[node name="SwapInDetail" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+[node name="SwapIncomingRow" type="HBoxContainer" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapPickSection"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.35, 0.4, 0.5, 1)
-theme_override_font_sizes/font_size = 13
-text = "Power description"
-horizontal_alignment = 1
-autowrap_mode = 3
+theme_override_constants/separation = 16
+alignment = 1
 
-[node name="SwapDropLabel" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+[node name="SwapDropLabel" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapPickSection"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
 theme_override_font_sizes/font_size = 15
 text = "Drop one of your current powers:"
 horizontal_alignment = 1
 
-[node name="Scroll" type="ScrollContainer" parent="ModalSwap/Center/Card/CardMargin/VBox"]
-custom_minimum_size = Vector2(0, 240)
+[node name="Scroll" type="ScrollContainer" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapPickSection"]
+custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="SwapOptions" type="VBoxContainer" parent="ModalSwap/Center/Card/CardMargin/VBox/Scroll"]
+[node name="SwapOptions" type="HBoxContainer" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapPickSection/Scroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 24
+alignment = 1
 
-[node name="SwapCancel" type="Button" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+[node name="SwapDetail" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapPickSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.4, 0.5, 1)
+theme_override_font_sizes/font_size = 13
+text = "Tap a power to drop"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="SwapCancel" type="Button" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapPickSection"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Cancel"
+
+[node name="SwapConfirmSection" type="VBoxContainer" parent="ModalSwap/Center/Card/CardMargin/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="SwapConfirmPrompt" type="Label" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapConfirmSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
+theme_override_font_sizes/font_size = 18
+text = "Replace this power?"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="SwapConfirmRow" type="HBoxContainer" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapConfirmSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="SwapConfirmActions" type="HBoxContainer" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapConfirmSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="SwapConfirmNo" type="Button" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapConfirmSection/SwapConfirmActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Go back"
+
+[node name="SwapConfirmYes" type="Button" parent="ModalSwap/Center/Card/CardMargin/VBox/SwapConfirmSection/SwapConfirmActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Replace"
 
 [node name="ModalRestartConfirm" type="Control" parent="."]
 unique_name_in_owner = true
@@ -1144,6 +1227,6 @@ text = "Restart (-1 heart)"
 [connection signal="pressed" from="ModalGameOver/Center/Card/CardMargin/VBox/Menu" to="." method="_on_menu_from_over_pressed"]
 [connection signal="pressed" from="ModalStuck/Center/Card/CardMargin/VBox/Retry" to="." method="_on_retry_pressed"]
 [connection signal="pressed" from="ModalTournamentWin/Center/Card/CardMargin/VBox/TournamentWinContinue" to="." method="_on_tournament_continue_pressed"]
-[connection signal="pressed" from="ModalSwap/Center/Card/CardMargin/VBox/SwapCancel" to="." method="_on_cancel_swap_pressed"]
+[connection signal="pressed" from="ModalSwap/Center/Card/CardMargin/VBox/SwapPickSection/SwapCancel" to="." method="_on_cancel_swap_pressed"]
 [connection signal="pressed" from="ModalRestartConfirm/Center/Card/CardMargin/VBox/BtnRow/CancelRestart" to="." method="_on_cancel_restart_pressed"]
 [connection signal="pressed" from="ModalRestartConfirm/Center/Card/CardMargin/VBox/BtnRow/ConfirmRestart" to="." method="_on_confirm_restart_pressed"]

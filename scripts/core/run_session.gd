@@ -46,6 +46,7 @@ var blurred_cell_key: String = ""
 var game_over: bool = false
 var current_modal: int = Modal.NONE
 var victory_badge_is_new: bool = false
+var menu_orb_celebration_pending: bool = false
 var max_owned_powers: int = 3
 var fail_heart_processed: bool = false
 var pending_row_swap_before: Array = []
@@ -94,6 +95,7 @@ func _reset_meta() -> void:
 	level_power_goal = ""
 	fail_heart_processed = false
 	victory_badge_is_new = false
+	menu_orb_celebration_pending = false
 
 
 func _empty_charges() -> Dictionary:
@@ -109,9 +111,7 @@ func _start_level(lvl: int, new_run: bool) -> void:
 	rerolls_used = 0
 	selected_row = -1
 	selected_col = -1
-	active_power_type = ""
-	active_target_row = -1
-	active_target_col = -1
+	_clear_power_activation()
 	skip_choose_earn_rows = {}
 	safari_countdown = 0
 	blurred_cell_key = ""
@@ -340,6 +340,7 @@ func _check_win_flow() -> void:
 			)
 		):
 			game_over = true
+			_clear_power_activation()
 			current_modal = Modal.GAME_OVER
 			_emit()
 			return
@@ -347,6 +348,7 @@ func _check_win_flow() -> void:
 			_handle_fail()
 		_emit()
 		return
+	_clear_power_activation()
 	if is_tournament:
 		current_modal = Modal.TOURNAMENT_WIN
 		_emit()
@@ -355,6 +357,8 @@ func _check_win_flow() -> void:
 	if level >= max_lvl and not endless_mode:
 		if not is_tournament:
 			victory_badge_is_new = SaveService.award_challenge_orb_badge(challenge_orb_id)
+			if victory_badge_is_new:
+				menu_orb_celebration_pending = true
 		current_modal = Modal.GAME_VICTORY
 		_emit()
 		return
@@ -378,11 +382,7 @@ func _handle_fail() -> void:
 	if fail_heart_processed:
 		return
 	fail_heart_processed = true
-	selected_row = -1
-	selected_col = -1
-	active_power_type = ""
-	active_target_row = -1
-	active_target_col = -1
+	_clear_power_activation()
 	if is_tournament:
 		game_over = true
 		current_modal = Modal.GAME_OVER
@@ -612,11 +612,20 @@ func activate_power(power_type: String) -> void:
 	_emit()
 
 
+func _clear_power_activation() -> void:
+	active_power_type = ""
+	active_target_row = -1
+	active_target_col = -1
+	selected_row = -1
+	selected_col = -1
+
+
 func clear_active_power() -> void:
 	if (
 		active_power_type == ""
 		and active_target_row < 0
 		and selected_row < 0
+		and current_modal != Modal.NUMBER_PICKER
 	):
 		return
 	_log_power("clear active was=%s target=(%d,%d) %s" % [
@@ -625,11 +634,9 @@ func clear_active_power() -> void:
 		active_target_col,
 		_power_context(),
 	])
-	active_power_type = ""
-	active_target_row = -1
-	active_target_col = -1
-	selected_row = -1
-	selected_col = -1
+	_clear_power_activation()
+	if current_modal == Modal.NUMBER_PICKER:
+		current_modal = Modal.NONE
 	_emit()
 
 

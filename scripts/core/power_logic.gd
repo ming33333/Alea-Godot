@@ -21,6 +21,48 @@ static func is_per_level(t: String) -> bool:
 	return t == "switchRows"
 
 
+static func format_power_detail(def: Dictionary) -> String:
+	var charge: String = str(def.get("charge_summary", "")).strip_edges()
+	if charge.is_empty():
+		charge = _fallback_charge_summary(str(def.get("type", "")))
+	var desc: String = str(def.get("description", "")).strip_edges()
+	if charge.is_empty():
+		return desc
+	if desc.is_empty():
+		return charge
+	return "%s\n\n%s" % [charge, desc]
+
+
+static func format_power_short(def: Dictionary) -> String:
+	var charge: String = str(def.get("charge_summary", "")).strip_edges()
+	if charge.is_empty():
+		charge = _fallback_charge_summary(str(def.get("type", "")))
+	var dot: int = charge.find(".")
+	if dot > 0:
+		return charge.substr(0, dot + 1)
+	return charge
+
+
+static func _fallback_charge_summary(power_type: String) -> String:
+	if is_pattern_power(power_type):
+		var pattern: String = str(GameData.pattern_map.get(power_type, ""))
+		return (
+			"Charges: +1 each time you complete a %s row (× on the die). "
+			% pattern
+			+ "Resets to 0 at the start of each level."
+		)
+	if is_per_level(power_type):
+		return (
+			"1 charge per level — refreshes when the level starts (× on the die). "
+			+ "Unused charges don't carry over."
+		)
+	if power_type == "rerollTrade":
+		return "Always available — no charges. Costs 2 rerolls per use."
+	if is_permanent(power_type):
+		return "Always on while owned — no charges."
+	return ""
+
+
 static func power_earn_key(row: int, power_type: String) -> String:
 	return "%d:%s" % [row, power_type]
 

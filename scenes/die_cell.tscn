@@ -7,6 +7,7 @@
 custom_minimum_size = Vector2(87, 87)
 focus_mode = 0
 flat = true
+clip_children = 0
 script = ExtResource("1_cell")
 
 [node name="Wrap" type="Control" parent="."]

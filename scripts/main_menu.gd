@@ -19,6 +19,14 @@ const DECK_BOTTOM_SCREEN_FRACTION := 0.15
 const DECK_PILLAR_SIDE_MARGIN := 24.0
 const PORTAL_HEIGHT_SCALE := 1.2
 const PORTAL_CENTER_Y_FRACTION := 0.36
+const ORB_COMPLETION_SETTLE_MAX_SEC := 2.8
+const ORB_COMPLETION_START_DELAY_SEC := 0.45
+const ORB_COMPLETION_PAUSE_SEC := 0.28
+const ORB_COMPLETION_DROP_SEC := 0.88
+const ORB_COMPLETION_GLOW_RAMP_SEC := 1.15
+const PORTAL_REVEAL_SEC := 1.15
+const PORTAL_REVEAL_PAUSE_SEC := 0.35
+const PORTAL_REVEAL_SHADER: Shader = preload("res://assets/shaders/portal_reveal.gdshader")
 
 @onready var map_area: Control = %MapArea
 @onready var champion_portal: TextureButton = %ChampionPortal
@@ -49,8 +57,16 @@ var _badge_box_open: bool = false
 var _badge_box_animating: bool = false
 var _badge_slide_tween: Tween
 var _celebration_backdrop: ColorRect
+var _orb_completion_active: bool = false
+var _orb_completion_tween: Tween
+var _celebration_orb_id: String = ""
+var _celebration_play_attempts: int = 0
+var _portal_reveal_active: bool = false
+var _portal_reveal_tween: Tween
+var _portal_was_visible_before_orb_celebration: bool = false
 const MAX_ORB_BUILD_ATTEMPTS := 60
 const MAX_PORTAL_LAYOUT_ATTEMPTS := 40
+const MAX_CELEBRATION_PLAY_ATTEMPTS := 120
 
 
 func _ready() -> void:
@@ -98,6 +114,8 @@ func _map_area_ready() -> bool:
 
 
 func _on_map_area_resized() -> void:
+	if _orb_completion_active:
+		return
 	if not _map_area_ready():
 		return
 	DebugLog.alea_log("MainMenu", "MapArea resized -> %s, rebuilding orbs" % map_area.size)
@@ -140,22 +158,51 @@ func _portal_texture_size() -> Vector2:
 func _refresh_champion_portal() -> void:
 	if champion_portal == null:
 		return
+	if _portal_reveal_active:
+		return
+	if _should_hide_portal_for_celebration():
+		champion_portal.visible = false
+		return
 	var show: bool = _should_show_champion_portal()
 	champion_portal.visible = show
 	if show:
+		champion_portal.material = null
+		champion_portal.mouse_filter = Control.MOUSE_FILTER_STOP
 		call_deferred("_layout_champion_portal")
+	else:
+		champion_portal.material = null
+
+
+func _should_hide_portal_for_celebration() -> bool:
+	if GameState.pending_portal_reveal:
+		return true
+	if (
+		not GameState.pending_orb_completion_celebration.is_empty()
+		and SaveService.has_all_menu_badges()
+	):
+		return true
+	return false
 
 
 func _layout_champion_portal() -> void:
-	if champion_portal == null or not champion_portal.visible or deck_pillars == null:
+	if champion_portal == null or deck_pillars == null:
 		return
-	var pillar_rect := deck_pillars.get_global_rect()
-	if pillar_rect.size.x < 32.0 or pillar_rect.size.y < 32.0:
+	if not champion_portal.visible and not _portal_reveal_active:
+		return
+	if not _apply_champion_portal_layout():
 		_portal_layout_attempts += 1
 		if _portal_layout_attempts < MAX_PORTAL_LAYOUT_ATTEMPTS:
 			call_deferred("_layout_champion_portal")
 		return
 	_portal_layout_attempts = 0
+
+
+func _apply_champion_portal_layout() -> bool:
+	if champion_portal == null or deck_pillars == null:
+		return false
+	var pillar_rect := deck_pillars.get_global_rect()
+	if pillar_rect.size.x < 32.0 or pillar_rect.size.y < 32.0:
+		return false
 	var tex_size: Vector2 = _portal_texture_size()
 	var portal_h: float = DECK_PILLAR_HEIGHT * PORTAL_HEIGHT_SCALE
 	var portal_w: float = portal_h * (tex_size.x / tex_size.y)
@@ -168,11 +215,25 @@ func _layout_champion_portal() -> void:
 	champion_portal.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	champion_portal.position = local_top_left
 	champion_portal.size = Vector2(portal_w, portal_h)
+	return true
+
+
+func _wait_for_champion_portal_layout() -> bool:
+	if champion_portal == null:
+		return false
+	champion_portal.visible = true
+	for _attempt in range(MAX_PORTAL_LAYOUT_ATTEMPTS):
+		if _apply_champion_portal_layout():
+			return true
+		await get_tree().process_frame
+	return false
 
 
 func _build_orbs() -> void:
 	if map_area == null:
 		push_error("MainMenu: MapArea missing")
+		return
+	if _orb_completion_active:
 		return
 	if not _map_area_ready():
 		_orb_build_attempts += 1
@@ -196,18 +257,23 @@ func _build_orbs() -> void:
 		% [map_area.size, map_area.get_global_rect()]
 	)
 	var pillar_idx := 0
+	var pending_id: String = GameState.pending_orb_completion_celebration
 	for challenge_orb in GameData.menu_challenge_orbs:
 		var gid: String = str(challenge_orb.get("id", ""))
 		if gid.is_empty():
 			continue
 		var defeated: bool = SaveService.has_badge(gid)
-		var orb := _make_orb(challenge_orb, pillar_idx)
-		var base_pos := _orb_position_above_pillar(pillar_idx, defeated)
+		var celebrate_now: bool = defeated and gid == pending_id
+		var show_completed: bool = defeated and not celebrate_now
+		var orb := _make_orb(challenge_orb, pillar_idx, show_completed)
+		var base_pos := _orb_position_above_pillar(pillar_idx, show_completed)
 		orb.set_float_base(base_pos)
-		if defeated:
+		orb.configure_float(float(pillar_idx) * 0.85)
+		orb.set_completed(show_completed)
+		if show_completed:
 			orb.set_floating_enabled(false)
 		else:
-			orb.configure_float(float(pillar_idx) * 0.85)
+			orb.set_floating_enabled(true)
 		map_area.add_child(orb)
 		DebugLog.alea_log(
 			"MainMenu",
@@ -220,6 +286,11 @@ func _build_orbs() -> void:
 		"built %d orbs (map_area children=%d)"
 		% [GameData.menu_challenge_orbs.size(), map_area.get_child_count()]
 	)
+	if not GameState.pending_orb_completion_celebration.is_empty():
+		_orb_completion_active = true
+		_launching = true
+		_celebration_play_attempts = 0
+		call_deferred("_play_orb_completion_celebration_if_needed")
 
 
 func _orb_color_for_challenge_orb(challenge_orb_id: String) -> Color:
@@ -242,19 +313,24 @@ func _orb_position_above_pillar(pillar_index: int, seated: bool = false) -> Vect
 	var top_center_global := Vector2(pillar_rect.get_center().x, visible_top_y)
 	var local := map_area.get_global_transform_with_canvas().affine_inverse() * top_center_global
 	var gap: float = -ORB_SEATED_OVERLAP if seated else ORB_ABOVE_PILLAR_GAP
+	var orb_size: float = PixelChallengeOrb.display_size(seated, ORB_SIZE)
+	var pad_offset: float = (orb_size - ORB_SIZE) * 0.5
 	return Vector2(
-		local.x - ORB_SIZE * 0.5,
-		local.y - ORB_SIZE - gap
+		local.x - orb_size * 0.5,
+		local.y - ORB_SIZE - gap - pad_offset
 	)
 
 
-func _make_orb(challenge_orb: Dictionary, pillar_index: int) -> PixelChallengeOrb:
+func _make_orb(
+	challenge_orb: Dictionary, pillar_index: int, seated: bool = false
+) -> PixelChallengeOrb:
 	var gid: String = orb_id_str(challenge_orb)
+	var orb_size: float = PixelChallengeOrb.display_size(seated, ORB_SIZE)
 	var btn := PixelChallengeOrb.new()
 	btn.name = "Orb_%s" % gid
-	btn.z_index = 2
-	btn.custom_minimum_size = Vector2(ORB_SIZE, ORB_SIZE)
-	btn.size = Vector2(ORB_SIZE, ORB_SIZE)
+	btn.z_index = 3 if seated else 2
+	btn.custom_minimum_size = Vector2(orb_size, orb_size)
+	btn.size = Vector2(orb_size, orb_size)
 	btn.set_orb_color(_orb_color_for_challenge_orb(gid))
 	btn.mouse_entered.connect(_on_orb_hover.bind(challenge_orb, btn))
 	btn.mouse_exited.connect(_on_orb_unhover.bind(challenge_orb))
@@ -358,6 +434,203 @@ func _position_tooltip_near_control(anchor: Control) -> void:
 	if y < 12.0:
 		y = local.y + anchor.size.y + TOOLTIP_GAP
 	challenge_orb_tooltip.position = Vector2(x, y)
+
+
+func _find_orb(challenge_orb_id: String) -> PixelChallengeOrb:
+	if map_area == null or challenge_orb_id.is_empty():
+		return null
+	var node := map_area.get_node_or_null("Orb_%s" % challenge_orb_id)
+	return node as PixelChallengeOrb
+
+
+func _play_orb_completion_celebration_if_needed() -> void:
+	var orb_id: String = GameState.pending_orb_completion_celebration
+	if orb_id.is_empty():
+		_finish_orb_completion_celebration()
+		return
+	if not _map_area_ready():
+		_celebration_play_attempts += 1
+		if _celebration_play_attempts >= MAX_CELEBRATION_PLAY_ATTEMPTS:
+			GameState.pending_orb_completion_celebration = ""
+			_finish_orb_completion_celebration()
+			return
+		call_deferred("_play_orb_completion_celebration_if_needed")
+		return
+	var orb: PixelChallengeOrb = _find_orb(orb_id)
+	if orb == null:
+		_celebration_play_attempts += 1
+		if _celebration_play_attempts >= MAX_CELEBRATION_PLAY_ATTEMPTS:
+			GameState.pending_orb_completion_celebration = ""
+			_finish_orb_completion_celebration()
+			return
+		call_deferred("_play_orb_completion_celebration_if_needed")
+		return
+	_celebration_play_attempts = 0
+	_celebration_orb_id = orb_id
+	_portal_was_visible_before_orb_celebration = (
+		champion_portal != null
+		and champion_portal.visible
+		and champion_portal.material == null
+	)
+	_orb_completion_active = true
+	_launching = true
+	_run_orb_completion_celebration(orb, orb_id)
+
+
+func _run_orb_completion_celebration(orb: PixelChallengeOrb, orb_id: String) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_instance_valid(orb):
+		_finish_orb_completion_celebration()
+		return
+	if _celebration_orb_id != orb_id:
+		_finish_orb_completion_celebration()
+		return
+	await get_tree().create_timer(ORB_COMPLETION_START_DELAY_SEC).timeout
+	if not is_instance_valid(orb):
+		_finish_orb_completion_celebration()
+		return
+	GameState.pending_orb_completion_celebration = ""
+	var pillar_idx: int = int(orb.get_meta("pillar_index", 0))
+	var hover_base: Vector2 = _orb_position_above_pillar(pillar_idx, false)
+	var seated_base: Vector2 = _orb_position_above_pillar(pillar_idx, true)
+	var completed_size: float = PixelChallengeOrb.display_size(true, ORB_SIZE)
+	orb.set_display_diameter(ORB_SIZE)
+	orb.set_completed(false)
+	orb.set_float_base(hover_base)
+	orb.set_floating_enabled(true)
+	orb.z_index = 4
+	await _wait_for_orb_bob_rest(orb)
+	if not is_instance_valid(orb):
+		_finish_orb_completion_celebration()
+		return
+	await get_tree().create_timer(ORB_COMPLETION_PAUSE_SEC).timeout
+	if not is_instance_valid(orb):
+		_finish_orb_completion_celebration()
+		return
+	orb.set_floating_enabled(false)
+	orb.snap_to_float_rest()
+	if _orb_completion_tween != null and _orb_completion_tween.is_valid():
+		_orb_completion_tween.kill()
+	_orb_completion_tween = create_tween()
+	_orb_completion_tween.tween_property(orb, "position", seated_base, ORB_COMPLETION_DROP_SEC)\
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	await _orb_completion_tween.finished
+	if not is_instance_valid(orb):
+		_finish_orb_completion_celebration()
+		return
+	orb.position = seated_base
+	orb.set_float_base(seated_base)
+	orb.set_display_diameter(ORB_SIZE)
+	orb.set_glow_ramp(0.0)
+	orb.set_completed(true)
+	orb.z_index = 3
+	var glow := create_tween()
+	glow.set_parallel(true)
+	glow.tween_method(
+		func(ramp: float) -> void:
+			if is_instance_valid(orb):
+				orb.set_glow_ramp(ramp),
+		0.0,
+		1.0,
+		ORB_COMPLETION_GLOW_RAMP_SEC
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	glow.tween_method(
+		func(diameter: float) -> void:
+			if is_instance_valid(orb):
+				orb.set_display_diameter(diameter),
+		ORB_SIZE,
+		completed_size,
+		ORB_COMPLETION_GLOW_RAMP_SEC
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await glow.finished
+	if is_instance_valid(orb):
+		orb.set_glow_ramp(1.0)
+		orb.set_display_diameter(completed_size)
+	DebugLog.alea_log("MainMenu", "orb completion celebration finished for %s" % orb_id)
+	if (
+		SaveService.has_all_menu_badges()
+		and not _portal_was_visible_before_orb_celebration
+	):
+		GameState.request_portal_reveal()
+	_finish_orb_completion_celebration()
+
+
+func _wait_for_orb_bob_rest(orb: PixelChallengeOrb) -> void:
+	var frames: int = 0
+	var max_frames: int = int(ceil(ORB_COMPLETION_SETTLE_MAX_SEC * 60.0))
+	while is_instance_valid(orb) and frames < max_frames:
+		if orb.is_bob_near_rest():
+			return
+		frames += 1
+		await get_tree().process_frame
+
+
+func _finish_orb_completion_celebration() -> void:
+	_orb_completion_active = false
+	_celebration_orb_id = ""
+	_celebration_play_attempts = 0
+	if GameState.pending_portal_reveal and SaveService.has_all_menu_badges():
+		call_deferred("_play_champion_portal_reveal")
+		return
+	_launching = false
+	_refresh_champion_portal()
+
+
+func _play_champion_portal_reveal() -> void:
+	if champion_portal == null or not _should_show_champion_portal():
+		GameState.pending_portal_reveal = false
+		_launching = false
+		_refresh_champion_portal()
+		return
+	if _portal_reveal_active:
+		return
+	_portal_reveal_active = true
+	_launching = true
+	_run_champion_portal_reveal()
+
+
+func _run_champion_portal_reveal() -> void:
+	if champion_portal == null:
+		_finish_champion_portal_reveal()
+		return
+	GameState.pending_portal_reveal = false
+	champion_portal.visible = true
+	if not await _wait_for_champion_portal_layout():
+		_finish_champion_portal_reveal()
+		return
+	champion_portal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = PORTAL_REVEAL_SHADER
+	mat.set_shader_parameter("reveal_y", 0.0)
+	champion_portal.material = mat
+	await get_tree().process_frame
+	await get_tree().create_timer(PORTAL_REVEAL_PAUSE_SEC).timeout
+	if not is_instance_valid(champion_portal):
+		_finish_champion_portal_reveal()
+		return
+	if _portal_reveal_tween != null and _portal_reveal_tween.is_valid():
+		_portal_reveal_tween.kill()
+	_portal_reveal_tween = create_tween()
+	_portal_reveal_tween.tween_method(
+		func(reveal: float) -> void:
+			if is_instance_valid(champion_portal) and champion_portal.material is ShaderMaterial:
+				(champion_portal.material as ShaderMaterial).set_shader_parameter("reveal_y", reveal),
+		0.0,
+		1.0,
+		PORTAL_REVEAL_SEC
+	).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	await _portal_reveal_tween.finished
+	_finish_champion_portal_reveal()
+
+
+func _finish_champion_portal_reveal() -> void:
+	_portal_reveal_active = false
+	_launching = false
+	GameState.pending_portal_reveal = false
+	if champion_portal != null:
+		champion_portal.material = null
+	_refresh_champion_portal()
 
 
 func orb_id_str(challenge_orb: Dictionary) -> String:
@@ -578,6 +851,8 @@ func _on_badge_box_pressed() -> void:
 
 func _on_badges_changed() -> void:
 	_refresh_badges()
+	if _orb_completion_active:
+		return
 	call_deferred("_build_orbs")
 
 

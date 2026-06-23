@@ -62,6 +62,8 @@ static func _build(icon_id: String) -> ImageTexture:
 			_draw_spiral(img)
 		"blurPerReroll":
 			_draw_fog(img)
+		"close":
+			_draw_close(img)
 		_:
 			_draw_fallback(img)
 	return ImageTexture.create_from_image(img)
@@ -232,6 +234,26 @@ static func _draw_fog(img: Image) -> void:
 		_fill_rect(img, x, 10, x + 4, 12, fog)
 	for x in range(6, 18, 4):
 		_fill_rect(img, x, 14, x + 5, 16, fog)
+
+
+static func _draw_close(img: Image) -> void:
+	var rim := Color(0.72, 0.14, 0.2, 1)
+	var fill := Color(0.98, 0.95, 0.93, 1)
+	var cx := 12
+	var cy := 12
+	for y in SIZE:
+		for x in SIZE:
+			var dist: float = Vector2(x - cx, y - cy).length()
+			if dist <= 9.5 and dist >= 7.5:
+				_px(img, x, y, rim)
+			elif dist < 7.5:
+				_px(img, x, y, fill)
+	for i in range(-4, 5):
+		_px(img, cx + i, cy + i, rim)
+		_px(img, cx + i, cy - i, rim)
+		if i > -4 and i < 4:
+			_px(img, cx + i + 1, cy + i, rim)
+			_px(img, cx + i - 1, cy - i, rim)
 
 
 static func _draw_fallback(img: Image) -> void:

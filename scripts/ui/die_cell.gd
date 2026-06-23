@@ -1,6 +1,8 @@
 class_name DieCell
 extends Button
 
+signal cancel_badge_pressed
+
 const FACE_NORMAL := "normal"
 const FACE_LOCKED := "locked"
 const FACE_SELECTED := "selected"
@@ -53,6 +55,7 @@ const SWAP_SLIDE_DURATION := 0.2
 const FLOAT_PERIOD_SEC := 2.9
 const FLOAT_BOB_RATIO := 0.024
 const FLOAT_TILT_DEG := 1.1
+const CANCEL_BADGE_FACE_TOP_INSET := 5.0
 const LOCK_POP_RISE_SEC := 0.1
 const LOCK_POP_SETTLE_SEC := 0.12
 const LOCK_POP_TOTAL_SEC := LOCK_POP_RISE_SEC + LOCK_POP_SETTLE_SEC
@@ -72,6 +75,7 @@ var _float_paused: bool = false
 var _float_disabled: bool = false
 var _lock_pop_active: bool = false
 var _reroll_scramble_active: bool = false
+var _cancel_badge: DieCancelBadge
 
 
 func _ready() -> void:
@@ -95,6 +99,48 @@ func _ready() -> void:
 	add_theme_stylebox_override("focus", empty)
 	add_theme_stylebox_override("disabled", empty)
 	set_process(true)
+
+
+func set_cancel_badge_visible(show_badge: bool) -> void:
+	if show_badge:
+		if _wrap == null:
+			_wrap = get_node_or_null("Wrap") as Control
+		_ensure_cancel_badge()
+		if _cancel_badge == null:
+			return
+		_layout_cancel_badge()
+	if _cancel_badge != null:
+		_cancel_badge.visible = show_badge
+
+
+func _ensure_cancel_badge() -> void:
+	if _cancel_badge != null:
+		return
+	if _float_root == null:
+		_float_root = get_node_or_null("Wrap/FloatRoot") as Control
+	if _float_root == null:
+		return
+	_cancel_badge = DieCancelBadge.new()
+	_float_root.add_child(_cancel_badge)
+	_cancel_badge.z_index = 30
+	if not _cancel_badge.badge_pressed.is_connected(_on_cancel_badge_pressed):
+		_cancel_badge.badge_pressed.connect(_on_cancel_badge_pressed)
+
+
+func _layout_cancel_badge() -> void:
+	if _cancel_badge == null:
+		return
+	var cell_px: float = maxf(custom_minimum_size.x, custom_minimum_size.y)
+	var badge_px: float = clampf(cell_px * 0.32, 24.0, 32.0)
+	_cancel_badge.layout_on_die_top(
+		Vector2(cell_px, cell_px),
+		badge_px,
+		badge_px - 1.0 + CANCEL_BADGE_FACE_TOP_INSET
+	)
+
+
+func _on_cancel_badge_pressed() -> void:
+	cancel_badge_pressed.emit()
 
 
 func _process(_delta: float) -> void:

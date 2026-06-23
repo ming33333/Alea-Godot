@@ -1,6 +1,8 @@
 class_name PowerDieButton
 extends Button
 
+signal power_cancel_requested(power_type: String)
+
 const HOVER_GLOW_COLOR := Color(1.0, 0.92, 0.55, 0.42)
 const HOVER_TWEEN_SEC := 0.12
 
@@ -12,6 +14,7 @@ var _charge_label: Label
 var _name_label: Label
 var _hover_glow: ColorRect
 var _speech_bubble: PowerSpeechBubble
+var _cancel_badge: DieCancelBadge
 var _hovering: bool = false
 var _is_active: bool = false
 var _chip_unusable: bool = false
@@ -19,6 +22,11 @@ var _description_text: String = ""
 var _active_hint_text: String = ""
 var _bubble_accent: Color = Color(0.2, 0.35, 0.55)
 var _hover_tween: Tween
+var _hover_detail_label: Label
+var _hover_detail_fallback: String = ""
+var _speech_bubble_enabled: bool = true
+var _cancel_badge_enabled: bool = false
+var _cancel_badge_visible: bool = false
 
 
 func _ready() -> void:
@@ -39,6 +47,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
+	if _cancel_badge_enabled and _cancel_badge_visible and _is_active:
+		call_deferred("_layout_cancel_badge")
 
 
 func setup_display(
@@ -80,12 +90,34 @@ func configure_messages(description: String, active_hint: String, accent: Color)
 	_bubble_accent = accent
 
 
+func bind_hover_detail(label: Label, fallback_text: String = "") -> void:
+	_hover_detail_label = label
+	_hover_detail_fallback = fallback_text
+
+
+func set_speech_bubble_enabled(enabled: bool) -> void:
+	_speech_bubble_enabled = enabled
+	if _speech_bubble != null:
+		_speech_bubble.visible = false
+
+
+func set_cancel_badge_enabled(enabled: bool) -> void:
+	_cancel_badge_enabled = enabled
+	_apply_cancel_badge_visibility()
+
+
+func set_cancel_badge_visible(visible_badge: bool) -> void:
+	_cancel_badge_visible = visible_badge
+	_apply_cancel_badge_visibility()
+
+
 func set_active_state(is_active: bool, animate_bubble: bool = true) -> void:
 	_is_active = is_active
 	z_index = 2 if is_active else 0
 	_apply_visual_state(is_active, _chip_unusable)
 	_refresh_hover_visual(true)
 	_update_bubble_for_state(animate_bubble)
+	_apply_cancel_badge_visibility()
 
 
 func pulse_info_bubble() -> void:
@@ -159,6 +191,7 @@ func set_chip_size(die_px: int) -> void:
 		_name_label.custom_minimum_size = Vector2(die_px, name_h)
 	if _speech_bubble:
 		_speech_bubble.configure(die_px)
+	_layout_cancel_badge()
 
 
 func _apply_visual_state(is_active: bool, chip_unusable: bool) -> void:
@@ -177,11 +210,22 @@ func _apply_visual_state(is_active: bool, chip_unusable: bool) -> void:
 func _on_mouse_entered() -> void:
 	_hovering = true
 	_refresh_hover_visual()
+	_sync_hover_detail(true)
 
 
 func _on_mouse_exited() -> void:
 	_hovering = false
 	_refresh_hover_visual()
+	_sync_hover_detail(false)
+
+
+func _sync_hover_detail(show: bool) -> void:
+	if _hover_detail_label == null:
+		return
+	if show and not _description_text.is_empty():
+		_hover_detail_label.text = _description_text
+	else:
+		_hover_detail_label.text = _hover_detail_fallback
 
 
 func _bubble_text() -> String:
@@ -189,7 +233,11 @@ func _bubble_text() -> String:
 
 
 func _should_show_bubble() -> bool:
-	return _is_active and not _active_hint_text.is_empty()
+	return (
+		_speech_bubble_enabled
+		and _is_active
+		and not _active_hint_text.is_empty()
+	)
 
 
 func _update_bubble_for_state(animate: bool) -> void:
@@ -199,6 +247,62 @@ func _update_bubble_for_state(animate: bool) -> void:
 		_speech_bubble.show_message(_bubble_text(), _bubble_accent, animate)
 	else:
 		_speech_bubble.hide_message(true)
+
+
+func _ensure_cancel_badge() -> void:
+	if _cancel_badge != null:
+		return
+	_cancel_badge = DieCancelBadge.new()
+	add_child(_cancel_badge)
+	_cancel_badge.z_index = 30
+	if not _cancel_badge.badge_pressed.is_connected(_on_cancel_badge_pressed):
+		_cancel_badge.badge_pressed.connect(_on_cancel_badge_pressed)
+
+
+func _die_top_left_in_self() -> Vector2:
+	if _die_wrap == null:
+		_die_wrap = get_node_or_null("VBox/DieWrap") as Control
+	if _die_wrap == null:
+		return Vector2.ZERO
+	var vbox := _die_wrap.get_parent() as Control
+	if vbox == null:
+		return _die_wrap.position
+	return vbox.position + _die_wrap.position
+
+
+func _layout_cancel_badge() -> void:
+	if _cancel_badge == null:
+		return
+	if _die_wrap == null:
+		_die_wrap = get_node_or_null("VBox/DieWrap") as Control
+	if _die_wrap == null:
+		return
+	var die_px: float = maxf(_die_wrap.custom_minimum_size.x, _die_wrap.size.x)
+	var badge_px: float = clampf(die_px * 0.44, 36.0, 52.0)
+	_cancel_badge.layout_snug_on_die_top(Vector2(die_px, die_px), badge_px)
+	_cancel_badge.position += _die_top_left_in_self()
+
+
+func _apply_cancel_badge_visibility() -> void:
+	var show_badge: bool = _cancel_badge_enabled and _cancel_badge_visible and _is_active
+	if show_badge:
+		if _die_wrap == null:
+			_die_wrap = get_node_or_null("VBox/DieWrap") as Control
+		_ensure_cancel_badge()
+		_layout_cancel_badge()
+	if _cancel_badge != null:
+		_cancel_badge.visible = show_badge
+	if show_badge and is_inside_tree():
+		call_deferred("_layout_cancel_badge")
+
+
+func _on_cancel_badge_pressed() -> void:
+	power_cancel_requested.emit(power_type)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and _cancel_badge != null and _cancel_badge.visible:
+		_layout_cancel_badge()
 
 
 func _die_hover_scale() -> float:

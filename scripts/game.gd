@@ -51,15 +51,28 @@ const ACTIVATABLE_POWERS: Array[String] = [
 @onready var tournament_win_detail: Label = %TournamentWinDetail
 @onready var tournament_win_continue: Button = %TournamentWinContinue
 @onready var modal_swap: Control = %ModalSwap
-@onready var level_up_options: VBoxContainer = %LevelUpOptions
+@onready var level_up_options: HBoxContainer = %LevelUpOptions
 @onready var level_up_detail: Label = %LevelUpDetail
 @onready var level_up_keep_powers: Button = %LevelUpKeepPowers
 
 const LEVEL_UP_DETAIL_HINT := "Hover a power to see what it does"
+const LEVEL_UP_DIE_SIZE := 78
+const SWAP_DETAIL_HINT := "Tap a power to drop"
+const SWAP_DIE_SIZE := 78
 @onready var number_buttons: HBoxContainer = %NumberButtons
-@onready var swap_options: VBoxContainer = %SwapOptions
-@onready var swap_in_label: Label = %SwapInLabel
-@onready var swap_in_detail: Label = %SwapInDetail
+@onready var number_power_die: TextureRect = %NumberPowerDie
+@onready var number_power_name: Label = %NumberPowerName
+@onready var number_picker_prompt: Label = %NumberPickerPrompt
+@onready var number_picker_cancel: Button = %NumberPickerCancel
+@onready var swap_options: HBoxContainer = %SwapOptions
+@onready var swap_pick_section: VBoxContainer = %SwapPickSection
+@onready var swap_incoming_row: HBoxContainer = %SwapIncomingRow
+@onready var swap_detail: Label = %SwapDetail
+@onready var swap_confirm_section: VBoxContainer = %SwapConfirmSection
+@onready var swap_confirm_prompt: Label = %SwapConfirmPrompt
+@onready var swap_confirm_row: HBoxContainer = %SwapConfirmRow
+@onready var swap_confirm_no: Button = %SwapConfirmNo
+@onready var swap_confirm_yes: Button = %SwapConfirmYes
 @onready var stuck_title: Label = %StuckTitle
 @onready var stuck_body: Label = %StuckBody
 @onready var stuck_hearts: Label = %StuckHearts
@@ -105,6 +118,8 @@ const REF_GRID_SEP := 6.0
 const REF_BOARD_INSET := 21.0
 const REF_POWER_BAR_SEP := 10.0
 const REF_POWER_DOCK_PAD := 6.0
+const REF_POWER_HINT_H := 48.0
+const REF_POWER_HINT_SEP := 8.0
 
 var _board_size: float = REF_BOARD_SIZE
 var _power_chip_size: int = int(REF_POWERUP_DIE * POWER_CHIP_SCALE)
@@ -112,6 +127,9 @@ var _power_bubble_track: String = ""
 var _background_material: ShaderMaterial
 var _challenge_orb_title_hovered: bool = false
 var _level_up_modal_was_open: bool = false
+var _swap_modal_was_open: bool = false
+var _swap_step: String = "pick"
+var _swap_outgoing_pick: String = ""
 var _level_up_eye_cursor_active: bool = false
 var _eye_cursor: ImageTexture
 
@@ -124,9 +142,11 @@ const CHALLENGE_ORB_TITLE_UNDERLINE_HOVER_H := 3.0
 
 const STATS_BAR_WHITE_BG := Color(0.96, 0.97, 0.99, 1)
 const STATS_BAR_WHITE_BORDER := Color(0.84, 0.87, 0.92, 1)
-const STATS_BAR_GOLD_BG := Color(0.99, 0.91, 0.55, 1)
-const STATS_BAR_GOLD_BORDER := Color(0.85, 0.72, 0.28, 1)
-const STATS_BAR_GOLD_SHINE := Color(1.12, 1.05, 0.82, 1)
+const LEVEL_NORMAL_FONT_SIZE := 23
+const LEVEL_FINAL_FONT_SIZE := 34
+const LEVEL_FINAL_SLANT_RAD := -0.14
+const LEVEL_FINAL_COLOR := Color(0.58, 0.1, 0.14, 1)
+const LEVEL8_SHAKE_STEP_SEC := 0.07
 const STAT_BLINK_CYCLES := 3
 const STAT_BLINK_ON_SEC := 0.07
 const STAT_BLINK_OFF_SEC := 0.07
@@ -134,7 +154,8 @@ const STAT_REVEAL_GAP_SEC := 0.12
 
 var _stats_bar_style: StyleBoxFlat
 var _stats_bar_tween: Tween
-var _stats_bar_is_golden: bool = false
+var _level8_entrance_shake_played: bool = false
+var _level_label_shake_tween: Tween
 var _last_stats_level: int = 0
 var _stats_reveal_tween: Tween
 var _stats_reveal_active: bool = false
@@ -179,6 +200,12 @@ func _ready() -> void:
 		var num := n
 		b.pressed.connect(func(): _on_number_picked(num))
 		number_buttons.add_child(b)
+	if number_picker_cancel:
+		number_picker_cancel.pressed.connect(_on_number_picker_cancel)
+	if swap_confirm_no:
+		swap_confirm_no.pressed.connect(_on_swap_confirm_no_pressed)
+	if swap_confirm_yes:
+		swap_confirm_yes.pressed.connect(_on_swap_confirm_yes_pressed)
 	session = RunSession.new()
 	session.state_changed.connect(_refresh_ui)
 	session.dice_rerolled.connect(_on_dice_rerolled)
@@ -208,6 +235,7 @@ func _begin_run() -> void:
 	_reroll_animating.clear()
 	_cancel_stats_reveal()
 	_last_stats_level = 0
+	_level8_entrance_shake_played = false
 	_clear_power_fly_state()
 	if grid_container == null:
 		push_error("Game: %Grid node missing — cannot start run")
@@ -302,12 +330,63 @@ func _on_dev_panel_minimized() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		if _try_cancel_active_power_input():
+			get_viewport().set_input_as_handled()
+			return
 	if not DevCheats.is_active():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key := event as InputEventKey
 		if DevCheats.feed_typed_key(key.unicode):
 			get_viewport().set_input_as_handled()
+
+
+func _try_cancel_active_power_input() -> bool:
+	if session == null:
+		return false
+	if session.current_modal == RunSession.Modal.NUMBER_PICKER:
+		_on_number_picker_cancel()
+		return true
+	if (
+		session.current_modal == RunSession.Modal.NONE
+		and session.active_power_type in ACTIVATABLE_POWERS
+	):
+		_on_cancel_power_pressed()
+		return true
+	return false
+
+
+func _on_power_die_cancel_requested(power_type: String) -> void:
+	if session == null or session.active_power_type != power_type:
+		return
+	_on_cancel_power_pressed()
+
+
+func _on_die_cancel_badge_pressed() -> void:
+	_on_cancel_power_pressed()
+
+
+func _die_shows_power_cancel(row: int, col: int) -> bool:
+	if session == null or session.grid.is_empty():
+		return false
+	match session.active_power_type:
+		"switchAnywhere":
+			return session.selected_row == row and session.selected_col == col
+		"switchRows":
+			if session.active_target_row < 0:
+				return false
+			var mid_col: int = session.grid[0].size() / 2
+			return row == session.active_target_row and col == mid_col
+	return false
+
+
+func _power_die_shows_cancel(power_type: String) -> bool:
+	return (
+		session != null
+		and session.active_power_type == power_type
+		and power_type in ACTIVATABLE_POWERS
+	)
 
 
 func _start_tournament_match() -> void:
@@ -368,7 +447,9 @@ func _refresh_ui() -> void:
 		_safari_timer.stop()
 	_sync_grid()
 	_build_power_bar()
+	_sync_power_cancel_badges()
 	_update_power_hint()
+	call_deferred("_layout_power_dock")
 	_update_modals()
 	if _dev_panel != null:
 		_dev_panel.refresh_for_session()
@@ -398,6 +479,7 @@ func _sync_grid() -> void:
 				grid_container.add_child(btn)
 				_die_cells[_die_key(r, c)] = btn
 				btn.pressed.connect(_on_die_pressed.bind(r, c))
+				btn.cancel_badge_pressed.connect(_on_die_cancel_badge_pressed)
 	for r in range(rows):
 		for c in range(cols):
 			var key: String = _die_key(r, c)
@@ -410,9 +492,11 @@ func _sync_grid() -> void:
 				if btn.grid_row < 0:
 					btn.setup(r, c, cell, blurred)
 				btn.set_highlight(highlight)
+				btn.set_cancel_badge_visible(_die_shows_power_cancel(r, c))
 				continue
 			btn.setup(r, c, cell, blurred)
 			btn.set_highlight(highlight)
+			btn.set_cancel_badge_visible(_die_shows_power_cancel(r, c))
 
 
 func _on_viewport_size_changed() -> void:
@@ -570,8 +654,7 @@ func _layout_boards() -> void:
 	var power_bar_sep: int = maxi(4, int(round(REF_POWER_BAR_SEP * layout_scale)))
 	var dock_pad: int = maxi(4, int(round(REF_POWER_DOCK_PAD * layout_scale)))
 	_power_chip_size = maxi(32, int(round(REF_POWERUP_DIE * POWER_CHIP_SCALE * layout_scale)))
-	var name_h: int = maxi(18, int(round(_power_chip_size * 0.28)))
-	var power_h: int = _power_chip_size + 2 + name_h + dock_pad * 2
+	var power_h: int = _compute_power_dock_height(layout_scale, dock_pad)
 
 	if board_column:
 		board_column.custom_minimum_size = Vector2(board_px, 0)
@@ -601,6 +684,32 @@ func _layout_boards() -> void:
 	_apply_power_chip_sizes()
 
 
+func _compute_power_dock_height(layout_scale: float, dock_pad: int = -1) -> int:
+	if dock_pad < 0:
+		dock_pad = maxi(4, int(round(REF_POWER_DOCK_PAD * layout_scale)))
+	var name_h: int = maxi(18, int(round(_power_chip_size * 0.28)))
+	var hint_h: int = 0
+	if power_hint != null and power_hint.visible:
+		hint_h = maxi(
+			44,
+			int(round(REF_POWER_HINT_H * layout_scale))
+			+ int(round(REF_POWER_HINT_SEP * layout_scale))
+		)
+	return _power_chip_size + 2 + name_h + dock_pad * 2 + hint_h
+
+
+func _layout_power_dock() -> void:
+	if power_dock == null:
+		return
+	var layout_scale: float = _board_size / REF_BOARD_SIZE
+	var board_px: int = int(round(_board_size))
+	var dock_pad: int = maxi(4, int(round(REF_POWER_DOCK_PAD * layout_scale)))
+	power_dock.custom_minimum_size = Vector2(
+		board_px,
+		_compute_power_dock_height(layout_scale, dock_pad)
+	)
+
+
 func _compute_board_size() -> float:
 	var vp_h: float = get_viewport_rect().size.y
 	var chrome_h: float = 24.0 + 44.0 + 8.0 + 40.0 + 6.0 + 6.0
@@ -608,6 +717,8 @@ func _compute_board_size() -> float:
 		REF_POWERUP_DIE * POWER_CHIP_SCALE
 		+ REF_POWER_NAME_H
 		+ REF_POWER_DOCK_PAD * 2.0
+		+ REF_POWER_HINT_H
+		+ REF_POWER_HINT_SEP
 		+ 14.0
 	)
 	var available: float = vp_h - chrome_h - power_chrome
@@ -653,6 +764,10 @@ func _add_power_die_chip(
 	if on_pressed.is_valid():
 		chip.pressed.connect(on_pressed)
 	power_bar.add_child(chip)
+	if power_type in ACTIVATABLE_POWERS:
+		chip.set_cancel_badge_enabled(true)
+		chip.set_cancel_badge_visible(is_active and _power_die_shows_cancel(power_type))
+		chip.power_cancel_requested.connect(_on_power_die_cancel_requested)
 	_apply_power_fly_display_state(chip, power_type)
 
 
@@ -673,6 +788,20 @@ func _get_power_chip(power_type: String) -> PowerDieButton:
 	return null
 
 
+func _sync_power_cancel_badges() -> void:
+	if power_bar == null or session == null:
+		return
+	var active: String = session.active_power_type
+	for child in power_bar.get_children():
+		if child is not PowerDieButton:
+			continue
+		var chip: PowerDieButton = child as PowerDieButton
+		var show_badge: bool = (
+			chip.power_type == active and _power_die_shows_cancel(chip.power_type)
+		)
+		chip.set_cancel_badge_visible(show_badge)
+
+
 func _pulse_power_info(power_type: String) -> void:
 	var chip: PowerDieButton = _get_power_chip(power_type)
 	if chip:
@@ -688,6 +817,17 @@ func _setup_power_fly_layer() -> void:
 	_power_fly_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_power_fly_layer.z_index = 50
 	add_child(_power_fly_layer)
+
+
+func _setup_pattern_toast_layer() -> void:
+	_pattern_toast_layer = Control.new()
+	_pattern_toast_layer.name = "PatternToastLayer"
+	_pattern_toast_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pattern_toast_layer.anchor_right = 1.0
+	_pattern_toast_layer.anchor_bottom = 1.0
+	_pattern_toast_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pattern_toast_layer.z_index = 48
+	add_child(_pattern_toast_layer)
 
 
 func _clear_power_fly_state() -> void:
@@ -888,7 +1028,7 @@ func _build_power_bar() -> void:
 		if _power_fly_display.has(t) and _power_fly_display[t].has("charge_override"):
 			ch = int(_power_fly_display[t].charge_override)
 		var power_name: String = str(def.get("label", t))
-		var description_text: String = str(def.get("description", ""))
+		var description_text: String = PowerLogic.format_power_detail(def)
 		var tip: String = "%s\n\n%s" % [power_name, description_text]
 		var charge_txt: String = ""
 		if PowerLogic.is_pattern_power(t) or t == "switchRows":
@@ -984,6 +1124,12 @@ func _on_cancel_power_pressed() -> void:
 	_refresh_ui()
 
 
+func _on_number_picker_cancel() -> void:
+	DebugLog.alea_log("Power", "number picker cancel active=%s" % session.active_power_type)
+	_clear_active_power()
+	_refresh_ui()
+
+
 func _clear_active_power() -> void:
 	session.clear_active_power()
 
@@ -1001,14 +1147,22 @@ func _power_can_use(power_type: String) -> bool:
 func _update_power_hint() -> void:
 	if power_hint == null or power_hint_label == null:
 		return
+	if session.current_modal != RunSession.Modal.NONE:
+		power_hint.visible = false
+		call_deferred("_layout_power_dock")
+		return
 	var active: String = session.active_power_type
 	if active.is_empty() or active not in ACTIVATABLE_POWERS:
 		power_hint.visible = false
+		call_deferred("_layout_power_dock")
 		return
 	power_hint.visible = true
 	power_hint_label.text = _power_hint_text(active)
 	var hint_color: Color = _power_hint_color(active).lerp(Color(0.95, 0.93, 0.88), 0.35)
 	power_hint_label.add_theme_color_override("font_color", hint_color)
+	if cancel_power_btn != null:
+		cancel_power_btn.visible = false
+	call_deferred("_layout_power_dock")
 
 
 func _power_hint_color(power_type: String) -> Color:
@@ -1028,20 +1182,35 @@ func _power_hint_color(power_type: String) -> Color:
 func _power_hint_text(power_type: String) -> String:
 	match power_type:
 		"switchRows":
+			if session.active_target_row >= 0:
+				return (
+					"Switch Rows — tap a die in the other row. "
+					+"Tap X on the marked die or active power die to cancel."
+				)
 			return (
-				"Switch Rows — tap a die in the first row, "
-				+"then tap a die in another row (completed rows are OK)"
+				"Switch Rows — tap a die in each row. "
+				+"Tap X on the active power die to cancel."
 			)
 		"switchAnywhere":
+			if session.selected_row >= 0:
+				return (
+					"Switch — tap another unlocked die. "
+					+"Tap X on the selected die or active power die to cancel."
+				)
 			return (
-				"Switch — tap one die, then another unlocked die to swap (uses 1 charge)"
+				"Switch — tap two unlocked dice to swap. "
+				+"Tap X on the active power die to cancel."
 			)
 		"chooseNumber":
 			return (
-				"5 of a Kind — tap a die on an incomplete row, then pick 1–6 for the row"
+				"5 of a Kind — tap a die on an incomplete row, then pick 1–6. "
+				+"Tap X on the active power die to cancel."
 			)
 		"setAnyNumber":
-			return "Set Any Die — tap any die, then pick 1–6 (uses 1 reroll)"
+			return (
+				"Set Any Die — tap any die, then pick 1–6. "
+				+"Tap X on the active power die to cancel."
+			)
 		_:
 			return ""
 
@@ -1532,11 +1701,12 @@ func _refresh_stats_labels() -> void:
 			lim
 		)
 	elif not _stats_reveal_active:
-		_apply_stats_labels(session.level, lim)
+		var prev_lvl: int = _last_stats_level
+		_apply_stats_labels(session.level, lim, prev_lvl)
 		_last_stats_level = session.level
 
 
-func _apply_stats_labels(lvl: int, lim: Dictionary) -> void:
+func _apply_stats_labels(lvl: int, lim: Dictionary, prev_lvl: int = -1) -> void:
 	level_label.text = "Level %d" % lvl
 	switches_label.text = "Switch %d/%d" % [
 		session.switches_left(), lim.max_switches
@@ -1544,6 +1714,9 @@ func _apply_stats_labels(lvl: int, lim: Dictionary) -> void:
 	rerolls_label.text = "Reroll %d/%d" % [
 		session.rerolls_left(), lim.max_rerolls
 	]
+	var prior: int = prev_lvl if prev_lvl >= 0 else _last_stats_level
+	_update_level_label_style(lvl)
+	_maybe_play_level8_entrance_shake(lvl, prior)
 
 
 func _play_level_up_stats_reveal(
@@ -1585,6 +1758,9 @@ func _play_level_up_stats_reveal(
 	_stats_reveal_tween.tween_callback(func() -> void:
 		_stats_reveal_active = false
 		_stats_reveal_tween = null
+		var prev_lvl: int = _last_stats_level
+		_update_level_label_style(new_level)
+		_maybe_play_level8_entrance_shake(new_level, prev_lvl)
 		_last_stats_level = new_level
 	)
 
@@ -1613,6 +1789,69 @@ func _cancel_stats_reveal() -> void:
 		rerolls_label.modulate = Color.WHITE
 
 
+func _is_final_level_display(lvl: int) -> bool:
+	if session.is_tournament:
+		return false
+	var max_lvl: int = int(GameData.level_limits.get("max_level", 8))
+	return lvl >= max_lvl
+
+
+func _update_level_label_style(lvl: int) -> void:
+	if level_label == null:
+		return
+	if _level_label_shake_tween != null and _level_label_shake_tween.is_valid():
+		_level_label_shake_tween.kill()
+		_level_label_shake_tween = null
+	if _is_final_level_display(lvl):
+		level_label.add_theme_font_size_override("font_size", LEVEL_FINAL_FONT_SIZE)
+		level_label.add_theme_color_override("font_color", LEVEL_FINAL_COLOR)
+		call_deferred("_apply_level_final_slant")
+	else:
+		level_label.add_theme_font_size_override("font_size", LEVEL_NORMAL_FONT_SIZE)
+		level_label.add_theme_color_override("font_color", Color(0.12, 0.18, 0.32, 1))
+		level_label.rotation = 0.0
+		level_label.pivot_offset = Vector2.ZERO
+
+
+func _apply_level_final_slant() -> void:
+	if level_label == null or not _is_final_level_display(session.level):
+		return
+	level_label.pivot_offset = level_label.size * 0.5
+	level_label.rotation = LEVEL_FINAL_SLANT_RAD
+
+
+func _maybe_play_level8_entrance_shake(lvl: int, prev_lvl: int) -> void:
+	if not _is_final_level_display(lvl) or _level8_entrance_shake_played:
+		return
+	var max_lvl: int = int(GameData.level_limits.get("max_level", 8))
+	if prev_lvl != max_lvl - 1:
+		return
+	_level8_entrance_shake_played = true
+	call_deferred("_play_level8_entrance_shake")
+
+
+func _play_level8_entrance_shake() -> void:
+	if level_label == null:
+		return
+	if _level_label_shake_tween != null and _level_label_shake_tween.is_valid():
+		_level_label_shake_tween.kill()
+	_apply_level_final_slant()
+	var base_slant: float = LEVEL_FINAL_SLANT_RAD
+	_level_label_shake_tween = create_tween()
+	var wobble: Array[float] = [
+		base_slant + 0.09,
+		base_slant - 0.07,
+		base_slant + 0.05,
+		base_slant - 0.04,
+		base_slant + 0.025,
+		base_slant,
+	]
+	for angle in wobble:
+		_level_label_shake_tween.tween_property(
+			level_label, "rotation", angle, LEVEL8_SHAKE_STEP_SEC
+		)
+
+
 func _setup_stats_bar_style() -> void:
 	if stats_bar == null:
 		return
@@ -1624,52 +1863,17 @@ func _setup_stats_bar_style() -> void:
 
 
 func _update_stats_bar_theme() -> void:
-	if stats_bar == null or _stats_bar_style == null or session == null:
+	if stats_bar == null or _stats_bar_style == null:
 		return
-	if session.is_tournament:
-		_reset_stats_bar_white(false)
-		return
-	var max_lvl: int = int(GameData.level_limits.get("max_level", 8))
-	if session.level >= max_lvl:
-		_animate_stats_bar_golden()
-	elif _stats_bar_is_golden:
-		_reset_stats_bar_white(false)
+	_reset_stats_bar_white(false)
 
 
-func _reset_stats_bar_white(animate: bool) -> void:
-	_stats_bar_is_golden = false
+func _reset_stats_bar_white(_animate: bool) -> void:
 	if _stats_bar_tween != null and _stats_bar_tween.is_valid():
 		_stats_bar_tween.kill()
-	if animate:
-		_stats_bar_tween = create_tween().set_parallel(true)
-		_stats_bar_tween.tween_property(
-			_stats_bar_style, "bg_color", STATS_BAR_WHITE_BG, 0.4
-		)
-		_stats_bar_tween.tween_property(
-			_stats_bar_style, "border_color", STATS_BAR_WHITE_BORDER, 0.4
-		)
-	else:
-		_stats_bar_style.bg_color = STATS_BAR_WHITE_BG
-		_stats_bar_style.border_color = STATS_BAR_WHITE_BORDER
+	_stats_bar_style.bg_color = STATS_BAR_WHITE_BG
+	_stats_bar_style.border_color = STATS_BAR_WHITE_BORDER
 	stats_bar.modulate = Color.WHITE
-
-
-func _animate_stats_bar_golden() -> void:
-	if _stats_bar_is_golden:
-		return
-	_stats_bar_is_golden = true
-	if _stats_bar_tween != null and _stats_bar_tween.is_valid():
-		_stats_bar_tween.kill()
-	_stats_bar_tween = create_tween().set_parallel(true)
-	_stats_bar_tween.tween_property(
-		_stats_bar_style, "bg_color", STATS_BAR_GOLD_BG, 0.9
-	).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	_stats_bar_tween.tween_property(
-		_stats_bar_style, "border_color", STATS_BAR_GOLD_BORDER, 0.9
-	).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	stats_bar.modulate = STATS_BAR_GOLD_SHINE
-	var shine := create_tween()
-	shine.tween_property(stats_bar, "modulate", Color.WHITE, 0.55).set_delay(0.25)
 
 
 func _is_final_level_announcement() -> bool:
@@ -1718,6 +1922,8 @@ func _update_modals() -> void:
 		set_process(false)
 	_level_up_modal_was_open = level_up_open
 	modal_number.visible = session.current_modal == RunSession.Modal.NUMBER_PICKER
+	if session.current_modal == RunSession.Modal.NUMBER_PICKER:
+		_update_number_picker()
 	var show_victory: bool = session.current_modal == RunSession.Modal.GAME_VICTORY
 	modal_victory.visible = show_victory
 	if show_victory and victory_badge:
@@ -1736,7 +1942,14 @@ func _update_modals() -> void:
 	_update_fail_modals()
 	restart_btn.disabled = not session.can_offer_restart()
 	if session.current_modal == RunSession.Modal.SWAP_POWER:
+		if not _swap_modal_was_open:
+			_swap_step = "pick"
+			_swap_outgoing_pick = ""
 		_build_swap()
+	else:
+		_swap_step = "pick"
+		_swap_outgoing_pick = ""
+	_swap_modal_was_open = session.current_modal == RunSession.Modal.SWAP_POWER
 
 
 func _update_tournament_win_modal() -> void:
@@ -1779,18 +1992,36 @@ func _build_level_up() -> void:
 	for t in session.level_up_pool:
 		var def: Dictionary = GameData.get_power_def(t)
 		var power_label: String = str(def.get("label", t))
-		var power_desc: String = str(def.get("description", ""))
-		var earn_label: String = str(def.get("earn_label", ""))
-		var b := Button.new()
-		b.text = power_label
-		if not earn_label.is_empty() and earn_label != "Always on":
-			b.tooltip_text = "%s\nEarn: %s\n\n%s" % [power_label, earn_label, power_desc]
-		else:
-			b.tooltip_text = "%s\n\n%s" % [power_label, power_desc]
-		b.custom_minimum_size = Vector2(0, 44)
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.pressed.connect(func(): session.choose_level_up_power(t))
-		level_up_options.add_child(b)
+		var detail: String = PowerLogic.format_power_detail(def)
+		var chip: PowerDieButton = POWER_DIE_BUTTON.instantiate() as PowerDieButton
+		chip.set_chip_size(LEVEL_UP_DIE_SIZE)
+		chip.setup_display(t, power_label, "", false, false)
+		chip.configure_messages(detail, "", _power_hint_color(t))
+		chip.bind_hover_detail(level_up_detail, LEVEL_UP_DETAIL_HINT)
+		chip.set_speech_bubble_enabled(false)
+		chip.pressed.connect(func() -> void: session.choose_level_up_power(t))
+		level_up_options.add_child(chip)
+
+
+func _update_number_picker() -> void:
+	var power_type: String = session.active_power_type
+	var def: Dictionary = GameData.get_power_def(power_type)
+	var power_label: String = str(def.get("label", power_type))
+	if number_power_die != null:
+		number_power_die.texture = PowerDiceArt.get_texture(power_type)
+		number_power_die.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if number_power_name != null:
+		number_power_name.text = power_label
+		var name_color: Color = _power_hint_color(power_type)
+		number_power_name.add_theme_color_override("font_color", name_color)
+	if number_picker_prompt != null:
+		match power_type:
+			"setAnyNumber":
+				number_picker_prompt.text = "Pick a number for this die (uses 1 reroll)"
+			"chooseNumber":
+				number_picker_prompt.text = "Pick a number for the whole row"
+			_:
+				number_picker_prompt.text = "Pick a number (1–6)"
 
 
 func _update_restart_modal() -> void:
@@ -1866,34 +2097,141 @@ func _update_fail_modals() -> void:
 
 
 func _build_swap() -> void:
-	for c in swap_options.get_children():
-		c.queue_free()
+	if session.pending_swap_in.is_empty():
+		return
+	if _swap_step == "confirm" and not _swap_outgoing_pick.is_empty():
+		_show_swap_confirm()
+	else:
+		_swap_step = "pick"
+		_swap_outgoing_pick = ""
+		_show_swap_pick()
+
+
+func _show_swap_pick() -> void:
+	if swap_pick_section != null:
+		swap_pick_section.visible = true
+	if swap_confirm_section != null:
+		swap_confirm_section.visible = false
+	if swap_detail != null:
+		swap_detail.text = SWAP_DETAIL_HINT
+	_clear_swap_row(swap_incoming_row)
+	_clear_swap_row(swap_options)
 	var incoming_id: String = session.pending_swap_in
-	var incoming_def: Dictionary = GameData.get_power_def(incoming_id)
-	var incoming_label: String = str(incoming_def.get("label", incoming_id))
-	swap_in_label.text = "Adding: %s" % incoming_label
-	swap_in_detail.text = str(incoming_def.get("description", ""))
+	_add_swap_chip(swap_incoming_row, incoming_id, false, false)
 	for t in session.unlocked_powers:
-		var def: Dictionary = GameData.get_power_def(t)
-		var outgoing_label: String = str(def.get("label", t))
-		var b := Button.new()
-		b.text = "Drop %s → add %s" % [outgoing_label, incoming_label]
-		b.custom_minimum_size = Vector2(0, 44)
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		var outgoing_desc: String = str(def.get("description", ""))
-		b.tooltip_text = "Remove %s\n\n%s" % [outgoing_label, outgoing_desc]
-		b.pressed.connect(func(): session.swap_out_power(t))
-		swap_options.add_child(b)
+		var chip: PowerDieButton = _add_swap_chip(swap_options, t, true, true)
+		chip.pressed.connect(func() -> void: _on_swap_outgoing_picked(t))
+
+
+func _show_swap_confirm() -> void:
+	if swap_pick_section != null:
+		swap_pick_section.visible = false
+	if swap_confirm_section != null:
+		swap_confirm_section.visible = true
+	var incoming_id: String = session.pending_swap_in
+	var outgoing_id: String = _swap_outgoing_pick
+	var incoming_def: Dictionary = GameData.get_power_def(incoming_id)
+	var outgoing_def: Dictionary = GameData.get_power_def(outgoing_id)
+	var incoming_label: String = str(incoming_def.get("label", incoming_id))
+	var outgoing_label: String = str(outgoing_def.get("label", outgoing_id))
+	if swap_confirm_prompt != null:
+		swap_confirm_prompt.text = (
+			"Replace %s with %s?\nYour current power will be removed."
+			% [outgoing_label, incoming_label]
+		)
+	_clear_swap_row(swap_confirm_row)
+	_add_swap_chip(swap_confirm_row, outgoing_id, false, false)
+	var arrow := Label.new()
+	arrow.text = "→"
+	arrow.add_theme_font_size_override("font_size", 28)
+	arrow.add_theme_color_override("font_color", Color(0.35, 0.4, 0.5, 1))
+	arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	swap_confirm_row.add_child(arrow)
+	_add_swap_chip(swap_confirm_row, incoming_id, false, false)
+
+
+func _clear_swap_row(row: HBoxContainer) -> void:
+	if row == null:
+		return
+	for c in row.get_children():
+		c.queue_free()
+
+
+func _add_swap_chip(
+	row: HBoxContainer,
+	power_type: String,
+	clickable: bool,
+	hover_detail: bool
+) -> PowerDieButton:
+	var def: Dictionary = GameData.get_power_def(power_type)
+	var power_label: String = str(def.get("label", power_type))
+	var detail: String = PowerLogic.format_power_detail(def)
+	var chip: PowerDieButton = POWER_DIE_BUTTON.instantiate() as PowerDieButton
+	chip.set_chip_size(SWAP_DIE_SIZE)
+	chip.setup_display(power_type, power_label, "", false, false)
+	chip.configure_messages(detail, "", _power_hint_color(power_type))
+	chip.set_speech_bubble_enabled(false)
+	if hover_detail and swap_detail != null:
+		chip.bind_hover_detail(swap_detail, SWAP_DETAIL_HINT)
+	if not clickable:
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(chip)
+	return chip
+
+
+func _on_swap_outgoing_picked(power_type: String) -> void:
+	_swap_outgoing_pick = power_type
+	_swap_step = "confirm"
+	_show_swap_confirm()
+
+
+func _on_swap_confirm_no_pressed() -> void:
+	_swap_step = "pick"
+	_swap_outgoing_pick = ""
+	_show_swap_pick()
+
+
+func _on_swap_confirm_yes_pressed() -> void:
+	if _swap_outgoing_pick.is_empty():
+		return
+	var outgoing: String = _swap_outgoing_pick
+	_swap_step = "pick"
+	_swap_outgoing_pick = ""
+	session.swap_out_power(outgoing)
 
 
 func _on_cancel_swap_pressed() -> void:
+	_swap_step = "pick"
+	_swap_outgoing_pick = ""
 	session.cancel_swap_power()
 
 
-func _on_back_pressed() -> void:
+func _arm_orb_completion_celebration() -> void:
+	if session == null or session.is_tournament:
+		return
+	var orb_id: String = session.challenge_orb_id
+	if orb_id.is_empty() or not SaveService.has_badge(orb_id):
+		return
+	var queued: bool = (
+		session.menu_orb_celebration_pending
+		or session.victory_badge_is_new
+		or GameState.pending_orb_completion_celebration == orb_id
+	)
+	if not queued:
+		return
+	GameState.request_orb_completion_celebration(orb_id)
+	session.menu_orb_celebration_pending = false
+
+
+func _go_to_main_menu() -> void:
+	_arm_orb_completion_celebration()
 	if GameState.championship_active:
 		GameState.reset_tournament()
 	SceneNav.go_to_main_menu()
+
+
+func _on_back_pressed() -> void:
+	_go_to_main_menu()
 
 
 func _on_continue_round_pressed() -> void:
@@ -1909,9 +2247,7 @@ func _on_retry_pressed() -> void:
 
 
 func _on_menu_from_over_pressed() -> void:
-	if GameState.championship_active:
-		GameState.reset_tournament()
-	SceneNav.go_to_main_menu()
+	_go_to_main_menu()
 
 
 func _on_endless_pressed() -> void:

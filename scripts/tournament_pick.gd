@@ -20,7 +20,10 @@ func _ready() -> void:
 	for t in GameData.tournament_pickable:
 		var def: Dictionary = GameData.get_power_def(str(t))
 		var cb := CheckBox.new()
-		cb.text = "%s — %s" % [def.get("label", t), def.get("description", "")]
+		cb.text = "%s — %s" % [
+			def.get("label", t),
+			PowerLogic.format_power_short(def),
+		]
 		cb.toggled.connect(_on_toggle.bind(str(t)))
 		_style_power_checkbox(cb)
 		options_box.add_child(cb)

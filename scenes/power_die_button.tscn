@@ -28,7 +28,10 @@ mouse_filter = 2
 [node name="Margin" type="MarginContainer" parent="SpeechBubble/Panel"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="SpeechBubble/Panel/Margin"]
+[node name="VBox" type="VBoxContainer" parent="SpeechBubble/Panel/Margin"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="SpeechBubble/Panel/Margin/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.15, 0.35, 0.55, 1)
 theme_override_font_sizes/font_size = 11

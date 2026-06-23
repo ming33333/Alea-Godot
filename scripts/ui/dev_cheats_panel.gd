@@ -285,10 +285,14 @@ func _on_award_badge() -> void:
 	var challenge_orb: Dictionary = GameData.get_challenge_orb(session.challenge_orb_id)
 	var challenge_orb_name: String = str(challenge_orb.get("name", session.challenge_orb_id))
 	var badge_name: String = str(challenge_orb.get("badge_name", "Badge"))
-	if not SaveService.force_award_badge(session.challenge_orb_id):
+	var orb_id: String = session.challenge_orb_id
+	if not SaveService.force_award_badge(orb_id):
 		_show_status("Could not award (%s)" % challenge_orb_name)
 		return
-	if SaveService.has_badge(session.challenge_orb_id):
+	session.menu_orb_celebration_pending = true
+	session.victory_badge_is_new = true
+	GameState.request_orb_completion_celebration(orb_id)
+	if SaveService.has_badge(orb_id):
 		_show_status("Awarded: %s (%s)" % [badge_name, challenge_orb_name])
 	else:
 		_show_status("Save failed — check Output")
