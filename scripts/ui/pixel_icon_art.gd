@@ -64,6 +64,8 @@ static func _build(icon_id: String) -> ImageTexture:
 			_draw_fog(img)
 		"close":
 			_draw_close(img)
+		"arrow_right":
+			_draw_arrow_right(img)
 		_:
 			_draw_fallback(img)
 	return ImageTexture.create_from_image(img)
@@ -234,6 +236,18 @@ static func _draw_fog(img: Image) -> void:
 		_fill_rect(img, x, 10, x + 4, 12, fog)
 	for x in range(6, 18, 4):
 		_fill_rect(img, x, 14, x + 5, 16, fog)
+
+
+static func _draw_arrow_right(img: Image) -> void:
+	var ink := Color(0.35, 0.4, 0.5, 1)
+	_fill_rect(img, 6, 11, 13, 12, ink)
+	for row in range(24):
+		var y: int = row
+		if y < 8 or y > 15:
+			continue
+		var half: int = mini(y - 8, 15 - y)
+		for dx in range(half + 1):
+			_px(img, 14 + dx, y, ink)
 
 
 static func _draw_close(img: Image) -> void:

@@ -1,7 +1,8 @@
 extends Node
-## Dice face textures: pixel font (VT323) or pip style (dice). Lucky 7 always uses dice_face_7.
+## Dice face textures: pixel font (VT323) or pip style (dice). Lucky 7 pip face is generated in code.
 
 signal style_changed
+signal float_enabled_changed(enabled: bool)
 
 const CFG_PATH := "user://settings.cfg"
 const STYLE_PIPES := "dice"
@@ -22,11 +23,9 @@ const PIPES_FACE_PATHS: Array[String] = [
 	"res://assets/dice/die_face_6.png",
 ]
 
-const LUCKY_SEVEN_PATH := "res://assets/dice/dice_face_7.png"
-
 var dice_style_id: String = DEFAULT_STYLE
+var dice_float_enabled: bool = true
 
-var _lucky_seven_tex: Texture2D
 var _pipes_faces: Array[Texture2D] = []
 var _pixel_font: Font
 
@@ -39,11 +38,28 @@ func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(CFG_PATH) != OK:
 		dice_style_id = DEFAULT_STYLE
+		dice_float_enabled = true
 		return
 	var saved: String = str(cfg.get_value("visual", "dice_style", DEFAULT_STYLE))
 	if saved == LEGACY_NUM_STYLE:
 		saved = STYLE_PIXEL
 	dice_style_id = saved if STYLE_ORDER.has(saved) else DEFAULT_STYLE
+	dice_float_enabled = bool(cfg.get_value("visual", "dice_float", true))
+
+
+func is_dice_float_enabled() -> bool:
+	return dice_float_enabled
+
+
+func save_dice_float_enabled(enabled: bool) -> void:
+	if dice_float_enabled == enabled:
+		return
+	dice_float_enabled = enabled
+	var cfg := ConfigFile.new()
+	cfg.load(CFG_PATH)
+	cfg.set_value("visual", "dice_float", enabled)
+	cfg.save(CFG_PATH)
+	float_enabled_changed.emit(enabled)
 
 
 func get_dice_style_id() -> String:
@@ -80,22 +96,14 @@ func get_pixel_font() -> Font:
 
 func get_face(value: int) -> Texture2D:
 	if value == 7:
-		return _lucky_seven_face()
+		if is_pixel_font_style():
+			return null
+		return DiceFaceArt.get_pip_face(7)
 	if value < 1 or value > 6:
 		return null
 	if is_pixel_font_style():
 		return null
 	return _faces_for_style()[value]
-
-
-func _lucky_seven_face() -> Texture2D:
-	if _lucky_seven_tex == null:
-		var res: Resource = load(LUCKY_SEVEN_PATH)
-		if res is Texture2D:
-			_lucky_seven_tex = res as Texture2D
-		else:
-			push_warning("DiceSprites: missing lucky seven face at %s" % LUCKY_SEVEN_PATH)
-	return _lucky_seven_tex
 
 
 func _faces_for_style() -> Array[Texture2D]:

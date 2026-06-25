@@ -10,6 +10,10 @@ const TEXTURE_PATHS: Dictionary = {
 	"verticalJump": "res://assets/powerup_dice/vertical_jump.png",
 	"secondChances": "res://assets/powerup_dice/second_chances.png",
 	"rerollTrade": "res://assets/powerup_dice/reroll_trade.png",
+	"extraSwitches": "res://assets/powerup_dice/side_switch.png",
+	"straightSwitch": "res://assets/powerup_dice/switch_anywhere.png",
+	"comboReroll": "res://assets/powerup_dice/reroll_trade.png",
+	"extraLoadout": "res://assets/powerup_dice/second_chances.png",
 }
 
 static var _cache: Dictionary = {}

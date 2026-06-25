@@ -114,6 +114,7 @@ const POWER_FLY_STAGGER_SEC := 0.14
 
 const DICE_SHUTTER_SFX: AudioStream = preload("res://assets/sfx/dice_shutter.mp3")
 const DICE_COMPLETE_DING_SFX: AudioStream = preload("res://assets/sfx/dice_complete_ding.mp3")
+const RESTART_LEVEL_ICON: Texture2D = preload("res://assets/textures/restart_level.svg")
 const REF_GRID_SEP := 6.0
 const REF_BOARD_INSET := 21.0
 const REF_POWER_BAR_SEP := 10.0
@@ -267,6 +268,14 @@ func _begin_run() -> void:
 
 func _setup_pixel_icons() -> void:
 	PixelIconArt.apply_texture_rect(hearts_icon, "heart", 18)
+	if restart_btn != null:
+		restart_btn.text = ""
+		restart_btn.icon = RESTART_LEVEL_ICON
+		restart_btn.expand_icon = true
+		restart_btn.add_theme_color_override("icon_normal_color", Color(0.35, 0.4, 0.52, 1))
+		restart_btn.add_theme_color_override("icon_hover_color", Color(0.75, 0.15, 0.2, 1))
+		restart_btn.add_theme_color_override("icon_pressed_color", Color(0.55, 0.1, 0.15, 1))
+		restart_btn.add_theme_color_override("icon_disabled_color", Color(0.72, 0.75, 0.8, 1))
 	PixelIconArt.apply_texture_rect(modal_round_icon, "celebrate", 40)
 	PixelIconArt.apply_texture_rect(modal_game_over_icon, "broken_heart", 40)
 	PixelIconArt.apply_texture_rect(modal_stuck_icon, "dizzy", 40)
@@ -416,7 +425,7 @@ func _refresh_ui() -> void:
 	if session.is_tournament:
 		var opp: Dictionary = GameData.get_tournament_opponent(session.tournament_opponent_id)
 		var match_no: int = GameState.tournament_opponent_index + 1
-		challenge_orb_label.text = "Dice Master Test · Game %d/3 · %s" % [
+		challenge_orb_label.text = "Dice Master Test | Game %d/3 | %s" % [
 			match_no,
 			opp.get("name", "Opponent"),
 		]
@@ -932,7 +941,7 @@ func _finish_power_fly(power_type: String) -> void:
 	var power_name: String = str(def.get("label", power_type))
 	var charge_txt: String = ""
 	if PowerLogic.is_pattern_power(power_type) or power_type == "switchRows":
-		charge_txt = "×%d" % ch
+		charge_txt = "x%d" % ch
 	var active: bool = session.active_power_type == power_type
 	var usable: bool = _power_can_use(power_type) or active
 	chip.set_fly_reveal_pending(false)
@@ -1032,7 +1041,7 @@ func _build_power_bar() -> void:
 		var tip: String = "%s\n\n%s" % [power_name, description_text]
 		var charge_txt: String = ""
 		if PowerLogic.is_pattern_power(t) or t == "switchRows":
-			charge_txt = "×%d" % ch
+			charge_txt = "x%d" % ch
 		if t == "rerollTrade":
 			var can_trade: bool = PowerLogic.can_trade_rerolls(
 				session.level, session.switches_used, session.rerolls_used, session.unlocked_powers
@@ -1138,7 +1147,11 @@ func _power_can_use(power_type: String) -> bool:
 	if PowerLogic.is_permanent(power_type):
 		return false
 	if power_type == "setAnyNumber":
-		return session.rerolls_left() > 0 and session.power_charges.get(power_type, 0) > 0
+		return (
+			session.rerolls_left() > 0
+			and session.power_charges.get(power_type, 0) > 0
+			and PowerLogic.has_set_any_target(session.grid, session.awarded_rows)
+		)
 	if PowerLogic.is_pattern_power(power_type) or power_type == "switchRows":
 		return session.power_charges.get(power_type, 0) > 0
 	return true
@@ -1175,6 +1188,14 @@ func _power_hint_color(power_type: String) -> Color:
 			return Color(0.15, 0.45, 0.28)
 		"setAnyNumber":
 			return Color(0.75, 0.38, 0.1)
+		"extraSwitches":
+			return Color(0.22, 0.42, 0.62)
+		"straightSwitch":
+			return Color(0.28, 0.48, 0.72)
+		"comboReroll":
+			return Color(0.55, 0.22, 0.58)
+		"extraLoadout":
+			return Color(0.42, 0.52, 0.38)
 		_:
 			return Color(0.2, 0.35, 0.55)
 
@@ -1184,31 +1205,31 @@ func _power_hint_text(power_type: String) -> String:
 		"switchRows":
 			if session.active_target_row >= 0:
 				return (
-					"Switch Rows — tap a die in the other row. "
+					"Switch Rows - tap a die in the other row. "
 					+"Tap X on the marked die or active power die to cancel."
 				)
 			return (
-				"Switch Rows — tap a die in each row. "
+				"Switch Rows - tap a die in each row. "
 				+"Tap X on the active power die to cancel."
 			)
 		"switchAnywhere":
 			if session.selected_row >= 0:
 				return (
-					"Switch — tap another unlocked die. "
+					"Switch - tap another unlocked die. "
 					+"Tap X on the selected die or active power die to cancel."
 				)
 			return (
-				"Switch — tap two unlocked dice to swap. "
+				"Switch - tap two unlocked dice to swap. "
 				+"Tap X on the active power die to cancel."
 			)
 		"chooseNumber":
 			return (
-				"5 of a Kind — tap a die on an incomplete row, then pick 1–6. "
+				"5 of a Kind - tap a die on an incomplete row, then pick 1-6. "
 				+"Tap X on the active power die to cancel."
 			)
 		"setAnyNumber":
 			return (
-				"Set Any Die — tap any die, then pick 1–6. "
+				"Set Any Die - tap an unlocked die on an incomplete row, then pick 1-6. "
 				+"Tap X on the active power die to cancel."
 			)
 		_:
@@ -1232,7 +1253,9 @@ func _cell_highlight(
 			return DieCell.Highlight.POWER_CHOOSE
 		return DieCell.Highlight.NONE
 	if active == "setAnyNumber":
-		return DieCell.Highlight.POWER_SET_ANY
+		if _die_valid_for_set_any(row, col, cell):
+			return DieCell.Highlight.POWER_SET_ANY
+		return DieCell.Highlight.NONE
 	if active == "switchAnywhere":
 		if session.selected_row >= 0:
 			if _can_switch_target(row, col):
@@ -1257,6 +1280,10 @@ func _row_valid_for_choose_number(row: int) -> bool:
 	for c in session.grid[row]:
 		vals.append(c.value)
 	return PatternCheck.check_pattern(vals) == PatternCheck.INCOMPLETE
+
+
+func _die_valid_for_set_any(row: int, col: int, _cell: DiceCellData) -> bool:
+	return PowerLogic.die_valid_for_set_any(session.grid, session.awarded_rows, row, col)
 
 
 func _can_switch_target(row: int, col: int) -> bool:
@@ -1892,7 +1919,7 @@ func _update_round_modal() -> void:
 		return
 	round_label.text = "Level %d complete!" % session.level
 	round_detail.text = (
-		"Next is Level %d — the final level. Beat it to earn this challenge orb's badge!"
+		"Next is Level %d - the final level. Beat it to earn this challenge orb's badge!"
 		% (session.level + 1)
 	)
 	round_detail.visible = true
@@ -1988,7 +2015,7 @@ func _build_level_up() -> void:
 		c.queue_free()
 	level_up_detail.text = LEVEL_UP_DETAIL_HINT
 	level_up_keep_powers.visible = true
-	level_up_keep_powers.text = "Keep current powers → Level %d" % (session.level + 1)
+	level_up_keep_powers.text = "Keep current powers -> Level %d" % (session.level + 1)
 	for t in session.level_up_pool:
 		var def: Dictionary = GameData.get_power_def(t)
 		var power_label: String = str(def.get("label", t))
@@ -2021,7 +2048,7 @@ func _update_number_picker() -> void:
 			"chooseNumber":
 				number_picker_prompt.text = "Pick a number for the whole row"
 			_:
-				number_picker_prompt.text = "Pick a number (1–6)"
+				number_picker_prompt.text = "Pick a number (1-6)"
 
 
 func _update_restart_modal() -> void:
@@ -2073,7 +2100,7 @@ func _update_fail_modals() -> void:
 		var h: int = session.hearts
 		var heart_word: String = "heart" if h == 1 else "hearts"
 		stuck_hearts.text = (
-			"Hearts %d %s remaining — tap Restart level to try again (you already lost 1 heart)"
+			"Hearts %d %s remaining - tap Restart level to try again (you already lost 1 heart)"
 			% [h, heart_word]
 		)
 	elif session.current_modal == RunSession.Modal.GAME_OVER:
@@ -2092,7 +2119,7 @@ func _update_fail_modals() -> void:
 			game_over_title.text = "Challenge failed"
 			game_over_body.text = (
 				"You ran out of hearts in %s.\n"
-				+"You used all %d lives — this challenge run is over."
+				+"You used all %d lives - this challenge run is over."
 			) % [challenge_orb.get("name", "this challenge orb"), max_hearts]
 
 
@@ -2141,11 +2168,9 @@ func _show_swap_confirm() -> void:
 		)
 	_clear_swap_row(swap_confirm_row)
 	_add_swap_chip(swap_confirm_row, outgoing_id, false, false)
-	var arrow := Label.new()
-	arrow.text = "→"
-	arrow.add_theme_font_size_override("font_size", 28)
-	arrow.add_theme_color_override("font_color", Color(0.35, 0.4, 0.5, 1))
-	arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var arrow := TextureRect.new()
+	PixelIconArt.apply_texture_rect(arrow, "arrow_right", 24)
+	arrow.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	swap_confirm_row.add_child(arrow)
 	_add_swap_chip(swap_confirm_row, incoming_id, false, false)
 

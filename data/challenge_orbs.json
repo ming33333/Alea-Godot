@@ -4,7 +4,7 @@
       "id": "vanilla",
       "name": "Vanilla",
       "subtitle": "Classic Alea",
-      "description": "Standard rules — rerolls give a new random number (1–6). All powers and level limits as usual.",
+      "description": "Standard rules - rerolls give a new random number (1-6). All powers and level limits as usual.",
       "badge_name": "Vanilla Victor",
       "badge_texture": "res://assets/badges/badge_vanilla.png",
       "enabled": true
@@ -13,7 +13,7 @@
       "id": "orderedReroll",
       "name": "Step Up",
       "subtitle": "Ordered rerolls",
-      "description": "Same as Vanilla, but rerolls bump the die by 1 (1→2→…→6→1) instead of rolling random.",
+      "description": "Same as Vanilla, but rerolls bump the die by 1\n(1->2->...->6->1) instead of rolling random.",
       "badge_name": "Step Master",
       "badge_texture": "res://assets/badges/badge_step_up.png",
       "enabled": true
@@ -21,7 +21,7 @@
     {
       "id": "countdownOne",
       "name": "Safari Snap",
-      "subtitle": "3-2-1 · one die",
+      "subtitle": "3-2-1 | one die",
       "description": "Every 3rd reroll: 3-2-1 countdown, then one random unlocked die gets a new number. Locked dice are skipped.",
       "badge_name": "Snap Scout",
       "badge_texture": "res://assets/badges/badge_safari_snap.png",
@@ -30,7 +30,7 @@
     {
       "id": "countdownAll",
       "name": "Safari Surge",
-      "subtitle": "3-2-1 · all dice",
+      "subtitle": "3-2-1 | all dice",
       "description": "Every 3rd reroll: 3-2-1 countdown, then every unlocked die gets a new number. Locked dice stay put.",
       "badge_name": "Surge Champion",
       "badge_texture": "res://assets/badges/badge_safari_surge.png",

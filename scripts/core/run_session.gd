@@ -49,6 +49,7 @@ var victory_badge_is_new: bool = false
 var menu_orb_celebration_pending: bool = false
 var max_owned_powers: int = 3
 var fail_heart_processed: bool = false
+var combo_reroll_used: bool = false
 var pending_row_swap_before: Array = []
 var pending_swap_before_from: DiceCellData
 var pending_swap_before_to: DiceCellData
@@ -113,6 +114,7 @@ func _start_level(lvl: int, new_run: bool) -> void:
 	selected_col = -1
 	_clear_power_activation()
 	skip_choose_earn_rows = {}
+	combo_reroll_used = false
 	safari_countdown = 0
 	blurred_cell_key = ""
 	current_modal = Modal.NONE
@@ -157,11 +159,13 @@ func _snapshot_charges() -> Dictionary:
 
 
 func get_limits() -> Dictionary:
-	return LevelLimits.get_level_limits(level)
+	var lim: Dictionary = LevelLimits.get_level_limits(level)
+	lim.max_switches = PowerLogic.max_switches_for_level(level, unlocked_powers)
+	return lim
 
 
 func switches_left() -> int:
-	return LevelLimits.switches_remaining(level, switches_used)
+	return PowerLogic.switches_remaining(level, switches_used, unlocked_powers)
 
 
 func rerolls_left() -> int:
@@ -280,6 +284,8 @@ func process_row_completions(emit_lock_fx: bool = true) -> void:
 		grid[idx] = _lock_row(grid[idx])
 	if not newly_locked.is_empty() and emit_lock_fx:
 		rows_locked.emit(rows_done)
+	_apply_passive_completion_rewards(rows_done)
+	_maybe_trigger_combo_reroll()
 	_check_win_flow()
 
 
@@ -320,6 +326,49 @@ func _award_pattern_charges_on_completed_rows() -> void:
 		_add_pattern_charges_for_row(row_index, pattern, {}, charges_add)
 	for t in charges_add:
 		power_charges[t] = power_charges.get(t, 0) + charges_add[t]
+
+
+func _apply_passive_completion_rewards(rows_done: Array) -> void:
+	if not unlocked_powers.has("straightSwitch"):
+		return
+	for item in rows_done:
+		var row_item: Dictionary = item
+		if str(row_item.get("pattern", "")) != PatternCheck.STRAIGHT:
+			continue
+		switches_used = maxi(0, switches_used - 1)
+		_log_power(
+			"straightSwitch +1 switch row=%d switches_left=%d"
+			% [int(row_item.get("index", -1)), switches_left()]
+		)
+
+
+func _maybe_trigger_combo_reroll() -> void:
+	if not unlocked_powers.has("comboReroll") or combo_reroll_used:
+		return
+	if not _board_has_completed_pattern(PatternCheck.FULL_HOUSE):
+		return
+	if not _board_has_completed_pattern(PatternCheck.STRAIGHT):
+		return
+	var left: int = rerolls_left()
+	if left <= 0:
+		return
+	rerolls_used -= left
+	combo_reroll_used = true
+	_log_power(
+		"comboReroll doubled rerolls remaining=%d rerolls_left=%d"
+		% [left, rerolls_left()]
+	)
+	power_rewarded.emit("comboReroll", -1, left, false)
+
+
+func _board_has_completed_pattern(pattern: String) -> bool:
+	for row_index in awarded_rows:
+		var vals: Array = []
+		for c in grid[int(row_index)]:
+			vals.append(c.value)
+		if PatternCheck.check_pattern(vals) == pattern:
+			return true
+	return false
 
 
 func _lock_row(row: Array) -> Array:
@@ -746,6 +795,13 @@ func _handle_pattern_pick(row: int, col: int) -> void:
 				"pattern pick rejected: row %d already complete (%s)" % [row, pattern]
 			)
 			return
+	if active_power_type == "setAnyNumber":
+		if awarded_rows.has(row):
+			_log_power("pattern pick rejected: row %d is locked" % row)
+			return
+		if grid[row][col].locked:
+			_log_power("pattern pick rejected: die (%d,%d) is locked" % [row, col])
+			return
 	active_target_row = row
 	active_target_col = col
 	current_modal = Modal.NUMBER_PICKER
@@ -773,6 +829,13 @@ func apply_number_pick(number: int) -> void:
 	var tc: int = active_target_col
 	var ptype: String = active_power_type
 	var before: int = grid[tr][tc].value if ptype == "setAnyNumber" else -1
+	if ptype == "setAnyNumber" and not PowerLogic.die_valid_for_set_any(
+		grid, awarded_rows, tr, tc
+	):
+		_log_power(
+			"apply_number_pick rejected setAnyNumber locked target=(%d,%d)" % [tr, tc]
+		)
+		return
 	if ptype == "chooseNumber":
 		skip_choose_earn_rows[tr] = true
 		for c in range(grid[tr].size()):
@@ -817,10 +880,14 @@ func reroll_trade() -> void:
 	_emit()
 
 
+func effective_max_owned_powers() -> int:
+	return PowerLogic.effective_max_owned_powers(max_owned_powers, unlocked_powers)
+
+
 func choose_level_up_power(power_type: String) -> void:
 	if unlocked_powers.has(power_type):
 		return
-	if unlocked_powers.size() < max_owned_powers:
+	if unlocked_powers.size() < effective_max_owned_powers():
 		_apply_level_up(power_type)
 		return
 	pending_swap_in = power_type
@@ -987,15 +1054,15 @@ func dev_refill_resources() -> void:
 
 func dev_grant_power(power_type: String) -> String:
 	if game_over:
-		return "Game over — start a new run"
+		return "Game over - start a new run"
 	if power_type.is_empty():
 		return "Pick a power"
 	if unlocked_powers.has(power_type):
 		var owned: Dictionary = GameData.get_power_def(power_type)
 		return "Already owned: %s" % str(owned.get("label", power_type))
-	if unlocked_powers.size() >= max_owned_powers:
-		return "Loadout full (%d/%d) — drop one first" % [
-			unlocked_powers.size(), max_owned_powers
+	if unlocked_powers.size() >= effective_max_owned_powers():
+		return "Loadout full (%d/%d) - drop one first" % [
+			unlocked_powers.size(), effective_max_owned_powers()
 		]
 	unlocked_powers[power_type] = true
 	power_rewarded.emit(power_type, -1, 0, true)
@@ -1015,13 +1082,13 @@ func dev_grant_power(power_type: String) -> String:
 	return "Added %s (%d/%d)" % [
 		str(def.get("label", power_type)),
 		unlocked_powers.size(),
-		max_owned_powers,
+		effective_max_owned_powers(),
 	]
 
 
 func dev_remove_power(power_type: String) -> String:
 	if game_over:
-		return "Game over — start a new run"
+		return "Game over - start a new run"
 	if power_type.is_empty():
 		return "Pick a power"
 	if not unlocked_powers.has(power_type):
@@ -1046,7 +1113,7 @@ func dev_remove_power(power_type: String) -> String:
 	return "Removed %s (%d/%d)" % [
 		str(removed.get("label", power_type)),
 		unlocked_powers.size(),
-		max_owned_powers,
+		effective_max_owned_powers(),
 	]
 
 

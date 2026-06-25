@@ -8,16 +8,16 @@
     {
       "type": "chooseNumber",
       "earn_label": "5 of a Kind rows",
-      "charge_summary": "Charges: +1 each time you complete a 5 of a Kind row (× on the die). Resets to 0 at the start of each level.",
+      "charge_summary": "Charges: +1 each time you complete a 5 of a Kind row (x on the die). Resets to 0 at the start of each level.",
       "label": "Make 5 of a Kind",
-      "description": "Tap a die on an incomplete row and pick 1–6 — the whole row becomes that number. Costs 1 charge per use.",
+      "description": "Tap a die on an incomplete row and pick 1-6 - the whole row becomes that number. Costs 1 charge per use.",
       "permanent": false,
       "per_level": false
     },
     {
       "type": "switchAnywhere",
       "earn_label": "Straight rows",
-      "charge_summary": "Charges: +1 each time you complete a Straight row (× on the die). Resets to 0 at the start of each level.",
+      "charge_summary": "Charges: +1 each time you complete a Straight row (x on the die). Resets to 0 at the start of each level.",
       "label": "Switch",
       "description": "Tap two unlocked dice to swap them anywhere on the board. Costs 1 charge and 1 switch per use.",
       "permanent": false,
@@ -26,16 +26,16 @@
     {
       "type": "setAnyNumber",
       "earn_label": "Full House rows",
-      "charge_summary": "Charges: +1 each time you complete a Full House row (× on the die). Resets to 0 at the start of each level.",
+      "charge_summary": "Charges: +1 each time you complete a Full House row (x on the die). Resets to 0 at the start of each level.",
       "label": "Set Any Die",
-      "description": "Tap any die (even locked), pick 1–6 — that die changes. Costs 1 charge and 1 reroll per use.",
+      "description": "Tap an unlocked die on an incomplete row, pick 1-6 - that die changes. Costs 1 charge and 1 reroll per use.",
       "permanent": false,
       "per_level": false
     },
     {
       "type": "switchHorizontal",
       "earn_label": "Always on",
-      "charge_summary": "Always on while owned — no charges.",
+      "charge_summary": "Always on while owned - no charges.",
       "label": "Side Switch",
       "description": "Swap two adjacent dice left or right. Does not lock either die.",
       "permanent": true,
@@ -44,7 +44,7 @@
     {
       "type": "verticalJump",
       "earn_label": "Always on",
-      "charge_summary": "Always on while owned — no charges.",
+      "charge_summary": "Always on while owned - no charges.",
       "label": "Vertical Jump",
       "description": "In a column, jump over locked rows to swap with the next unlocked die. Locks both dice after the swap.",
       "permanent": true,
@@ -53,7 +53,7 @@
     {
       "type": "secondChances",
       "earn_label": "Always on",
-      "charge_summary": "Always on while owned — no charges.",
+      "charge_summary": "Always on while owned - no charges.",
       "label": "Second Chances",
       "description": "Each die can be vertically swapped twice before it locks (instead of once).",
       "permanent": true,
@@ -62,7 +62,7 @@
     {
       "type": "rerollTrade",
       "earn_label": "Always on",
-      "charge_summary": "Always available — no charges. Costs 2 rerolls per use.",
+      "charge_summary": "Always available - no charges. Costs 2 rerolls per use.",
       "label": "Reroll Trade",
       "description": "Tap to spend 2 rerolls and gain 1 switch.",
       "permanent": true,
@@ -71,11 +71,47 @@
     {
       "type": "switchRows",
       "earn_label": "1 per level",
-      "charge_summary": "1 charge per level — refreshes when the level starts (× on the die). Unused charges don't carry over.",
+      "charge_summary": "1 charge per level - refreshes when the level starts (x on the die). Unused charges don't carry over.",
       "label": "Switch Rows",
-      "description": "Tap a die in one row, then a die in another — swaps all dice between those rows (completed rows OK). Costs 1 charge per use.",
+      "description": "Tap a die in one row, then a die in another - swaps all dice between those rows (completed rows OK). Costs 1 charge per use.",
       "permanent": false,
       "per_level": true
+    },
+    {
+      "type": "extraSwitches",
+      "earn_label": "Always on",
+      "charge_summary": "Always on while owned - adds +5 switches each level.",
+      "label": "+5 Switches",
+      "description": "Your switch allowance each level is 5 higher while this power is in your loadout.",
+      "permanent": true,
+      "per_level": false
+    },
+    {
+      "type": "straightSwitch",
+      "earn_label": "Straight rows",
+      "charge_summary": "Always on while owned - +1 switch when you complete a Straight row.",
+      "label": "Straight Switch",
+      "description": "Each time you lock in a Straight row, gain 1 extra switch for this level.",
+      "permanent": true,
+      "per_level": false
+    },
+    {
+      "type": "comboReroll",
+      "earn_label": "Full House + Straight",
+      "charge_summary": "Always on while owned - doubles remaining rerolls once per level when you have both a Full House and a Straight.",
+      "label": "Combo Reroll",
+      "description": "Once per level, when you have both a Full House and a Straight on the board, your remaining rerolls double.",
+      "permanent": true,
+      "per_level": false
+    },
+    {
+      "type": "extraLoadout",
+      "earn_label": "Always on",
+      "charge_summary": "Always on while owned - +2 power slots in your loadout (this die uses one slot).",
+      "label": "+2 Loadout",
+      "description": "Raise your loadout cap by 2 while owned. This power takes one of those slots, so you can hold one more other power than before.",
+      "permanent": true,
+      "per_level": false
     }
   ],
   "tournament_pickable": [
@@ -86,6 +122,10 @@
     "switchHorizontal",
     "verticalJump",
     "secondChances",
-    "rerollTrade"
+    "rerollTrade",
+    "extraSwitches",
+    "straightSwitch",
+    "comboReroll",
+    "extraLoadout"
   ]
 }

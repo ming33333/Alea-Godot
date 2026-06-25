@@ -9,7 +9,7 @@ func _ready() -> void:
 		var opp: Dictionary = GameData.get_tournament_opponent(oid)
 		var row := IconTextRow.make(
 			oid,
-			"Game %d: %s — %s" % [i + 1, opp.get("name", ""), opp.get("description", "")],
+			"Game %d: %s - %s" % [i + 1, opp.get("name", ""), opp.get("description", "")],
 			22
 		)
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL

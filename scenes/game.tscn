@@ -185,7 +185,7 @@ theme_override_colors/font_hover_color = Color(0.75, 0.15, 0.2, 1)
 theme_override_colors/font_pressed_color = Color(0.55, 0.1, 0.15, 1)
 theme_override_colors/font_disabled_color = Color(0.72, 0.75, 0.8, 1)
 theme_override_font_sizes/font_size = 18
-text = "↻"
+text = ""
 flat = true
 
 [node name="LevelLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow/LevelGroup"]
@@ -199,7 +199,7 @@ text = "Level 1"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
 theme_override_font_sizes/font_size = 23
-text = "·"
+text = "|"
 
 [node name="HeartsGroup" type="HBoxContainer" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
 unique_name_in_owner = true
@@ -226,7 +226,7 @@ text = "3"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
 theme_override_font_sizes/font_size = 23
-text = "·"
+text = "|"
 
 [node name="SwitchesLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
 unique_name_in_owner = true
@@ -239,7 +239,7 @@ text = "Switch 5/5"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
 theme_override_font_sizes/font_size = 23
-text = "·"
+text = "|"
 
 [node name="RerollsLabel" type="Label" parent="Margin/VBox/Center/BoardColumn/StatsBar/StatsMargin/StatsRow"]
 unique_name_in_owner = true
@@ -443,7 +443,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.42, 0.12, 1)
 theme_override_font_sizes/font_size = 16
 autowrap_mode = 3
-text = "Next is Level 8 — the final level. Beat it to earn this challenge orb's badge!"
+text = "Next is Level 8 - the final level. Beat it to earn this challenge orb's badge!"
 horizontal_alignment = 1
 
 [node name="RoundContinue" type="Button" parent="ModalRound/Center/Card/CardMargin/VBox"]
@@ -519,7 +519,7 @@ layout_mode = 2
 mouse_filter = 0
 theme_override_colors/font_color = Color(0.12, 0.14, 0.2, 1)
 theme_override_font_sizes/font_size = 24
-text = "Level up — pick a power"
+text = "Level up - pick a power"
 horizontal_alignment = 1
 
 [node name="Scroll" type="ScrollContainer" parent="ModalLevelUp/Center/LevelUpCard/CardMargin/VBox"]

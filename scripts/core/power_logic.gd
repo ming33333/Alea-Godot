@@ -5,8 +5,11 @@ const PATTERN_POWERS: Array[String] = [
 	"chooseNumber", "switchAnywhere", "setAnyNumber"
 ]
 const PERMANENT: Array[String] = [
-	"switchHorizontal", "verticalJump", "secondChances", "rerollTrade"
+	"switchHorizontal", "verticalJump", "secondChances", "rerollTrade",
+	"extraSwitches", "straightSwitch", "comboReroll", "extraLoadout",
 ]
+const EXTRA_SWITCHES_BONUS := 5
+const LOADOUT_BONUS_AMOUNT := 2
 
 
 static func is_pattern_power(t: String) -> bool:
@@ -47,19 +50,27 @@ static func _fallback_charge_summary(power_type: String) -> String:
 	if is_pattern_power(power_type):
 		var pattern: String = str(GameData.pattern_map.get(power_type, ""))
 		return (
-			"Charges: +1 each time you complete a %s row (× on the die). "
+			"Charges: +1 each time you complete a %s row (x on the die). "
 			% pattern
 			+ "Resets to 0 at the start of each level."
 		)
 	if is_per_level(power_type):
 		return (
-			"1 charge per level — refreshes when the level starts (× on the die). "
+			"1 charge per level - refreshes when the level starts (x on the die). "
 			+ "Unused charges don't carry over."
 		)
 	if power_type == "rerollTrade":
-		return "Always available — no charges. Costs 2 rerolls per use."
+		return "Always available - no charges. Costs 2 rerolls per use."
+	if power_type == "extraSwitches":
+		return "Always on while owned - adds +5 switches each level."
+	if power_type == "straightSwitch":
+		return "Always on while owned - +1 switch when you complete a Straight row."
+	if power_type == "comboReroll":
+		return "Always on while owned - doubles remaining rerolls once per level when you have both a Full House and a Straight."
+	if power_type == "extraLoadout":
+		return "Always on while owned - +2 power slots in your loadout (this die uses one slot)."
 	if is_permanent(power_type):
-		return "Always on while owned — no charges."
+		return "Always on while owned - no charges."
 	return ""
 
 
@@ -72,6 +83,31 @@ static func row_earns_goal(goal: String, pattern: String) -> bool:
 		return false
 	var mapped: String = str(GameData.pattern_map.get(goal, ""))
 	return pattern == mapped
+
+
+static func loadout_bonus(unlocked: Dictionary) -> int:
+	return LOADOUT_BONUS_AMOUNT if unlocked.has("extraLoadout") else 0
+
+
+static func effective_max_owned_powers(base_max: int, unlocked: Dictionary) -> int:
+	return base_max + loadout_bonus(unlocked)
+
+
+static func extra_switch_bonus(unlocked: Dictionary) -> int:
+	return EXTRA_SWITCHES_BONUS if unlocked.has("extraSwitches") else 0
+
+
+static func max_switches_for_level(level: int, unlocked: Dictionary) -> int:
+	return (
+		LevelLimits.get_level_limits(level).max_switches
+		+ extra_switch_bonus(unlocked)
+	)
+
+
+static func switches_remaining(
+	level: int, switches_used: int, unlocked: Dictionary
+) -> int:
+	return max_switches_for_level(level, unlocked) - switches_used
 
 
 static func can_vertical_jump(
@@ -111,7 +147,7 @@ static func has_usable_switch(
 	switch_anywhere_active: bool,
 	switch_anywhere_charges: int
 ) -> bool:
-	if LevelLimits.switches_remaining(level, switches_used) <= 0:
+	if PowerLogic.switches_remaining(level, switches_used, unlocked) <= 0:
 		return false
 	var unlocked_cells: Array = []
 	for r in range(grid.size()):
@@ -165,7 +201,32 @@ static func has_usable_choose_number(
 	return false
 
 
+static func has_set_any_target(grid: Array, awarded_rows: Dictionary) -> bool:
+	for r in range(grid.size()):
+		if awarded_rows.has(r):
+			continue
+		for cell in grid[r]:
+			if cell is DiceCellData and not cell.locked:
+				return true
+	return false
+
+
+static func die_valid_for_set_any(
+	grid: Array, awarded_rows: Dictionary, row: int, col: int
+) -> bool:
+	if awarded_rows.has(row):
+		return false
+	if row < 0 or row >= grid.size():
+		return false
+	if col < 0 or col >= grid[row].size():
+		return false
+	var cell: DiceCellData = grid[row][col]
+	return not cell.locked
+
+
 static func has_usable_set_any(
+	grid: Array,
+	awarded_rows: Dictionary,
 	level: int,
 	rerolls_used: int,
 	unlocked: Dictionary,
@@ -175,10 +236,12 @@ static func has_usable_set_any(
 	if LevelLimits.rerolls_remaining(level, rerolls_used) <= 0:
 		return false
 	if active_type == "setAnyNumber":
-		return true
+		return has_set_any_target(grid, awarded_rows)
 	if not unlocked.has("setAnyNumber"):
 		return false
-	return charges.get("setAnyNumber", 0) > 0
+	if charges.get("setAnyNumber", 0) <= 0:
+		return false
+	return has_set_any_target(grid, awarded_rows)
 
 
 static func has_usable_switch_rows(
@@ -226,7 +289,7 @@ static func is_level_stuck(
 			active_type == "switchAnywhere", sw_ch
 		)
 		and not has_usable_set_any(
-			level, rerolls_used, unlocked, charges, active_type
+			grid, awarded_rows, level, rerolls_used, unlocked, charges, active_type
 		)
 		and not has_usable_switch_rows(
 			grid, unlocked, charges, active_type

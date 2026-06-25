@@ -18,7 +18,8 @@ const BADGE_FLY_TRAVEL_SEC := 0.48
 const BADGE_FLY_SIZE := 56.0
 const BADGE_FLY_PAUSE_BEFORE_SEC := 0.18
 const BADGE_ARRIVAL_POP_SEC := 0.22
-const BADGE_AWARD_DING_SFX: AudioStream = preload("res://assets/sfx/dice_complete_ding.mp3")
+const BADGE_AWARD_SFX: AudioStream = preload("res://assets/sfx/badge_award.mp3")
+const ORB_COMPLETION_SFX: AudioStream = preload("res://assets/sfx/orb_completion.mp3")
 const CLOSED_BOX_TEX: Texture2D = preload("res://assets/textures/closed_box.png")
 const OPENED_BOX_TEX: Texture2D = preload("res://assets/textures/opened_box.png")
 const DECK_PILLAR_HEIGHT := 360.0
@@ -430,9 +431,9 @@ func _populate_tooltip(challenge_orb: Dictionary) -> void:
 	tooltip_body.text = str(challenge_orb.get("description", ""))
 	var badge_label: String = "Badge earned" if earned else "Badge locked"
 	if GameState.demo_mode and not GameState.is_orb_playable(gid):
-		tooltip_footer.text = "Not in demo · full game unlocks all challenge orbs"
+		tooltip_footer.text = "Not in demo | full game unlocks all challenge orbs"
 	else:
-		tooltip_footer.text = "%s · %s · click to play" % [
+		tooltip_footer.text = "%s | %s | click to play" % [
 			challenge_orb.get("badge_name", ""),
 			badge_label,
 		]
@@ -471,7 +472,7 @@ func _on_championship_hover() -> void:
 		"Enter the portal to face three random games. "
 		+ "Win all three to become a Dice Master."
 	)
-	tooltip_footer.text = "All challenge orb badges earned · click to enter"
+	tooltip_footer.text = "All challenge orb badges earned | click to enter"
 	challenge_orb_tooltip.visible = true
 	call_deferred("_position_tooltip_near_control", champion_portal)
 
@@ -563,6 +564,7 @@ func _run_orb_completion_celebration(orb: PixelChallengeOrb, orb_id: String) -> 
 		_finish_orb_completion_celebration()
 		return
 	GameState.pending_orb_completion_celebration = ""
+	_play_orb_completion_sfx()
 	var pillar_idx: int = int(orb.get_meta("pillar_index", 0))
 	var hover_base: Vector2 = _orb_position_above_pillar(pillar_idx, false)
 	var seated_base: Vector2 = _orb_position_above_pillar(pillar_idx, true)
@@ -1094,16 +1096,24 @@ func _play_badge_arrival_pop(icon: TextureRect) -> void:
 	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-func _play_badge_award_ding() -> void:
-	if BADGE_AWARD_DING_SFX == null:
+func _play_menu_sfx(stream: AudioStream) -> void:
+	if stream == null:
 		return
 	var player := AudioStreamPlayer.new()
-	player.stream = BADGE_AWARD_DING_SFX
+	player.stream = stream
 	player.volume_db = linear_to_db(AudioSettings.get_master_volume_linear())
 	player.bus = "Master"
 	add_child(player)
 	player.finished.connect(player.queue_free)
 	player.play()
+
+
+func _play_badge_award_ding() -> void:
+	_play_menu_sfx(BADGE_AWARD_SFX)
+
+
+func _play_orb_completion_sfx() -> void:
+	_play_menu_sfx(ORB_COMPLETION_SFX)
 
 
 func _on_championship_pressed() -> void:

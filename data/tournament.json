@@ -4,19 +4,19 @@
       "id": "luckySeven",
       "name": "Lucky Seven",
       "title": "The High Roller",
-      "description": "A random 7 appears on the board, locked — you cannot reroll it. Straights may include the 7 (e.g. 3-4-5-6-7)."
+      "description": "A random 7 appears on the board, locked - you cannot reroll it. Straights may include the 7 (e.g. 3-4-5-6-7)."
     },
     {
       "id": "straightSpecialist",
       "name": "Straight Specialist",
       "title": "The Purist",
-      "description": "Only Straight rows count — five consecutive dice (1–5, 2–6, or 3–7 with a 7)."
+      "description": "Only Straight rows count - five consecutive dice (1-5, 2-6, or 3-7 with a 7)."
     },
     {
       "id": "fullHouseSpecialist",
       "name": "Full House Specialist",
       "title": "The Pair Keeper",
-      "description": "Only Full House rows count — three of one die and two of another."
+      "description": "Only Full House rows count - three of one die and two of another."
     },
     {
       "id": "fiveOfAKindRequired",
@@ -40,7 +40,7 @@
       "id": "blurPerReroll",
       "name": "Blurred Vision",
       "title": "Fog of War",
-      "description": "Each reroll blurs one random unlocked die — only one is hidden at a time; the previous blur clears when the next is chosen."
+      "description": "Each reroll blurs one random unlocked die - only one is hidden at a time; the previous blur clears when the next is chosen."
     }
   ]
 }

@@ -20,7 +20,7 @@ func _ready() -> void:
 	for t in GameData.tournament_pickable:
 		var def: Dictionary = GameData.get_power_def(str(t))
 		var cb := CheckBox.new()
-		cb.text = "%s — %s" % [
+		cb.text = "%s - %s" % [
 			def.get("label", t),
 			PowerLogic.format_power_short(def),
 		]
@@ -115,7 +115,7 @@ func _roll_and_show_bracket() -> void:
 		push_error("TournamentPick: failed to roll opponents — check data/tournament.json")
 		bracket_section.visible = false
 		confirm_btn.disabled = true
-		status_label.text = "Test data missing — cannot start"
+		status_label.text = "Test data missing - cannot start"
 		return
 	_refresh_bracket_list()
 	bracket_section.visible = true
@@ -129,7 +129,7 @@ func _refresh_bracket_list() -> void:
 		var opp: Dictionary = GameData.get_tournament_opponent(oid)
 		var row := IconTextRow.make(
 			oid,
-			"Game %d: %s — %s" % [i + 1, opp.get("name", oid), opp.get("description", "")],
+			"Game %d: %s - %s" % [i + 1, opp.get("name", oid), opp.get("description", "")],
 			22
 		)
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL

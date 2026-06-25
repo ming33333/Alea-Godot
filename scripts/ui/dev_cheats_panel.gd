@@ -77,7 +77,7 @@ func _populate_power_picker() -> void:
 		_power_type_ids.append(t)
 		var label: String = str(p.get("label", t))
 		if session != null and session.unlocked_powers.has(t):
-			label += " ✓"
+			label += " OK"
 		_power_picker.add_item(label)
 	if _power_type_ids.is_empty():
 		_power_picker.add_item("(no powers)")
@@ -225,7 +225,7 @@ func _on_complete_championship_battle() -> void:
 		_show_status("Dice Master Test runs only")
 		return
 	session.dev_complete_championship_battle()
-	_show_status("Battle won — next opponent")
+	_show_status("Battle won - next opponent")
 
 
 func _on_refill() -> void:
@@ -295,4 +295,4 @@ func _on_award_badge() -> void:
 	if SaveService.has_badge(orb_id):
 		_show_status("Awarded: %s (%s)" % [badge_name, challenge_orb_name])
 	else:
-		_show_status("Save failed — check Output")
+		_show_status("Save failed - check Output")

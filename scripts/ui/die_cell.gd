@@ -101,6 +101,9 @@ func _ready() -> void:
 	add_theme_stylebox_override("pressed", empty)
 	add_theme_stylebox_override("focus", empty)
 	add_theme_stylebox_override("disabled", empty)
+	_apply_global_float_setting()
+	if not DiceSprites.float_enabled_changed.is_connected(_apply_global_float_setting):
+		DiceSprites.float_enabled_changed.connect(_apply_global_float_setting)
 	set_process(true)
 
 
@@ -211,6 +214,8 @@ func _process(_delta: float) -> void:
 func _update_float_bob() -> void:
 	if _float_root == null or _float_paused or _float_disabled:
 		return
+	if not DiceSprites.is_dice_float_enabled():
+		return
 	var cell_px: float = maxf(custom_minimum_size.x, custom_minimum_size.y)
 	var amplitude: float = maxf(1.4, cell_px * FLOAT_BOB_RATIO)
 	var t: float = Time.get_ticks_msec() * 0.001
@@ -239,9 +244,21 @@ func pause_float_bob() -> void:
 
 
 func resume_float_bob() -> void:
-	if _float_disabled:
+	if _float_disabled or not DiceSprites.is_dice_float_enabled():
 		return
 	_float_paused = false
+
+
+func _apply_global_float_setting() -> void:
+	if DiceSprites.is_dice_float_enabled():
+		if not _float_disabled and not _float_paused and not _lock_pop_active:
+			resume_float_bob()
+		return
+	pause_float_bob()
+	if _float_root != null and not _lock_pop_active:
+		_float_root.position = Vector2.ZERO
+		_float_root.rotation = 0.0
+		_float_root.scale = Vector2.ONE
 
 
 func play_lock_pop() -> void:
@@ -515,7 +532,7 @@ func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
 	elif cell.vertical_swaps_remaining == 1:
 		tooltip_text = "1 vertical swap left before lock"
 	else:
-		tooltip_text = "Click to select · double-click to reroll"
+		tooltip_text = "Click to select | double-click to reroll"
 
 
 func _apply_cell_face(cell: DiceCellData, blurred: bool) -> void:

@@ -2,7 +2,7 @@
   "sections": [
     {
       "heading": "Goal",
-      "text": "Complete all five rows on the board. Each row must form a valid dice pattern — Straight (five in a row), Full House, Five of a Kind, and others."
+      "text": "Complete all five rows on the board. Each row must form a valid dice pattern - Straight (five in a row), Full House, Five of a Kind, and others."
     },
     {
       "heading": "Dice",
@@ -10,19 +10,19 @@
     },
     {
       "heading": "Rows & powers",
-      "text": "When a row completes, those dice lock. Pattern powers (Make 5 of a Kind, Switch, Set Any Die) gain +1 charge when you complete a matching row — the × on the die shows how many uses you have. Switch Rows gives 1 charge per level. Passive powers are always on with no charges. Tap a power to activate it and follow the hint."
+      "text": "When a row completes, those dice lock. Pattern powers (Make 5 of a Kind, Switch, Set Any Die) gain +1 charge when you complete a matching row - the x on the die shows how many uses you have. Switch Rows gives 1 charge per level. Passive powers are always on with no charges. Tap a power to activate it and follow the hint."
     },
     {
       "heading": "Levels & hearts",
-      "text": "Clear every row to finish the level. Pick a new power on level-up (up to three in your loadout). You have limited switches and rerolls each level. Run out of moves and you lose a heart — lose all hearts and the challenge run ends."
+      "text": "Clear every row to finish the level. Pick a new power on level-up (up to three in your loadout). You have limited switches and rerolls each level. Run out of moves and you lose a heart - lose all hearts and the challenge run ends."
     },
     {
       "heading": "Challenge Orbs",
-      "text": "Each challenge orb on the map changes the rules — ordered rerolls, safari countdowns, tighter loadouts, and more. Hover an orb to read its rules. Earn that challenge orb's badge by beating level 8."
+      "text": "Each challenge orb on the map changes the rules - ordered rerolls, safari countdowns, tighter loadouts, and more. Hover an orb to read its rules. Earn that challenge orb's badge by beating level 8."
     },
     {
       "heading": "Dice Master Test",
-      "text": "Collect every challenge orb badge to unlock the portal. Enter the Dice Master Test to face three random games — win all three to become a Dice Master."
+      "text": "Collect every challenge orb badge to unlock the portal. Enter the Dice Master Test to face three random games - win all three to become a Dice Master."
     }
   ]
 }
