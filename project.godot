@@ -41,3 +41,8 @@ window/stretch/aspect="expand"
 [gui]
 
 theme/custom="res://assets/fonts/game_theme.tres"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

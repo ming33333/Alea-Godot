@@ -10,7 +10,15 @@ const GAME_SCENE: PackedScene = preload("res://scenes/game.tscn")
 
 const BADGE_ICON_SIZE := 40.0
 const BADGE_BOX_SIZE := 56.0
+const BADGE_SILHOUETTE_COLOR := Color(0.12, 0.14, 0.18, 0.72)
 const BADGE_SLIDE_DURATION := 0.55
+const BADGE_FLY_APPEAR_SEC := 0.22
+const BADGE_FLY_HOLD_SEC := 0.12
+const BADGE_FLY_TRAVEL_SEC := 0.48
+const BADGE_FLY_SIZE := 56.0
+const BADGE_FLY_PAUSE_BEFORE_SEC := 0.18
+const BADGE_ARRIVAL_POP_SEC := 0.22
+const BADGE_AWARD_DING_SFX: AudioStream = preload("res://assets/sfx/dice_complete_ding.mp3")
 const CLOSED_BOX_TEX: Texture2D = preload("res://assets/textures/closed_box.png")
 const OPENED_BOX_TEX: Texture2D = preload("res://assets/textures/opened_box.png")
 const DECK_PILLAR_HEIGHT := 360.0
@@ -64,6 +72,8 @@ var _celebration_play_attempts: int = 0
 var _portal_reveal_active: bool = false
 var _portal_reveal_tween: Tween
 var _portal_was_visible_before_orb_celebration: bool = false
+var _badge_fly_layer: Control
+var _badge_fly_reveal_orb_id: String = ""
 const MAX_ORB_BUILD_ATTEMPTS := 60
 const MAX_PORTAL_LAYOUT_ATTEMPTS := 40
 const MAX_CELEBRATION_PLAY_ATTEMPTS := 120
@@ -95,7 +105,13 @@ func _ready() -> void:
 		SaveService.badges_changed.connect(_on_badges_changed)
 	call_deferred("_build_orbs")
 	_layout_deck_pillars()
+	if (
+		not GameState.pending_orb_completion_celebration.is_empty()
+		and GameState.pending_badge_award_fly
+	):
+		_badge_fly_reveal_orb_id = GameState.pending_orb_completion_celebration
 	_badge_box_open = SaveService.is_badge_box_open()
+	_setup_badge_fly_layer()
 	_refresh_badges()
 	_populate_how_to_play()
 	if how_to_play_overlay:
@@ -340,25 +356,30 @@ func _make_orb(
 	return btn
 
 
-func _make_badge_icon(challenge_orb_id: String) -> TextureRect:
+func _make_badge_icon(challenge_orb_id: String, earned: bool) -> TextureRect:
 	var icon := TextureRect.new()
 	icon.custom_minimum_size = Vector2(BADGE_ICON_SIZE, BADGE_ICON_SIZE)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.texture = GameData.get_badge_texture(challenge_orb_id)
+	icon.modulate = Color.WHITE if earned else BADGE_SILHOUETTE_COLOR
+	icon.pivot_offset = Vector2(BADGE_ICON_SIZE * 0.5, BADGE_ICON_SIZE * 0.5)
+	icon.set_meta("challenge_orb_id", challenge_orb_id)
+	icon.set_meta("badge_earned", earned)
 	return icon
 
 
 func _populate_tooltip(challenge_orb: Dictionary) -> void:
 	var gid: String = orb_id_str(challenge_orb)
+	var earned: bool = SaveService.has_badge(gid)
 	if tooltip_badge:
 		tooltip_badge.texture = GameData.get_badge_texture(gid)
 		tooltip_badge.visible = tooltip_badge.texture != null
+		tooltip_badge.modulate = Color.WHITE if earned else BADGE_SILHOUETTE_COLOR
 	tooltip_name.text = str(challenge_orb.get("name", "Challenge Orb"))
 	tooltip_subtitle.text = str(challenge_orb.get("subtitle", ""))
 	tooltip_body.text = str(challenge_orb.get("description", ""))
-	var earned: bool = SaveService.has_badge(gid)
 	var badge_label: String = "Badge earned" if earned else "Badge locked"
 	tooltip_footer.text = "%s · %s · click to play" % [
 		challenge_orb.get("badge_name", ""),
@@ -548,6 +569,10 @@ func _run_orb_completion_celebration(orb: PixelChallengeOrb, orb_id: String) -> 
 		orb.set_glow_ramp(1.0)
 		orb.set_display_diameter(completed_size)
 	DebugLog.alea_log("MainMenu", "orb completion celebration finished for %s" % orb_id)
+	if GameState.pending_badge_award_fly and SaveService.has_badge(orb_id):
+		_badge_fly_reveal_orb_id = orb_id
+		_refresh_badges()
+		await _play_badge_award_fly(orb, orb_id)
 	if (
 		SaveService.has_all_menu_badges()
 		and not _portal_was_visible_before_orb_celebration
@@ -570,6 +595,8 @@ func _finish_orb_completion_celebration() -> void:
 	_orb_completion_active = false
 	_celebration_orb_id = ""
 	_celebration_play_attempts = 0
+	_badge_fly_reveal_orb_id = ""
+	GameState.pending_badge_award_fly = false
 	if GameState.pending_portal_reveal and SaveService.has_all_menu_badges():
 		call_deferred("_play_champion_portal_reveal")
 		return
@@ -709,8 +736,12 @@ func _on_scene_nav_failed(message: String) -> void:
 func _refresh_badges() -> void:
 	for c in badges_row.get_children():
 		c.queue_free()
-	for bid in SaveService.get_earned_badges():
-		badges_row.add_child(_make_badge_icon(bid))
+	for challenge_orb in GameData.menu_challenge_orbs:
+		var gid: String = orb_id_str(challenge_orb)
+		var earned: bool = SaveService.has_badge(gid)
+		if earned and gid == _badge_fly_reveal_orb_id:
+			earned = false
+		badges_row.add_child(_make_badge_icon(gid, earned))
 	_size_badges_row()
 	_update_badge_box()
 	_refresh_champion_portal()
@@ -719,10 +750,13 @@ func _refresh_badges() -> void:
 func _size_badges_row() -> void:
 	if badges_row == null:
 		return
+	badges_row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	var row_w: float = _badges_row_width()
 	var row_h: float = BADGE_ICON_SIZE
 	badges_row.custom_minimum_size = Vector2(row_w, row_h)
 	badges_row.size = Vector2(row_w, row_h)
+	if badge_slide_clip != null:
+		badges_row.position = Vector2.ZERO
 
 
 func _reset_badge_icon_alpha() -> void:
@@ -731,8 +765,8 @@ func _reset_badge_icon_alpha() -> void:
 			(child as CanvasItem).modulate.a = 1.0
 
 
-func _has_badges_to_show() -> bool:
-	return not SaveService.get_earned_badges().is_empty()
+func _has_badge_collection() -> bool:
+	return not GameData.menu_challenge_orbs.is_empty()
 
 
 func _badges_row_width() -> float:
@@ -748,7 +782,7 @@ func _badges_row_width() -> float:
 func _update_badge_box() -> void:
 	if badge_box_wrap == null or badge_box_btn == null or badge_slide_clip == null:
 		return
-	var has_badges: bool = _has_badges_to_show()
+	var has_badges: bool = _has_badge_collection()
 	badge_box_wrap.visible = has_badges
 	if not has_badges:
 		return
@@ -769,7 +803,12 @@ func _update_badge_box() -> void:
 		_set_badge_slide_width(0.0, false)
 
 
-func _set_badge_slide_width(target_w: float, animate: bool, closing: bool = false) -> void:
+func _set_badge_slide_width(
+	target_w: float,
+	animate: bool,
+	closing: bool = false,
+	fade_icons: bool = true
+) -> void:
 	if badge_slide_clip == null:
 		return
 	if _badge_slide_tween != null and _badge_slide_tween.is_valid():
@@ -795,28 +834,31 @@ func _set_badge_slide_width(target_w: float, animate: bool, closing: bool = fals
 		width_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	else:
 		width_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	for i in icons.size():
-		var icon: CanvasItem = icons[i] as CanvasItem
-		if icon == null:
-			continue
-		var stagger_idx: int = (icons.size() - 1 - i) if closing else i
-		var delay: float = float(stagger_idx) * 0.07
-		if closing:
-			icon.modulate.a = 1.0
-			_badge_slide_tween.tween_property(
-				icon,
-				"modulate:a",
-				0.0,
-				BADGE_SLIDE_DURATION * 0.5
-			).set_delay(delay).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		else:
-			icon.modulate.a = 0.0
-			_badge_slide_tween.tween_property(
-				icon,
-				"modulate:a",
-				1.0,
-				BADGE_SLIDE_DURATION * 0.55
-			).set_delay(delay).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	if fade_icons:
+		for i in icons.size():
+			var icon: CanvasItem = icons[i] as CanvasItem
+			if icon == null:
+				continue
+			var stagger_idx: int = (icons.size() - 1 - i) if closing else i
+			var delay: float = float(stagger_idx) * 0.07
+			if closing:
+				icon.modulate.a = 1.0
+				_badge_slide_tween.tween_property(
+					icon,
+					"modulate:a",
+					0.0,
+					BADGE_SLIDE_DURATION * 0.5
+				).set_delay(delay).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			else:
+				icon.modulate.a = 0.0
+				_badge_slide_tween.tween_property(
+					icon,
+					"modulate:a",
+					1.0,
+					BADGE_SLIDE_DURATION * 0.55
+				).set_delay(delay).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	else:
+		_reset_badge_icon_alpha()
 	_badge_slide_tween.finished.connect(_on_badge_slide_finished.bind(closing), CONNECT_ONE_SHOT)
 
 
@@ -836,7 +878,7 @@ func _on_badge_slide_finished(closing: bool) -> void:
 
 
 func _on_badge_box_pressed() -> void:
-	if _badge_box_animating or not _has_badges_to_show():
+	if _badge_box_animating or not _has_badge_collection():
 		return
 	if _badge_box_open:
 		_set_badge_slide_width(0.0, true, true)
@@ -851,9 +893,159 @@ func _on_badge_box_pressed() -> void:
 
 func _on_badges_changed() -> void:
 	_refresh_badges()
-	if _orb_completion_active:
+	if _orb_completion_active or not _badge_fly_reveal_orb_id.is_empty():
 		return
 	call_deferred("_build_orbs")
+
+
+func _setup_badge_fly_layer() -> void:
+	if _badge_fly_layer != null:
+		return
+	_badge_fly_layer = Control.new()
+	_badge_fly_layer.name = "BadgeFlyLayer"
+	_badge_fly_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_badge_fly_layer.anchor_right = 1.0
+	_badge_fly_layer.anchor_bottom = 1.0
+	_badge_fly_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_badge_fly_layer.z_index = 60
+	add_child(_badge_fly_layer)
+
+
+func _get_badge_icon(challenge_orb_id: String) -> TextureRect:
+	if badges_row == null:
+		return null
+	for child in badges_row.get_children():
+		if child is TextureRect and str(child.get_meta("challenge_orb_id", "")) == challenge_orb_id:
+			return child as TextureRect
+	return null
+
+
+func _ensure_badge_box_open_for_award() -> void:
+	if badge_box_btn == null or badge_slide_clip == null:
+		return
+	var target_w: float = _badges_row_width()
+	_size_badges_row()
+	_reset_badge_icon_alpha()
+	if _badge_box_open and is_equal_approx(badge_slide_clip.custom_minimum_size.x, target_w):
+		return
+	_badge_box_open = true
+	SaveService.set_badge_box_open(true)
+	badge_box_btn.texture_normal = OPENED_BOX_TEX
+	badge_box_btn.tooltip_text = "Click to close your badge box"
+	badge_box_btn.disabled = true
+	if is_equal_approx(badge_slide_clip.custom_minimum_size.x, target_w):
+		return
+	await _await_badge_slide_width(target_w, false, false)
+	if badge_box_btn != null:
+		badge_box_btn.disabled = _badge_box_animating
+
+
+func _await_badge_slide_width(
+	target_w: float,
+	closing: bool,
+	fade_icons: bool = true
+) -> void:
+	if badge_slide_clip == null:
+		return
+	var clamped: float = maxf(0.0, target_w)
+	if is_equal_approx(badge_slide_clip.custom_minimum_size.x, clamped) and not _badge_box_animating:
+		return
+	_set_badge_slide_width(clamped, true, closing, fade_icons)
+	if _badge_slide_tween != null and _badge_slide_tween.is_valid():
+		await _badge_slide_tween.finished
+
+
+func _play_badge_award_fly(orb: Control, orb_id: String) -> void:
+	if _badge_fly_layer == null or orb_id.is_empty():
+		return
+	var tex: Texture2D = GameData.get_badge_texture(orb_id)
+	if tex == null:
+		_reveal_earned_badge_icon(orb_id)
+		return
+	await get_tree().create_timer(BADGE_FLY_PAUSE_BEFORE_SEC).timeout
+	if not is_instance_valid(orb):
+		_reveal_earned_badge_icon(orb_id)
+		return
+	await _ensure_badge_box_open_for_award()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var target_icon: TextureRect = _get_badge_icon(orb_id)
+	var target: Vector2 = (
+		target_icon.get_global_rect().get_center()
+		if target_icon != null
+		else badge_box_btn.get_global_rect().get_center()
+	)
+	var start: Vector2 = orb.get_global_rect().get_center()
+	var size: float = BADGE_FLY_SIZE
+	var fly := TextureRect.new()
+	fly.texture = tex
+	fly.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	fly.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fly.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	fly.custom_minimum_size = Vector2(size, size)
+	fly.size = Vector2(size, size)
+	fly.pivot_offset = Vector2(size * 0.5, size * 0.5)
+	fly.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_badge_fly_layer.add_child(fly)
+	fly.global_position = start - fly.pivot_offset
+	fly.scale = Vector2.ZERO
+	var tween: Tween = create_tween()
+	tween.tween_property(
+		fly, "scale", Vector2(1.12, 1.12), BADGE_FLY_APPEAR_SEC
+	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(
+		fly, "scale", Vector2.ONE, BADGE_FLY_APPEAR_SEC * 0.55
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_interval(BADGE_FLY_HOLD_SEC)
+	tween.tween_property(
+		fly, "global_position", target - fly.pivot_offset, BADGE_FLY_TRAVEL_SEC
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tween.parallel().tween_property(
+		fly, "scale", Vector2(0.72, 0.72), BADGE_FLY_TRAVEL_SEC
+	)
+	await tween.finished
+	if is_instance_valid(fly):
+		fly.queue_free()
+	_reveal_earned_badge_icon(orb_id)
+
+
+func _reveal_earned_badge_icon(orb_id: String) -> void:
+	_badge_fly_reveal_orb_id = ""
+	GameState.pending_badge_award_fly = false
+	var icon: TextureRect = _get_badge_icon(orb_id)
+	if icon == null:
+		_refresh_badges()
+		return
+	icon.set_meta("badge_earned", true)
+	icon.modulate = Color.WHITE
+	_play_badge_arrival_pop(icon)
+	_play_badge_award_ding()
+
+
+func _play_badge_arrival_pop(icon: TextureRect) -> void:
+	if icon == null:
+		return
+	icon.modulate = Color.WHITE
+	icon.scale = Vector2(0.55, 0.55)
+	var tween: Tween = create_tween()
+	tween.tween_property(
+		icon,
+		"scale",
+		Vector2.ONE,
+		BADGE_ARRIVAL_POP_SEC
+	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _play_badge_award_ding() -> void:
+	if BADGE_AWARD_DING_SFX == null:
+		return
+	var player := AudioStreamPlayer.new()
+	player.stream = BADGE_AWARD_DING_SFX
+	player.volume_db = linear_to_db(AudioSettings.get_master_volume_linear())
+	player.bus = "Master"
+	add_child(player)
+	player.finished.connect(player.queue_free)
+	player.play()
 
 
 func _on_championship_pressed() -> void:

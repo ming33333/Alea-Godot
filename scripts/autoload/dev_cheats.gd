@@ -162,8 +162,3 @@ func get_status_text() -> String:
 		return "Dev cheats unlocked."
 	return "Locked. Enter a code below or type one on the menu / in-game."
 
-
-func get_codes_hint_for_settings() -> String:
-	if unlock_codes.is_empty():
-		return "Add unlock_codes to res://data/dev_cheats.json"
-	return "Codes: %s" % ", ".join(unlock_codes)

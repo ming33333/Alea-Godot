@@ -5,7 +5,6 @@ extends Control
 @onready var music_mute: CheckBox = %MusicMute
 @onready var dice_style_option: OptionButton = %DiceStyleOption
 @onready var dice_sound_option: OptionButton = %DiceSoundOption
-@onready var cheat_hint: Label = %CheatHint
 @onready var cheat_status: Label = %CheatStatus
 @onready var cheat_code_input: LineEdit = %CheatCodeInput
 @onready var reset_confirm: ConfirmationDialog = %ResetConfirm
@@ -56,9 +55,6 @@ func _populate_dice_sound_options() -> void:
 
 
 func _refresh_cheat_ui() -> void:
-	cheat_hint.text = DevCheats.get_codes_hint_for_settings()
-	if not DevCheats.hint.is_empty():
-		cheat_hint.text += "\n" + DevCheats.hint
 	cheat_status.text = DevCheats.get_status_text()
 
 
@@ -102,7 +98,7 @@ func _try_apply_cheat_code() -> void:
 		cheat_status.text = "Unlocked! Dev menu shows in-game (and in editor if enabled)."
 		cheat_code_input.text = ""
 	else:
-		cheat_status.text = "Invalid code. See res://data/dev_cheats.json for valid codes."
+		cheat_status.text = "Invalid code."
 	_refresh_cheat_ui()
 
 

@@ -10,14 +10,19 @@ var tournament_opponent_index: int = 0
 var tournament_stolen_power: String = ""
 var show_champion_celebration: bool = false
 var pending_orb_completion_celebration: String = ""
+var pending_badge_award_fly: bool = false
 var pending_portal_reveal: bool = false
 
 
-func request_orb_completion_celebration(challenge_orb_id: String) -> void:
+func request_orb_completion_celebration(
+	challenge_orb_id: String,
+	with_badge_fly: bool = false
+) -> void:
 	var orb_id: String = str(challenge_orb_id)
 	if orb_id.is_empty():
 		return
 	pending_orb_completion_celebration = orb_id
+	pending_badge_award_fly = with_badge_fly
 
 
 func request_portal_reveal() -> void:

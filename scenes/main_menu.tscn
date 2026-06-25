@@ -223,7 +223,7 @@ layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
 theme_override_constants/separation = 6
-alignment = 1
+alignment = 0
 
 [node name="ChampionBadge" type="HBoxContainer" parent="BadgeBlock"]
 unique_name_in_owner = true

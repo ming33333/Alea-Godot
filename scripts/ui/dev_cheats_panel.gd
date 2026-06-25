@@ -291,7 +291,7 @@ func _on_award_badge() -> void:
 		return
 	session.menu_orb_celebration_pending = true
 	session.victory_badge_is_new = true
-	GameState.request_orb_completion_celebration(orb_id)
+	GameState.request_orb_completion_celebration(orb_id, true)
 	if SaveService.has_badge(orb_id):
 		_show_status("Awarded: %s (%s)" % [badge_name, challenge_orb_name])
 	else:

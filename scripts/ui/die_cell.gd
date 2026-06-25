@@ -76,6 +76,9 @@ var _float_disabled: bool = false
 var _lock_pop_active: bool = false
 var _reroll_scramble_active: bool = false
 var _cancel_badge: DieCancelBadge
+var _swap_moves_label: Label
+var _vertical_swaps_remaining: int = -1
+var _cell_locked: bool = false
 
 
 func _ready() -> void:
@@ -141,6 +144,64 @@ func _layout_cancel_badge() -> void:
 
 func _on_cancel_badge_pressed() -> void:
 	cancel_badge_pressed.emit()
+
+
+func _update_swap_moves_indicator(cell: DiceCellData) -> void:
+	_vertical_swaps_remaining = cell.vertical_swaps_remaining
+	_cell_locked = cell.locked
+	_sync_swap_moves_label()
+
+
+func _sync_swap_moves_label() -> void:
+	var show: bool = (
+		not _cell_locked
+		and not _blurred
+		and not _swap_overlay_active
+		and _vertical_swaps_remaining == 1
+	)
+	if show:
+		_ensure_swap_moves_label()
+		if _swap_moves_label == null:
+			return
+		_layout_swap_moves_label()
+		_swap_moves_label.visible = true
+	elif _swap_moves_label != null:
+		_swap_moves_label.visible = false
+
+
+func _ensure_swap_moves_label() -> void:
+	if _swap_moves_label != null:
+		return
+	if _float_root == null:
+		_float_root = get_node_or_null("Wrap/FloatRoot") as Control
+	if _float_root == null:
+		return
+	_swap_moves_label = Label.new()
+	_swap_moves_label.text = "+1"
+	_swap_moves_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_swap_moves_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_swap_moves_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_swap_moves_label.add_theme_color_override("font_color", Color(0.08, 0.1, 0.14, 1.0))
+	_swap_moves_label.add_theme_color_override("font_outline_color", Color(1.0, 1.0, 1.0, 0.9))
+	_swap_moves_label.add_theme_constant_override("outline_size", 2)
+	_float_root.add_child(_swap_moves_label)
+	_swap_moves_label.z_index = 25
+
+
+func _layout_swap_moves_label() -> void:
+	if _swap_moves_label == null:
+		return
+	var cell_px: float = maxf(custom_minimum_size.x, custom_minimum_size.y)
+	var font_px: int = int(clampf(cell_px * 0.22, 10.0, 14.0))
+	_swap_moves_label.add_theme_font_size_override("font_size", font_px)
+	var pad: float = maxf(2.0, cell_px * 0.06)
+	var label_w: float = cell_px * 0.42
+	var label_h: float = cell_px * 0.28
+	_swap_moves_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_swap_moves_label.offset_left = -label_w - pad
+	_swap_moves_label.offset_top = -label_h - pad
+	_swap_moves_label.offset_right = -pad
+	_swap_moves_label.offset_bottom = -pad
 
 
 func _process(_delta: float) -> void:
@@ -451,6 +512,8 @@ func setup(row: int, col: int, cell: DiceCellData, blurred: bool) -> void:
 		tooltip_text = "Cannot reroll"
 	elif cell.locked:
 		tooltip_text = ""
+	elif cell.vertical_swaps_remaining == 1:
+		tooltip_text = "1 vertical swap left before lock"
 	else:
 		tooltip_text = "Click to select · double-click to reroll"
 
@@ -488,6 +551,7 @@ func _apply_cell_face(cell: DiceCellData, blurred: bool) -> void:
 		_set_fallback_label_colors(cell)
 	if _shine:
 		_shine.visible = false
+	_update_swap_moves_indicator(cell)
 	_apply_display()
 
 
@@ -738,6 +802,7 @@ func _apply_display() -> void:
 		or _highlight == Highlight.SWITCH_ROWS_PRIMARY
 	)
 	scale = Vector2(1.08, 1.08) if big else Vector2.ONE
+	_sync_swap_moves_label()
 
 
 func _sprite_modulate(face_key: String) -> Color:

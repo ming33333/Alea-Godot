@@ -2,7 +2,7 @@ extends Node
 ## Persists master/music volume, background playlist, and dice reroll SFX (user://settings.cfg).
 
 const CFG_PATH := "user://settings.cfg"
-const DEFAULT_DICE_SOUND := "default"
+const DEFAULT_DICE_SOUND := "roll_2"
 const MUSIC_BUS := &"Music"
 
 const DICE_SOUND_PATHS: Dictionary = {
@@ -109,11 +109,8 @@ func apply_music_settings() -> void:
 		return
 	AudioServer.set_bus_volume_db(idx, linear_to_db(music_volume_linear))
 	AudioServer.set_bus_mute(idx, music_muted)
-	if _music_player != null:
-		if music_muted:
-			_music_player.stop()
-		elif _music_player.stream != null and not _music_player.playing:
-			_music_player.play()
+	if _music_player != null and music_muted:
+		_music_player.stop()
 
 
 func save_master_volume(linear: float) -> void:
@@ -132,11 +129,15 @@ func save_music_volume(linear: float) -> void:
 
 
 func save_music_muted(muted: bool) -> void:
+	var was_muted: bool = music_muted
 	music_muted = muted
 	var cfg := _load_or_create_cfg()
 	cfg.set_value("audio", "music_muted", music_muted)
 	cfg.save(CFG_PATH)
 	apply_music_settings()
+	if was_muted and not music_muted:
+		_advance_music_track()
+		_play_current_music_track()
 
 
 func save_dice_roll_sound(sound_id: String) -> void:

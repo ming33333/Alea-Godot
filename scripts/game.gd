@@ -2219,7 +2219,7 @@ func _arm_orb_completion_celebration() -> void:
 	)
 	if not queued:
 		return
-	GameState.request_orb_completion_celebration(orb_id)
+	GameState.request_orb_completion_celebration(orb_id, session.victory_badge_is_new)
 	session.menu_orb_celebration_pending = false
 
 
