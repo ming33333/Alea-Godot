@@ -35,6 +35,8 @@ const ORB_COMPLETION_GLOW_RAMP_SEC := 1.15
 const PORTAL_REVEAL_SEC := 1.15
 const PORTAL_REVEAL_PAUSE_SEC := 0.35
 const PORTAL_REVEAL_SHADER: Shader = preload("res://assets/shaders/portal_reveal.gdshader")
+const DEMO_TITLE_BOB_SEC := 0.42
+const DEMO_TITLE_SCALE_UP := 1.14
 
 @onready var map_area: Control = %MapArea
 @onready var champion_portal: TextureButton = %ChampionPortal
@@ -56,6 +58,7 @@ const PORTAL_REVEAL_SHADER: Shader = preload("res://assets/shaders/portal_reveal
 @onready var tooltip_subtitle: Label = %TooltipSubtitle
 @onready var tooltip_body: Label = %TooltipBody
 @onready var tooltip_footer: Label = %TooltipFooter
+@onready var title_demo: Label = %TitleDemo
 var _hover_challenge_orb_id: String = ""
 var _launching: bool = false
 var _click_seq: int = 0
@@ -74,6 +77,7 @@ var _portal_reveal_tween: Tween
 var _portal_was_visible_before_orb_celebration: bool = false
 var _badge_fly_layer: Control
 var _badge_fly_reveal_orb_id: String = ""
+var _title_demo_tween: Tween
 const MAX_ORB_BUILD_ATTEMPTS := 60
 const MAX_PORTAL_LAYOUT_ATTEMPTS := 40
 const MAX_CELEBRATION_PLAY_ATTEMPTS := 120
@@ -105,6 +109,7 @@ func _ready() -> void:
 		SaveService.badges_changed.connect(_on_badges_changed)
 	call_deferred("_build_orbs")
 	_layout_deck_pillars()
+	_setup_demo_title()
 	if (
 		not GameState.pending_orb_completion_celebration.is_empty()
 		and GameState.pending_badge_award_fly
@@ -127,6 +132,45 @@ func _ready() -> void:
 
 func _map_area_ready() -> bool:
 	return map_area != null and map_area.size.x >= 32.0 and map_area.size.y >= 32.0
+
+
+func _setup_demo_title() -> void:
+	if title_demo == null:
+		return
+	if not GameState.demo_mode:
+		title_demo.visible = false
+		return
+	title_demo.visible = true
+	title_demo.pivot_offset = title_demo.size * 0.5
+	title_demo.resized.connect(_layout_demo_title_pivot)
+	call_deferred("_layout_demo_title_pivot")
+	_start_demo_title_bob()
+
+
+func _layout_demo_title_pivot() -> void:
+	if title_demo != null:
+		title_demo.pivot_offset = title_demo.size * 0.5
+
+
+func _start_demo_title_bob() -> void:
+	if title_demo == null:
+		return
+	if _title_demo_tween != null and _title_demo_tween.is_valid():
+		_title_demo_tween.kill()
+	title_demo.scale = Vector2.ONE
+	_title_demo_tween = create_tween().set_loops()
+	_title_demo_tween.tween_property(
+		title_demo,
+		"scale",
+		Vector2(DEMO_TITLE_SCALE_UP, DEMO_TITLE_SCALE_UP),
+		DEMO_TITLE_BOB_SEC
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_title_demo_tween.tween_property(
+		title_demo,
+		"scale",
+		Vector2.ONE,
+		DEMO_TITLE_BOB_SEC
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _on_map_area_resized() -> void:
@@ -159,6 +203,8 @@ func _layout_deck_pillars() -> void:
 
 
 func _should_show_champion_portal() -> bool:
+	if GameState.demo_mode:
+		return false
 	var menu_count: int = GameData.menu_challenge_orbs.size()
 	if menu_count <= 0:
 		return false
@@ -353,6 +399,8 @@ func _make_orb(
 	btn.pressed.connect(_on_orb_pressed.bind(gid))
 	btn.set_meta("challenge_orb_id", gid)
 	btn.set_meta("pillar_index", pillar_index)
+	var demo_locked: bool = GameState.demo_mode and not GameState.is_orb_playable(gid)
+	btn.set_demo_locked(demo_locked)
 	return btn
 
 
@@ -381,10 +429,13 @@ func _populate_tooltip(challenge_orb: Dictionary) -> void:
 	tooltip_subtitle.text = str(challenge_orb.get("subtitle", ""))
 	tooltip_body.text = str(challenge_orb.get("description", ""))
 	var badge_label: String = "Badge earned" if earned else "Badge locked"
-	tooltip_footer.text = "%s · %s · click to play" % [
-		challenge_orb.get("badge_name", ""),
-		badge_label,
-	]
+	if GameState.demo_mode and not GameState.is_orb_playable(gid):
+		tooltip_footer.text = "Not in demo · full game unlocks all challenge orbs"
+	else:
+		tooltip_footer.text = "%s · %s · click to play" % [
+			challenge_orb.get("badge_name", ""),
+			badge_label,
+		]
 
 
 func _on_orb_hover(challenge_orb: Dictionary, orb: Control) -> void:
@@ -574,7 +625,8 @@ func _run_orb_completion_celebration(orb: PixelChallengeOrb, orb_id: String) -> 
 		_refresh_badges()
 		await _play_badge_award_fly(orb, orb_id)
 	if (
-		SaveService.has_all_menu_badges()
+		not GameState.demo_mode
+		and SaveService.has_all_menu_badges()
 		and not _portal_was_visible_before_orb_celebration
 	):
 		GameState.request_portal_reveal()
@@ -686,6 +738,9 @@ func _log_challenge_orb_click(phase: String, challenge_orb_id: String, detail: S
 
 
 func _on_orb_pressed(challenge_orb_id: String) -> void:
+	if not GameState.is_orb_playable(challenge_orb_id):
+		_log_challenge_orb_click("SKIPPED", challenge_orb_id, "demo locked")
+		return
 	_click_seq += 1
 	_log_challenge_orb_click("PRESSED", challenge_orb_id, "launching challenge orb")
 	_hide_challenge_orb_tooltip()
@@ -695,6 +750,9 @@ func _on_orb_pressed(challenge_orb_id: String) -> void:
 func _launch_challenge_orb(challenge_orb_id: String) -> void:
 	if challenge_orb_id.is_empty():
 		DebugLog.log_error("MainMenu", "_launch_challenge_orb called with empty challenge_orb_id")
+		return
+	if not GameState.is_orb_playable(challenge_orb_id):
+		_log_challenge_orb_click("SKIPPED", challenge_orb_id, "demo locked")
 		return
 	if _launching:
 		_log_challenge_orb_click("SKIPPED", challenge_orb_id, "launch already in progress")

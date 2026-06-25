@@ -31,6 +31,8 @@ var _float_time: float = 0.0
 var _float_phase_offset: float = 0.0
 var _floating_enabled: bool = true
 var _bloom_layer: OrbBloomLayer
+var _demo_locked: bool = false
+var _demo_lock_tint := Color(0.62, 0.65, 0.70, 0.82)
 
 
 class OrbBloomLayer extends Control:
@@ -172,6 +174,16 @@ func set_orb_color(color: Color) -> void:
 	queue_redraw()
 	if _bloom_layer != null:
 		_bloom_layer.queue_redraw()
+
+
+func set_demo_locked(locked: bool) -> void:
+	_demo_locked = locked
+	modulate = _demo_lock_tint if locked else Color.WHITE
+	queue_redraw()
+
+
+func is_demo_locked() -> bool:
+	return _demo_locked
 
 
 func is_bob_near_rest(threshold: float = 0.45) -> bool:

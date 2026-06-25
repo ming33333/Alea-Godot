@@ -177,10 +177,26 @@ offset_top = 12.0
 grow_horizontal = 2
 mouse_filter = 2
 
-[node name="Title" type="Label" parent="TitleBlock"]
+[node name="TitleRow" type="HBoxContainer" parent="TitleBlock"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="TitleAlea" type="Label" parent="TitleBlock/TitleRow"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 64
 text = "Alea"
+horizontal_alignment = 1
+
+[node name="TitleDemo" type="Label" parent="TitleBlock/TitleRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.72, 0.35, 1)
+theme_override_font_sizes/font_size = 64
+text = "Demo"
 horizontal_alignment = 1
 
 [node name="BadgeBlock" type="VBoxContainer" parent="."]

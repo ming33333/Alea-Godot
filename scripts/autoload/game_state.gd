@@ -13,6 +13,17 @@ var pending_orb_completion_celebration: String = ""
 var pending_badge_award_fly: bool = false
 var pending_portal_reveal: bool = false
 
+## Set `true` for demo builds — only Vanilla and Safari Snap are playable.
+var demo_mode: bool = true
+
+const _DEMO_ORB_IDS: Array[String] = ["vanilla", "countdownOne"]
+
+
+func is_orb_playable(challenge_orb_id: String) -> bool:
+	if not demo_mode:
+		return true
+	return challenge_orb_id in _DEMO_ORB_IDS
+
 
 func request_orb_completion_celebration(
 	challenge_orb_id: String,
