@@ -2,22 +2,32 @@ extends Control
 
 const PICK_COUNT := 3
 const POWER_PICK_TILE: PackedScene = preload("res://scenes/power_pick_tile.tscn")
+const CROWN_PICK_TILE: PackedScene = preload("res://scenes/crown_pick_tile.tscn")
 const GRID_COLUMNS := 4
+const CROWN_GRID_COLUMNS := 2
 const DETAIL_DEFAULT := "Tap a die to add it to your loadout."
 
+@onready var subtitle: Label = %Subtitle
 @onready var options_box: GridContainer = %OptionsBox
 @onready var confirm_btn: Button = %ConfirmBtn
 @onready var status_label: Label = %StatusLabel
 @onready var detail_label: Label = %DetailLabel
+@onready var crown_section: Control = %CrownSection
+@onready var crown_title: Label = %CrownTitle
+@onready var crown_options_box: GridContainer = %CrownOptionsBox
 @onready var bracket_section: Control = %BracketSection
+@onready var bracket_title: Label = %BracketTitle
 @onready var bracket_list: VBoxContainer = %BracketList
 
-var _selected: Array[String] = []
-var _tiles: Dictionary = {}
-var _hover_power_type: String = ""
+var _selected_powers: Array[String] = []
+var _power_tiles: Dictionary = {}
+var _crown_tiles: Dictionary = {}
+var _selected_crown: int = 0
+var _crown_pick_mode: bool = false
 
 
 func _ready() -> void:
+	_crown_pick_mode = SaveService.has_any_crown()
 	options_box.columns = GRID_COLUMNS
 	options_box.add_theme_constant_override("h_separation", 12)
 	options_box.add_theme_constant_override("v_separation", 12)
@@ -26,37 +36,75 @@ func _ready() -> void:
 		var def: Dictionary = GameData.get_power_def(power_type)
 		var tile: PowerPickTile = POWER_PICK_TILE.instantiate() as PowerPickTile
 		tile.setup(power_type, str(def.get("label", power_type)))
-		tile.pressed.connect(_on_tile_pressed.bind(power_type))
-		tile.hovered.connect(_on_tile_hovered)
-		tile.unhovered.connect(_on_tile_unhovered)
+		tile.pressed.connect(_on_power_tile_pressed.bind(power_type))
+		tile.hovered.connect(_on_power_tile_hovered)
+		tile.unhovered.connect(_on_power_tile_unhovered)
 		options_box.add_child(tile)
-		_tiles[power_type] = tile
+		_power_tiles[power_type] = tile
 	detail_label.text = DETAIL_DEFAULT
-	confirm_btn.disabled = true
-	_roll_and_show_bracket()
+	if _crown_pick_mode:
+		_setup_crown_pick()
+	else:
+		_roll_random_bracket()
+	_update_subtitle()
+	_refresh_confirm_state()
 
 
-func _on_tile_pressed(power_type: String) -> void:
-	if _selected.has(power_type):
-		_selected.erase(power_type)
-	elif _selected.size() < PICK_COUNT:
-		_selected.append(power_type)
-	_refresh_tile_states()
-	status_label.text = "Selected %d / %d" % [_selected.size(), PICK_COUNT]
-	confirm_btn.disabled = _selected.size() != PICK_COUNT
+func _setup_crown_pick() -> void:
+	crown_section.visible = true
+	crown_options_box.columns = CROWN_GRID_COLUMNS
+	crown_options_box.add_theme_constant_override("h_separation", 12)
+	crown_options_box.add_theme_constant_override("v_separation", 12)
+	for crown_idx in range(1, DiceCrownArt.crown_count() + 1):
+		var opponents: Array[String] = DiceCrownArt.opponents_for_crown(crown_idx)
+		var tile: CrownPickTile = CROWN_PICK_TILE.instantiate() as CrownPickTile
+		tile.setup(crown_idx, DiceCrownArt.format_combo_names(opponents))
+		var earned: bool = SaveService.has_crown(crown_idx)
+		tile.set_tile_earned(earned)
+		if not earned:
+			tile.pressed.connect(_on_crown_tile_pressed.bind(crown_idx))
+			tile.hovered.connect(_on_crown_tile_hovered)
+			tile.unhovered.connect(_on_crown_tile_unhovered)
+		crown_options_box.add_child(tile)
+		_crown_tiles[crown_idx] = tile
+	bracket_section.visible = false
+	if SaveService.has_all_crowns():
+		crown_title.text = "All crowns collected"
+		status_label.text = "You have every crown"
+	else:
+		crown_title.text = "Choose a crown challenge"
+		status_label.text = "Pick a crown, then begin"
 
 
-func _refresh_tile_states() -> void:
-	var full: bool = _selected.size() >= PICK_COUNT
-	for power_type in _tiles:
-		var tile: PowerPickTile = _tiles[power_type] as PowerPickTile
-		var is_sel: bool = _selected.has(power_type)
+func _update_subtitle() -> void:
+	if _crown_pick_mode:
+		if SaveService.has_all_crowns():
+			subtitle.text = "Pick 3 power dice — all crowns earned"
+		else:
+			subtitle.text = "Pick 3 powers, then choose a crown to pursue"
+	else:
+		subtitle.text = "Pick 3 power dice for your loadout"
+
+
+func _on_power_tile_pressed(power_type: String) -> void:
+	if _selected_powers.has(power_type):
+		_selected_powers.erase(power_type)
+	elif _selected_powers.size() < PICK_COUNT:
+		_selected_powers.append(power_type)
+	_refresh_power_tile_states()
+	_refresh_confirm_state()
+
+
+func _refresh_power_tile_states() -> void:
+	var full: bool = _selected_powers.size() >= PICK_COUNT
+	for power_type in _power_tiles:
+		var tile: PowerPickTile = _power_tiles[power_type] as PowerPickTile
+		var is_sel: bool = _selected_powers.has(power_type)
 		tile.set_tile_selected(is_sel)
 		tile.set_locked_out(full and not is_sel)
 
 
-func _on_tile_hovered(power_type: String) -> void:
-	_hover_power_type = power_type
+func _on_power_tile_hovered(power_type: String) -> void:
 	var def: Dictionary = GameData.get_power_def(power_type)
 	detail_label.text = "%s — %s" % [
 		def.get("label", power_type),
@@ -64,12 +112,77 @@ func _on_tile_hovered(power_type: String) -> void:
 	]
 
 
-func _on_tile_unhovered(_power_type: String) -> void:
-	_hover_power_type = ""
-	detail_label.text = DETAIL_DEFAULT
+func _on_power_tile_unhovered(_power_type: String) -> void:
+	detail_label.text = _detail_hint_text()
 
 
-func _roll_and_show_bracket() -> void:
+func _on_crown_tile_pressed(crown_idx: int) -> void:
+	if SaveService.has_crown(crown_idx):
+		return
+	_selected_crown = crown_idx
+	GameState.tournament_opponents = DiceCrownArt.opponents_for_crown(crown_idx)
+	_refresh_crown_tile_states()
+	_refresh_bracket_list()
+	bracket_section.visible = true
+	bracket_title.text = "Your three games"
+	_refresh_confirm_state()
+
+
+func _refresh_crown_tile_states() -> void:
+	for crown_idx in _crown_tiles:
+		var tile: CrownPickTile = _crown_tiles[crown_idx] as CrownPickTile
+		if SaveService.has_crown(crown_idx):
+			continue
+		tile.set_tile_selected(crown_idx == _selected_crown)
+
+
+func _on_crown_tile_hovered(crown_idx: int) -> void:
+	var opponents: Array[String] = DiceCrownArt.opponents_for_crown(crown_idx)
+	var lines: PackedStringArray = PackedStringArray()
+	lines.append(
+		"Win against %s." % DiceCrownArt.format_combo_names(opponents)
+	)
+	for oid in opponents:
+		var opp: Dictionary = GameData.get_tournament_opponent(oid)
+		lines.append(
+			"%s — %s" % [opp.get("name", oid), opp.get("description", "")]
+		)
+	detail_label.text = "\n".join(lines)
+
+
+func _on_crown_tile_unhovered(_crown_idx: int) -> void:
+	detail_label.text = _detail_hint_text()
+
+
+func _detail_hint_text() -> String:
+	if _crown_pick_mode and not SaveService.has_all_crowns():
+		if _selected_crown > 0:
+			return "Ready when your loadout and crown are set."
+		return "Tap a crown to see its three test games."
+	return DETAIL_DEFAULT
+
+
+func _refresh_confirm_state() -> void:
+	var powers_ok: bool = _selected_powers.size() == PICK_COUNT
+	if not _crown_pick_mode:
+		status_label.text = "Selected %d / %d" % [_selected_powers.size(), PICK_COUNT]
+		confirm_btn.disabled = not powers_ok
+		return
+	if SaveService.has_all_crowns():
+		status_label.text = "All crowns collected"
+		confirm_btn.disabled = true
+		return
+	var crown_ok: bool = _selected_crown > 0 and not SaveService.has_crown(_selected_crown)
+	if not powers_ok:
+		status_label.text = "Selected %d / %d powers" % [_selected_powers.size(), PICK_COUNT]
+	elif not crown_ok:
+		status_label.text = "Choose a crown challenge"
+	else:
+		status_label.text = "Ready to begin"
+	confirm_btn.disabled = not (powers_ok and crown_ok)
+
+
+func _roll_random_bracket() -> void:
 	GameState.tournament_opponents = TournamentRules.pick_opponents(PICK_COUNT)
 	if GameState.tournament_opponents.is_empty():
 		push_error("TournamentPick: failed to roll opponents — check data/tournament.json")
@@ -79,6 +192,7 @@ func _roll_and_show_bracket() -> void:
 		return
 	_refresh_bracket_list()
 	bracket_section.visible = true
+	bracket_title.text = "Your three games (random)"
 
 
 func _refresh_bracket_list() -> void:
@@ -97,14 +211,22 @@ func _refresh_bracket_list() -> void:
 
 
 func _on_confirm() -> void:
-	if _selected.size() != PICK_COUNT:
+	if _selected_powers.size() != PICK_COUNT:
 		return
-	if GameState.tournament_opponents.is_empty():
-		_roll_and_show_bracket()
+	if _crown_pick_mode:
+		if SaveService.has_all_crowns():
+			return
+		if _selected_crown <= 0 or SaveService.has_crown(_selected_crown):
+			return
+		if GameState.tournament_opponents.is_empty():
+			GameState.tournament_opponents = DiceCrownArt.opponents_for_crown(_selected_crown)
+	else:
+		if GameState.tournament_opponents.is_empty():
+			_roll_random_bracket()
 	if GameState.tournament_opponents.is_empty():
 		return
 	GameState.championship_active = true
-	GameState.tournament_loadout = _selected.duplicate()
+	GameState.tournament_loadout = _selected_powers.duplicate()
 	GameState.tournament_opponent_index = 0
 	GameState.tournament_stolen_power = ""
 	SceneNav.go_to_game()

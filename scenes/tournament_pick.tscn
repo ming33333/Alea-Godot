@@ -44,6 +44,7 @@ text = "Dice Master Test"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.18, 0.22, 0.88)
 theme_override_font_sizes/font_size = 15
@@ -84,6 +85,37 @@ text = "Tap a die to add it to your loadout."
 horizontal_alignment = 1
 autowrap_mode = 3
 
+[node name="CrownSection" type="VBoxContainer" parent="Margin/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CrownTitle" type="Label" parent="Margin/VBox/CrownSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.08, 0.12, 0.16, 1)
+theme_override_font_sizes/font_size = 17
+text = "Choose a crown challenge"
+horizontal_alignment = 1
+
+[node name="CrownScroll" type="ScrollContainer" parent="Margin/VBox/CrownSection"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 150)
+horizontal_scroll_mode = 0
+
+[node name="CrownGridCenter" type="CenterContainer" parent="Margin/VBox/CrownSection/CrownScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="CrownOptionsBox" type="GridContainer" parent="Margin/VBox/CrownSection/CrownScroll/CrownGridCenter"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 2
+
 [node name="BracketSection" type="VBoxContainer" parent="Margin/VBox"]
 unique_name_in_owner = true
 visible = false
@@ -91,6 +123,7 @@ layout_mode = 2
 theme_override_constants/separation = 6
 
 [node name="BracketTitle" type="Label" parent="Margin/VBox/BracketSection"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.08, 0.12, 0.16, 1)
 theme_override_font_sizes/font_size = 17

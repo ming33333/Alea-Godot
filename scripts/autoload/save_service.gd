@@ -5,6 +5,8 @@ signal badges_changed
 const BADGES_KEY := "challenge_orb_badges"
 const LEGACY_BADGES_KEY := "gym_badges"
 const CHAMPION_KEY := "dice_champion"
+const CHAMPION_CROWN_KEY := "dice_champion_crown"
+const CROWNS_KEY := "dice_champion_crowns"
 const LAYOUT_KEY := "challenge_orb_menu_layout"
 const LEGACY_LAYOUT_KEY := "gym_menu_layout"
 const BADGE_BOX_OPEN_KEY := "badge_box_open"
@@ -116,8 +118,84 @@ func is_dice_champion() -> bool:
 	return _read(CHAMPION_KEY) == "1"
 
 
-func award_dice_champion() -> void:
+func get_dice_champion_crown_index() -> int:
+	if not is_dice_champion():
+		return 1
+	var raw: String = _read(CHAMPION_CROWN_KEY)
+	if not raw.is_empty():
+		return clampi(int(raw), 1, DiceCrownArt.crown_count())
+	var crowns: Array[int] = get_earned_crowns()
+	if crowns.is_empty():
+		return 1
+	return crowns[crowns.size() - 1]
+
+
+func get_earned_crowns() -> Array[int]:
+	if not is_dice_champion():
+		return []
+	var raw: String = _read(CROWNS_KEY)
+	if not raw.is_empty():
+		var parsed: Variant = JSON.parse_string(raw)
+		if parsed is Array:
+			var out: Array[int] = []
+			var seen: Dictionary = {}
+			for v in parsed:
+				var idx: int = clampi(int(v), 1, DiceCrownArt.crown_count())
+				if seen.has(idx):
+					continue
+				seen[idx] = true
+				out.append(idx)
+			out.sort()
+			return out
+	var legacy: String = _read(CHAMPION_CROWN_KEY)
+	if not legacy.is_empty():
+		return [clampi(int(legacy), 1, DiceCrownArt.crown_count())]
+	return [1]
+
+
+func has_crown(crown_index: int) -> bool:
+	var idx: int = clampi(crown_index, 1, DiceCrownArt.crown_count())
+	for c in get_earned_crowns():
+		if c == idx:
+			return true
+	return false
+
+
+func has_any_crown() -> bool:
+	return is_dice_champion()
+
+
+func has_all_crowns() -> bool:
+	for crown_idx in range(1, DiceCrownArt.crown_count() + 1):
+		if not has_crown(crown_idx):
+			return false
+	return is_dice_champion()
+
+
+func has_unearned_crown() -> bool:
+	if not is_dice_champion():
+		return true
+	for crown_idx in range(1, DiceCrownArt.crown_count() + 1):
+		if not has_crown(crown_idx):
+			return true
+	return false
+
+
+func award_dice_champion(crown_index: int = 1) -> void:
+	var idx: int = clampi(crown_index, 1, DiceCrownArt.crown_count())
+	var was_champion: bool = is_dice_champion()
+	var crowns: Array[int] = get_earned_crowns() if was_champion else []
+	var added: bool = not crowns.has(idx)
+	if not was_champion:
+		crowns = [idx]
+	elif added:
+		crowns.append(idx)
+		crowns.sort()
 	_write(CHAMPION_KEY, "1")
+	_write(CROWNS_KEY, JSON.stringify(crowns))
+	_write(CHAMPION_CROWN_KEY, str(idx))
+	if added or not was_champion:
+		badges_changed.emit()
 
 
 func is_badge_box_open() -> bool:
@@ -149,7 +227,7 @@ func save_orb_position(challenge_orb_id: String, x: float, y: float) -> void:
 
 func reset_all_user_data() -> void:
 	for key in [
-		BADGES_KEY, LEGACY_BADGES_KEY, CHAMPION_KEY,
+		BADGES_KEY, LEGACY_BADGES_KEY, CHAMPION_KEY, CHAMPION_CROWN_KEY, CROWNS_KEY,
 		LAYOUT_KEY, LEGACY_LAYOUT_KEY, BADGE_BOX_OPEN_KEY
 	]:
 		_delete_user_file("%s.dat" % key)

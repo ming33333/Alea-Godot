@@ -1050,6 +1050,22 @@ func dev_complete_championship_battle() -> void:
 	tournament_match_won()
 
 
+func dev_pass_dice_master_test() -> void:
+	if game_over or not is_tournament:
+		return
+	if GameState.tournament_opponents.is_empty():
+		return
+	pending_swap_in = ""
+	selected_row = -1
+	selected_col = -1
+	active_power_type = ""
+	active_target_row = -1
+	active_target_col = -1
+	current_modal = Modal.NONE
+	GameState.tournament_opponent_index = GameState.tournament_opponents.size() - 1
+	tournament_match_won()
+
+
 func dev_add_heart() -> void:
 	if game_over:
 		return

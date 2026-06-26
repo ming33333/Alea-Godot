@@ -6,6 +6,7 @@ var _status_label: Label
 var _power_picker: OptionButton
 var _remove_power_btn: Button
 var _complete_battle_btn: Button
+var _pass_test_btn: Button
 var _power_type_ids: Array[String] = []
 
 
@@ -26,8 +27,11 @@ func setup(run_session: RunSession) -> void:
 
 
 func refresh_for_session() -> void:
+	var in_test: bool = session != null and session.is_tournament
 	if _complete_battle_btn != null:
-		_complete_battle_btn.visible = session != null and session.is_tournament
+		_complete_battle_btn.visible = in_test
+	if _pass_test_btn != null:
+		_pass_test_btn.visible = in_test
 	_populate_power_picker()
 	_update_badge_button()
 
@@ -151,6 +155,8 @@ func _build_ui() -> void:
 	_add_btn(vbox, "Complete level", _on_complete_level)
 	_complete_battle_btn = _add_btn(vbox, "Complete test game", _on_complete_championship_battle)
 	_complete_battle_btn.visible = false
+	_pass_test_btn = _add_btn(vbox, "Pass Dice Master Test", _on_pass_dice_master_test)
+	_pass_test_btn.visible = false
 	_add_btn(vbox, "Refill switch + reroll", _on_refill)
 	_add_btn(vbox, "+1 heart", _on_add_heart)
 	_add_btn(vbox, "Award challenge orb badge", _on_award_badge)
@@ -227,6 +233,17 @@ func _on_complete_championship_battle() -> void:
 		return
 	session.dev_complete_championship_battle()
 	_show_status("Battle won - next opponent")
+
+
+func _on_pass_dice_master_test() -> void:
+	if session == null:
+		_show_status("No active run")
+		return
+	if not session.is_tournament:
+		_show_status("Dice Master Test runs only")
+		return
+	session.dev_pass_dice_master_test()
+	_show_status("Dice Master Test passed")
 
 
 func _on_refill() -> void:

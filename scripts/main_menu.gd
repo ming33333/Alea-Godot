@@ -46,11 +46,10 @@ const DEMO_TITLE_SCALE_UP := 1.14
 @onready var badge_box_btn: TextureButton = %BadgeBoxBtn
 @onready var badge_slide_clip: Control = %BadgeSlideClip
 @onready var badges_row: HBoxContainer = %BadgesRow
-@onready var champion_badge: HBoxContainer = %ChampionBadge
-@onready var champion_crown_icon: TextureRect = %CrownIcon
 @onready var celebration_icon: TextureRect = %CelebrationIcon
 @onready var celebration: PanelContainer = %ChampionCelebration
 @onready var celebration_label: Label = %ChampionCelebrationLabel
+@onready var celebration_detail: Label = %CelebrationDetail
 @onready var how_to_play_overlay: Control = %HowToPlayOverlay
 @onready var how_to_play_sections: VBoxContainer = %HowToPlaySections
 @onready var challenge_orb_tooltip: PanelContainer = %ChallengeOrbTooltip
@@ -61,6 +60,7 @@ const DEMO_TITLE_SCALE_UP := 1.14
 @onready var tooltip_footer: Label = %TooltipFooter
 @onready var title_demo: Label = %TitleDemo
 var _hover_challenge_orb_id: String = ""
+var _hover_badge_box_icon: Control = null
 var _launching: bool = false
 var _click_seq: int = 0
 var _orb_build_attempts: int = 0
@@ -123,12 +123,38 @@ func _ready() -> void:
 	if how_to_play_overlay:
 		how_to_play_overlay.visible = false
 	call_deferred("_refresh_champion_portal")
-	PixelIconArt.apply_texture_rect(champion_crown_icon, "crown", 18)
-	PixelIconArt.apply_texture_rect(celebration_icon, "crown", 32)
-	champion_badge.visible = SaveService.is_dice_champion()
+	_refresh_champion_crown_art()
 	_present_champion_celebration_if_needed()
 	if champion_portal:
 		champion_portal.tooltip_text = ""
+
+
+func _champion_crown_index() -> int:
+	if GameState.show_champion_celebration and GameState.pending_champion_crown_index > 0:
+		return GameState.pending_champion_crown_index
+	return SaveService.get_dice_champion_crown_index()
+
+
+func _refresh_champion_crown_art() -> void:
+	var crown_idx: int = _champion_crown_index()
+	DiceCrownArt.apply_texture_rect(celebration_icon, crown_idx, 48)
+
+
+func _make_crown_icon(crown_index: int, earned: bool) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(BADGE_ICON_SIZE, BADGE_ICON_SIZE)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.texture = DiceCrownArt.get_texture(crown_index)
+	icon.modulate = Color.WHITE if earned else BADGE_SILHOUETTE_COLOR
+	icon.pivot_offset = Vector2(BADGE_ICON_SIZE * 0.5, BADGE_ICON_SIZE * 0.5)
+	icon.set_meta("crown_index", crown_index)
+	icon.set_meta("crown_earned", earned)
+	icon.mouse_filter = Control.MOUSE_FILTER_STOP
+	icon.mouse_entered.connect(_on_badge_box_icon_hover.bind(icon))
+	icon.mouse_exited.connect(_on_badge_box_icon_unhover.bind(icon))
+	return icon
 
 
 func _map_area_ready() -> bool:
@@ -416,7 +442,70 @@ func _make_badge_icon(challenge_orb_id: String, earned: bool) -> TextureRect:
 	icon.pivot_offset = Vector2(BADGE_ICON_SIZE * 0.5, BADGE_ICON_SIZE * 0.5)
 	icon.set_meta("challenge_orb_id", challenge_orb_id)
 	icon.set_meta("badge_earned", earned)
+	icon.mouse_filter = Control.MOUSE_FILTER_STOP
+	icon.mouse_entered.connect(_on_badge_box_icon_hover.bind(icon))
+	icon.mouse_exited.connect(_on_badge_box_icon_unhover.bind(icon))
 	return icon
+
+
+func _populate_badge_box_orb_tooltip(challenge_orb_id: String, earned: bool) -> void:
+	var challenge_orb: Dictionary = GameData.get_challenge_orb(challenge_orb_id)
+	var orb_name: String = str(challenge_orb.get("name", "Challenge Orb"))
+	var badge_name: String = str(challenge_orb.get("badge_name", "Badge"))
+	if tooltip_badge:
+		tooltip_badge.texture = GameData.get_badge_texture(challenge_orb_id)
+		tooltip_badge.visible = tooltip_badge.texture != null
+		tooltip_badge.modulate = Color.WHITE if earned else BADGE_SILHOUETTE_COLOR
+	tooltip_name.text = badge_name
+	tooltip_subtitle.text = orb_name
+	if earned:
+		tooltip_body.text = "Earned by reaching level 8 in %s." % orb_name
+	else:
+		tooltip_body.text = "Reach level 8 in %s to earn this badge." % orb_name
+	tooltip_footer.text = str(challenge_orb.get("subtitle", ""))
+
+
+func _populate_badge_box_crown_tooltip(crown_index: int, earned: bool) -> void:
+	var opponents: Array[String] = DiceCrownArt.opponents_for_crown(crown_index)
+	var combo_names: String = DiceCrownArt.format_combo_names(opponents)
+	if tooltip_badge:
+		tooltip_badge.texture = DiceCrownArt.get_texture(crown_index)
+		tooltip_badge.visible = tooltip_badge.texture != null
+		tooltip_badge.modulate = Color.WHITE if earned else BADGE_SILHOUETTE_COLOR
+	tooltip_name.text = "Dice Master Crown"
+	tooltip_subtitle.text = combo_names
+	if earned:
+		tooltip_body.text = (
+			"Earned by winning the Dice Master Test against %s." % combo_names
+		)
+		tooltip_footer.text = "Win all three games in one run"
+	else:
+		tooltip_body.text = "Win the Dice Master Test against %s." % combo_names
+		tooltip_footer.text = "Crown locked"
+
+
+func _on_badge_box_icon_hover(icon: Control) -> void:
+	_hover_badge_box_icon = icon
+	_hover_challenge_orb_id = ""
+	if icon.has_meta("crown_index"):
+		_populate_badge_box_crown_tooltip(
+			int(icon.get_meta("crown_index")),
+			bool(icon.get_meta("crown_earned"))
+		)
+	elif icon.has_meta("challenge_orb_id"):
+		_populate_badge_box_orb_tooltip(
+			str(icon.get_meta("challenge_orb_id")),
+			bool(icon.get_meta("badge_earned"))
+		)
+	else:
+		return
+	challenge_orb_tooltip.visible = true
+	call_deferred("_position_tooltip_near_control", icon)
+
+
+func _on_badge_box_icon_unhover(icon: Control) -> void:
+	if _hover_badge_box_icon == icon:
+		_hide_challenge_orb_tooltip()
 
 
 func _populate_tooltip(challenge_orb: Dictionary) -> void:
@@ -468,10 +557,20 @@ func _on_championship_hover() -> void:
 		tooltip_badge.visible = false
 	tooltip_name.text = "Dice Master Test"
 	tooltip_subtitle.text = "Portal to the ultimate challenge"
-	tooltip_body.text = (
-		"Enter the portal to face three random games. "
-		+ "Win all three to become a Dice Master."
-	)
+	if SaveService.has_any_crown() and SaveService.has_unearned_crown():
+		tooltip_body.text = (
+			"Pick your powers, then choose which crown challenge to face. "
+			+ "Win all three games in that run to earn the crown."
+		)
+	elif SaveService.has_all_crowns():
+		tooltip_body.text = (
+			"You collected every crown. Enter to replay any challenge."
+		)
+	else:
+		tooltip_body.text = (
+			"Enter the portal to face three random games. "
+			+ "Win all three to earn your first crown."
+		)
 	tooltip_footer.text = "All challenge orb badges earned | click to enter"
 	challenge_orb_tooltip.visible = true
 	call_deferred("_position_tooltip_near_control", champion_portal)
@@ -484,6 +583,7 @@ func _on_championship_unhover() -> void:
 
 func _hide_challenge_orb_tooltip() -> void:
 	_hover_challenge_orb_id = ""
+	_hover_badge_box_icon = null
 	challenge_orb_tooltip.visible = false
 
 
@@ -802,6 +902,10 @@ func _refresh_badges() -> void:
 		if earned and gid == _badge_fly_reveal_orb_id:
 			earned = false
 		badges_row.add_child(_make_badge_icon(gid, earned))
+	if SaveService.has_any_crown():
+		for crown_idx in range(1, DiceCrownArt.crown_count() + 1):
+			var crown_earned: bool = SaveService.has_crown(crown_idx)
+			badges_row.add_child(_make_crown_icon(crown_idx, crown_earned))
 	_size_badges_row()
 	_update_badge_box()
 	_refresh_champion_portal()
@@ -927,6 +1031,7 @@ func _on_badge_slide_finished(closing: bool) -> void:
 	if closing:
 		_badge_box_open = false
 		SaveService.set_badge_box_open(false)
+		_hide_challenge_orb_tooltip()
 		if badge_box_btn != null:
 			badge_box_btn.texture_normal = CLOSED_BOX_TEX
 	if badge_box_btn != null:
@@ -1135,7 +1240,11 @@ func _present_champion_celebration_if_needed() -> void:
 	celebration.mouse_filter = Control.MOUSE_FILTER_STOP
 	if celebration_label != null:
 		celebration_label.text = "You are a Dice Master!"
-	champion_badge.visible = SaveService.is_dice_champion()
+	if celebration_detail != null:
+		var opponents: Array = GameState.pending_champion_opponents
+		celebration_detail.text = DiceCrownArt.format_opponents_line(opponents)
+	_refresh_champion_crown_art()
+	_refresh_badges()
 	move_child(_celebration_backdrop, get_child_count() - 1)
 	move_child(celebration, get_child_count() - 1)
 	DebugLog.alea_log("MainMenu", "champion celebration shown")
@@ -1167,7 +1276,11 @@ func _hide_champion_celebration() -> void:
 
 func _on_celebration_dismiss() -> void:
 	GameState.show_champion_celebration = false
+	GameState.pending_champion_opponents = []
+	GameState.pending_champion_crown_index = 1
 	_hide_champion_celebration()
+	_refresh_champion_crown_art()
+	_refresh_badges()
 
 
 func _on_settings_pressed() -> void:

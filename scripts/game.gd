@@ -411,7 +411,11 @@ func _start_tournament_match() -> void:
 func _on_tournament_match_won() -> void:
 	var idx: int = GameState.tournament_opponent_index + 1
 	if idx >= GameState.tournament_opponents.size():
-		SaveService.award_dice_champion()
+		var faced: Array = GameState.tournament_opponents.duplicate()
+		var crown_idx: int = DiceCrownArt.crown_index_for_opponents(faced)
+		SaveService.award_dice_champion(crown_idx)
+		GameState.pending_champion_crown_index = crown_idx
+		GameState.pending_champion_opponents = faced
 		GameState.show_champion_celebration = true
 		GameState.reset_tournament()
 		SceneNav.go_to_main_menu()
@@ -1999,11 +2003,14 @@ func _update_tournament_win_modal() -> void:
 		and GameState.tournament_opponent_index >= GameState.tournament_opponents.size() - 1
 	)
 	if is_final_match:
-		PixelIconArt.apply_texture_rect(modal_tournament_win_icon, "crown", 40)
+		var crown_idx: int = DiceCrownArt.crown_index_for_opponents(
+			GameState.tournament_opponents
+		)
+		DiceCrownArt.apply_texture_rect(modal_tournament_win_icon, crown_idx, 40)
 		tournament_win_label.text = "You are a Dice Master!"
 		if tournament_win_detail != null:
-			tournament_win_detail.text = (
-				"You won all three games in the Dice Master Test."
+			tournament_win_detail.text = DiceCrownArt.format_opponents_line(
+				GameState.tournament_opponents
 			)
 		tournament_win_continue.text = "Return to map"
 	else:
