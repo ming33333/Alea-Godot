@@ -33,6 +33,8 @@ var _floating_enabled: bool = true
 var _bloom_layer: OrbBloomLayer
 var _demo_locked: bool = false
 var _demo_lock_tint := Color(0.62, 0.65, 0.70, 0.82)
+var _shine_tween: Tween
+var _shine_boost: float = 0.0
 
 
 class OrbBloomLayer extends Control:
@@ -51,6 +53,7 @@ class OrbBloomLayer extends Control:
 		var center_px: Vector2 = orb._center_px(cols, rows)
 		var center := Vector2((cols - 1) * 0.5, (rows - 1) * 0.5)
 		var strength: float = orb._completed_glow_strength()
+		var shine: float = orb._shine_boost
 		var inner_px: float = (
 			PixelChallengeOrb.ORB_RADIUS_CELLS
 			* PixelChallengeOrb.CELL_SIZE
@@ -67,6 +70,9 @@ class OrbBloomLayer extends Control:
 		for pass_idx in range(3):
 			var pass_scale: float = [1.0, 1.14, 1.28][pass_idx]
 			var pass_strength: float = strength * [1.0, 0.55, 0.28][pass_idx]
+			if shine > 0.0:
+				pass_scale *= lerpf(1.0, 1.38, shine)
+				pass_strength *= lerpf(1.0, 2.05, shine)
 			for row in range(rows):
 				for col in range(cols):
 					var cell_center := Vector2(
@@ -95,7 +101,7 @@ class OrbBloomLayer extends Control:
 				var dist: float = cell.distance_to(center)
 				if dist > core_radius:
 					continue
-				core_white.a = 0.22 * strength * (1.0 - dist / core_radius)
+				core_white.a = 0.22 * strength * (1.0 - dist / core_radius) * lerpf(1.0, 3.6, shine)
 				if core_white.a <= 0.008:
 					continue
 				draw_rect(
@@ -226,6 +232,31 @@ func set_completed(completed: bool) -> void:
 		_bloom_layer.queue_redraw()
 
 
+func is_menu_completed() -> bool:
+	return _completed
+
+
+func play_idle_shine(shine_sec: float = 1.0) -> void:
+	if not _completed:
+		return
+	if _shine_tween != null and _shine_tween.is_valid():
+		_shine_tween.kill()
+	var rise_sec: float = shine_sec * 0.42
+	var fall_sec: float = shine_sec - rise_sec
+	_shine_tween = create_tween()
+	_shine_tween.tween_method(_set_shine_boost, 0.0, 1.0, rise_sec)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_shine_tween.tween_method(_set_shine_boost, 1.0, 0.0, fall_sec)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+
+
+func _set_shine_boost(value: float) -> void:
+	_shine_boost = clampf(value, 0.0, 1.0)
+	queue_redraw()
+	if _bloom_layer != null:
+		_bloom_layer.queue_redraw()
+
+
 func _set_hover(value: bool) -> void:
 	_hovering = value
 	queue_redraw()
@@ -258,7 +289,10 @@ func _completed_glow_strength() -> float:
 	var pulse: float = 0.5 + 0.5 * sin(
 		(_glow_time + _float_phase_offset) * TAU / COMPLETED_GLOW_PERIOD
 	)
-	return lerpf(COMPLETED_GLOW_MIN, COMPLETED_GLOW_MAX, pulse) * _glow_ramp
+	var strength: float = lerpf(COMPLETED_GLOW_MIN, COMPLETED_GLOW_MAX, pulse) * _glow_ramp
+	if _shine_boost > 0.0:
+		strength = lerpf(strength, 1.85, _shine_boost)
+	return strength
 
 
 func _center_px(cols: int, rows: int) -> Vector2:
@@ -324,6 +358,8 @@ func _base_color() -> Color:
 		var pulse: float = _completed_glow_strength()
 		var luminous := Color(1.0, 1.0, 1.0, 1.0)
 		var glow_mix: float = (0.72 + pulse * 0.12) * _glow_ramp
+		if _shine_boost > 0.0:
+			glow_mix = lerpf(glow_mix, 1.0, _shine_boost)
 		base = base.lerp(luminous, glow_mix)
 	if _pressing:
 		return base.darkened(0.06)

@@ -5,8 +5,12 @@ const POWER_PICK_TILE: PackedScene = preload("res://scenes/power_pick_tile.tscn"
 const CROWN_PICK_TILE: PackedScene = preload("res://scenes/crown_pick_tile.tscn")
 const GRID_COLUMNS := 4
 const CROWN_GRID_COLUMNS := 2
-const DETAIL_DEFAULT := "Hover a power to see what it does."
+const DETAIL_DEFAULT := "Hover a power to see what it does"
 const DETAIL_PANEL_HEIGHT := 90.0
+const BANNED_TEST_POWERS: Array[String] = ["extraLoadout"]
+const BANNED_POWER_DETAIL := "Unusable in the Dice Master Test."
+
+var _detail_power_type: String = ""
 
 @onready var subtitle: Label = %Subtitle
 @onready var options_box: GridContainer = %OptionsBox
@@ -44,6 +48,8 @@ func _ready() -> void:
 		tile.unhovered.connect(_on_power_tile_unhovered)
 		options_box.add_child(tile)
 		_power_tiles[power_type] = tile
+		if _is_power_banned(power_type):
+			tile.set_tile_unusable(true)
 	detail_label.text = DETAIL_DEFAULT
 	if _crown_pick_mode:
 		_setup_crown_pick()
@@ -68,10 +74,23 @@ func _style_detail_wrap() -> void:
 	detail_wrap.add_theme_stylebox_override("panel", box)
 	detail_wrap.clip_contents = true
 	if detail_label != null:
-		detail_label.clip_text = true
 		detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		detail_label.max_lines_visible = 5
-		detail_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		detail_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		detail_label.add_theme_font_size_override("font_size", 14)
+		var scroll := detail_label.get_parent() as ScrollContainer
+		if scroll != null and not scroll.resized.is_connected(_sync_detail_label_width):
+			scroll.resized.connect(_sync_detail_label_width)
+			call_deferred("_sync_detail_label_width")
+
+
+func _sync_detail_label_width() -> void:
+	if detail_label == null:
+		return
+	var scroll := detail_label.get_parent() as ScrollContainer
+	if scroll == null:
+		return
+	detail_label.custom_minimum_size.x = maxf(scroll.size.x, 1.0)
 
 
 func _setup_crown_pick() -> void:
@@ -110,32 +129,63 @@ func _update_subtitle() -> void:
 		subtitle.text = "Pick 3 power dice for your loadout"
 
 
+func _is_power_banned(power_type: String) -> bool:
+	return power_type in BANNED_TEST_POWERS
+
+
 func _on_power_tile_pressed(power_type: String) -> void:
+	if _is_power_banned(power_type):
+		return
 	if _selected_powers.has(power_type):
 		_selected_powers.erase(power_type)
 	elif _selected_powers.size() < PICK_COUNT:
 		_selected_powers.append(power_type)
+	_show_power_detail(power_type)
 	_refresh_power_tile_states()
 	_refresh_confirm_state()
+
+
+func _power_detail_text(power_type: String) -> String:
+	var def: Dictionary = GameData.get_power_def(power_type)
+	return PowerLogic.format_power_detail(def)
+
+
+func _show_power_detail(power_type: String) -> void:
+	_detail_power_type = power_type
+	detail_label.text = _power_detail_text(power_type)
+
+
+func _restore_power_detail_hint() -> void:
+	_detail_power_type = ""
+	if _selected_powers.is_empty():
+		detail_label.text = _detail_hint_text()
+		return
+	_show_power_detail(_selected_powers[_selected_powers.size() - 1])
 
 
 func _refresh_power_tile_states() -> void:
 	var full: bool = _selected_powers.size() >= PICK_COUNT
 	for power_type in _power_tiles:
 		var tile: PowerPickTile = _power_tiles[power_type] as PowerPickTile
+		if _is_power_banned(power_type):
+			tile.set_tile_unusable(true)
+			continue
 		var is_sel: bool = _selected_powers.has(power_type)
 		tile.set_tile_selected(is_sel)
 		tile.set_locked_out(full and not is_sel)
 
 
 func _on_power_tile_hovered(power_type: String) -> void:
-	var def: Dictionary = GameData.get_power_def(power_type)
-	var label: String = str(def.get("label", power_type))
-	detail_label.text = "%s\n\n%s" % [label, PowerLogic.format_power_detail(def)]
+	if _is_power_banned(power_type):
+		_detail_power_type = power_type
+		detail_label.text = BANNED_POWER_DETAIL
+		return
+	_show_power_detail(power_type)
 
 
 func _on_power_tile_unhovered(_power_type: String) -> void:
-	detail_label.text = _detail_hint_text()
+	if _detail_power_type == _power_type:
+		_restore_power_detail_hint()
 
 
 func _on_crown_tile_pressed(crown_idx: int) -> void:
@@ -173,7 +223,7 @@ func _on_crown_tile_hovered(crown_idx: int) -> void:
 
 
 func _on_crown_tile_unhovered(_crown_idx: int) -> void:
-	detail_label.text = _detail_hint_text()
+	_restore_power_detail_hint()
 
 
 func _detail_hint_text() -> String:
@@ -235,6 +285,9 @@ func _refresh_bracket_list() -> void:
 func _on_confirm() -> void:
 	if _selected_powers.size() != PICK_COUNT:
 		return
+	for power_type in _selected_powers:
+		if _is_power_banned(power_type):
+			return
 	if _crown_pick_mode:
 		if SaveService.has_all_crowns():
 			return

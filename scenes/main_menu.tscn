@@ -1,7 +1,7 @@
 [gd_scene load_steps=9 format=3 uid="uid://bqx7mainmenu01"]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
-[ext_resource type="Texture2D" path="res://assets/textures/river_plain.jpg" id="2_river"]
+[ext_resource type="Texture2D" path="res://assets/textures/river_upscale.jpg" id="2_river"]
 [ext_resource type="Texture2D" path="res://assets/textures/pillars.png" id="3_pillars"]
 [ext_resource type="Texture2D" path="res://assets/textures/portal.png" id="4_portal"]
 [ext_resource type="Texture2D" path="res://assets/textures/closed_box.png" id="5_closed_box"]
@@ -410,6 +410,43 @@ theme_override_constants/separation = 10
 layout_mode = 2
 text = "Close"
 
+[node name="ChampionDialogue" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+z_index = 50
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -72.0
+offset_right = 220.0
+offset_bottom = 72.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_how_to_play")
+
+[node name="VBox" type="VBoxContainer" parent="ChampionDialogue"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="ChampionDialogueBody" type="Label" parent="ChampionDialogue/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.92, 0.96, 1)
+theme_override_font_sizes/font_size = 20
+text = "Good work... the stars have come out for you."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Continue" type="Button" parent="ChampionDialogue/VBox"]
+layout_mode = 2
+text = "Continue"
+
 [node name="ChampionCelebration" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 visible = false
@@ -472,4 +509,5 @@ text = "Continue"
 [connection signal="mouse_entered" from="ChampionPortal" to="." method="_on_championship_hover"]
 [connection signal="mouse_exited" from="ChampionPortal" to="." method="_on_championship_unhover"]
 [connection signal="pressed" from="ChampionPortal" to="." method="_on_championship_pressed"]
+[connection signal="pressed" from="ChampionDialogue/VBox/Continue" to="." method="_on_champion_dialogue_dismiss"]
 [connection signal="pressed" from="ChampionCelebration/VBox/Ok" to="." method="_on_celebration_dismiss"]

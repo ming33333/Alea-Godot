@@ -15,6 +15,7 @@ var power_type: String = ""
 
 var _selected: bool = false
 var _locked_out: bool = false
+var _unusable: bool = false
 
 @onready var _die_sprite: TextureRect = %DieSprite
 @onready var _name_label: Label = %NameLabel
@@ -45,19 +46,35 @@ func setup(p_type: String, label: String) -> void:
 
 
 func set_tile_selected(selected: bool) -> void:
+	if _unusable:
+		return
 	_selected = selected
 	queue_redraw()
 	_refresh_modulate()
 
 
+func set_tile_unusable(unusable: bool) -> void:
+	_unusable = unusable
+	if unusable:
+		_locked_out = false
+		_selected = false
+		disabled = true
+		queue_redraw()
+	else:
+		disabled = _locked_out
+	_refresh_modulate()
+
+
 func set_locked_out(locked: bool) -> void:
+	if _unusable:
+		return
 	_locked_out = locked
 	disabled = locked
 	_refresh_modulate()
 
 
 func _refresh_modulate() -> void:
-	if _locked_out:
+	if _unusable or _locked_out:
 		modulate = Color(0.48, 0.5, 0.54, 0.72)
 	elif _selected:
 		modulate = Color(1.04, 1.02, 0.96, 1.0)
@@ -66,8 +83,7 @@ func _refresh_modulate() -> void:
 
 
 func _on_mouse_entered() -> void:
-	if not _locked_out:
-		hovered.emit(power_type)
+	hovered.emit(power_type)
 
 
 func _on_mouse_exited() -> void:

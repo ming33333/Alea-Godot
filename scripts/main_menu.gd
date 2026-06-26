@@ -22,6 +22,11 @@ const BADGE_AWARD_SFX: AudioStream = preload("res://assets/sfx/badge_award.mp3")
 const ORB_COMPLETION_SFX: AudioStream = preload("res://assets/sfx/orb_completion.mp3")
 const CLOSED_BOX_TEX: Texture2D = preload("res://assets/textures/closed_box.png")
 const OPENED_BOX_TEX: Texture2D = preload("res://assets/textures/opened_box.png")
+const RIVER_DAY_TEX: Texture2D = preload("res://assets/textures/river_upscale.jpg")
+const RIVER_NIGHT_TEX: Texture2D = preload("res://assets/textures/river_night.jpg")
+const RIVER_BG_FADE_OUT_SEC := 1.5
+const RIVER_BG_FADE_IN_SEC := 1.5
+const CHAMPION_DIALOGUE_TEXT := "Good work... the stars have come out for you."
 const DECK_PILLAR_HEIGHT := 360.0
 const DECK_PILLAR_WIDTH := 112.0
 const DECK_BOTTOM_SCREEN_FRACTION := 0.15
@@ -33,6 +38,9 @@ const ORB_COMPLETION_START_DELAY_SEC := 0.45
 const ORB_COMPLETION_PAUSE_SEC := 0.28
 const ORB_COMPLETION_DROP_SEC := 0.88
 const ORB_COMPLETION_GLOW_RAMP_SEC := 1.15
+const ORB_IDLE_SHINE_MIN_SEC := 2.0
+const ORB_IDLE_SHINE_MAX_SEC := 4.0
+const ORB_IDLE_SHINE_DURATION_SEC := 1.0
 const PORTAL_REVEAL_SEC := 1.15
 const PORTAL_REVEAL_PAUSE_SEC := 0.35
 const PORTAL_REVEAL_SHADER: Shader = preload("res://assets/shaders/portal_reveal.gdshader")
@@ -50,6 +58,8 @@ const DEMO_TITLE_SCALE_UP := 1.14
 @onready var celebration: PanelContainer = %ChampionCelebration
 @onready var celebration_label: Label = %ChampionCelebrationLabel
 @onready var celebration_detail: Label = %CelebrationDetail
+@onready var champion_dialogue: PanelContainer = %ChampionDialogue
+@onready var champion_dialogue_body: Label = %ChampionDialogueBody
 @onready var how_to_play_overlay: Control = %HowToPlayOverlay
 @onready var how_to_play_sections: VBoxContainer = %HowToPlaySections
 @onready var challenge_orb_tooltip: PanelContainer = %ChallengeOrbTooltip
@@ -59,6 +69,7 @@ const DEMO_TITLE_SCALE_UP := 1.14
 @onready var tooltip_body: Label = %TooltipBody
 @onready var tooltip_footer: Label = %TooltipFooter
 @onready var title_demo: Label = %TitleDemo
+@onready var river: TextureRect = %River
 var _hover_challenge_orb_id: String = ""
 var _hover_badge_box_icon: Control = null
 var _launching: bool = false
@@ -79,6 +90,10 @@ var _portal_was_visible_before_orb_celebration: bool = false
 var _badge_fly_layer: Control
 var _badge_fly_reveal_orb_id: String = ""
 var _title_demo_tween: Tween
+var _orb_idle_shine_timer: Timer
+var _orb_idle_shine_active: bool = false
+var _river_fade_tween: Tween
+var _champion_intro_active: bool = false
 const MAX_ORB_BUILD_ATTEMPTS := 60
 const MAX_PORTAL_LAYOUT_ATTEMPTS := 40
 const MAX_CELEBRATION_PLAY_ATTEMPTS := 120
@@ -118,13 +133,19 @@ func _ready() -> void:
 		_badge_fly_reveal_orb_id = GameState.pending_orb_completion_celebration
 	_badge_box_open = SaveService.is_badge_box_open()
 	_setup_badge_fly_layer()
+	_setup_orb_idle_shine()
+	if GameState.show_champion_celebration:
+		call_deferred("_begin_champion_return_sequence")
+	else:
+		_refresh_river_background(river != null and river.texture != _target_river_texture())
 	_refresh_badges()
 	_populate_how_to_play()
 	if how_to_play_overlay:
 		how_to_play_overlay.visible = false
 	call_deferred("_refresh_champion_portal")
 	_refresh_champion_crown_art()
-	_present_champion_celebration_if_needed()
+	if not GameState.show_champion_celebration:
+		_present_champion_celebration_if_needed()
 	if champion_portal:
 		champion_portal.tooltip_text = ""
 
@@ -380,6 +401,72 @@ func _build_orbs() -> void:
 		_launching = true
 		_celebration_play_attempts = 0
 		call_deferred("_play_orb_completion_celebration_if_needed")
+	else:
+		_refresh_orb_idle_shine_schedule()
+
+
+func _setup_orb_idle_shine() -> void:
+	_orb_idle_shine_timer = Timer.new()
+	_orb_idle_shine_timer.name = "OrbIdleShineTimer"
+	_orb_idle_shine_timer.one_shot = true
+	_orb_idle_shine_timer.timeout.connect(_on_orb_idle_shine_timer)
+	add_child(_orb_idle_shine_timer)
+
+
+func _can_orb_idle_shine() -> bool:
+	return (
+		SaveService.has_all_menu_badges()
+		and not _orb_completion_active
+		and not _orb_idle_shine_active
+		and not _portal_reveal_active
+		and not _champion_intro_active
+		and not GameState.show_champion_celebration
+		and GameState.pending_orb_completion_celebration.is_empty()
+		and _badge_fly_reveal_orb_id.is_empty()
+	)
+
+
+func _refresh_orb_idle_shine_schedule() -> void:
+	if _orb_idle_shine_timer == null:
+		return
+	if not _can_orb_idle_shine():
+		_orb_idle_shine_timer.stop()
+		return
+	if _orb_idle_shine_timer.is_stopped():
+		_orb_idle_shine_timer.start(randf_range(ORB_IDLE_SHINE_MIN_SEC, ORB_IDLE_SHINE_MAX_SEC))
+
+
+func _on_orb_idle_shine_timer() -> void:
+	if not _can_orb_idle_shine():
+		_refresh_orb_idle_shine_schedule()
+		return
+	_play_orb_idle_shine()
+
+
+func _play_orb_idle_shine() -> void:
+	_orb_idle_shine_active = true
+	var orbs := _completed_menu_orbs()
+	if orbs.is_empty():
+		_orb_idle_shine_active = false
+		_refresh_orb_idle_shine_schedule()
+		return
+	var orb: PixelChallengeOrb = orbs[randi() % orbs.size()]
+	orb.play_idle_shine(ORB_IDLE_SHINE_DURATION_SEC)
+	var wait := get_tree().create_timer(ORB_IDLE_SHINE_DURATION_SEC)
+	await wait.timeout
+	_orb_idle_shine_active = false
+	if is_inside_tree():
+		_refresh_orb_idle_shine_schedule()
+
+
+func _completed_menu_orbs() -> Array[PixelChallengeOrb]:
+	var out: Array[PixelChallengeOrb] = []
+	if map_area == null:
+		return out
+	for child in map_area.get_children():
+		if child is PixelChallengeOrb and (child as PixelChallengeOrb).is_menu_completed():
+			out.append(child as PixelChallengeOrb)
+	return out
 
 
 func _orb_color_for_challenge_orb(challenge_orb_id: String) -> Color:
@@ -756,6 +843,7 @@ func _finish_orb_completion_celebration() -> void:
 		return
 	_launching = false
 	_refresh_champion_portal()
+	_refresh_orb_idle_shine_schedule()
 
 
 func _play_champion_portal_reveal() -> void:
@@ -812,6 +900,7 @@ func _finish_champion_portal_reveal() -> void:
 	if champion_portal != null:
 		champion_portal.material = null
 	_refresh_champion_portal()
+	_refresh_orb_idle_shine_schedule()
 
 
 func orb_id_str(challenge_orb: Dictionary) -> String:
@@ -1056,7 +1145,99 @@ func _on_badge_box_pressed() -> void:
 	_set_badge_slide_width(_badges_row_width(), true, false)
 
 
+func _target_river_texture() -> Texture2D:
+	return RIVER_NIGHT_TEX if SaveService.has_any_crown() else RIVER_DAY_TEX
+
+
+func _refresh_river_background(animated: bool = false) -> void:
+	if river == null:
+		return
+	var target_tex: Texture2D = _target_river_texture()
+	if river.texture == target_tex:
+		river.modulate = Color.WHITE
+		return
+	if not animated:
+		if _river_fade_tween != null and _river_fade_tween.is_valid():
+			_river_fade_tween.kill()
+		river.texture = target_tex
+		river.modulate = Color.WHITE
+		return
+	_animate_river_background_switch(target_tex)
+
+
+func _animate_river_background_switch_async(target_tex: Texture2D) -> void:
+	_animate_river_background_switch(target_tex)
+	if _river_fade_tween != null and _river_fade_tween.is_valid():
+		await _river_fade_tween.finished
+
+
+func _begin_champion_return_sequence() -> void:
+	if not GameState.show_champion_celebration:
+		return
+	_champion_intro_active = true
+	_hide_champion_celebration()
+	_hide_champion_dialogue()
+	var target_tex: Texture2D = _target_river_texture()
+	if river != null and river.texture != target_tex:
+		await _animate_river_background_switch_async(target_tex)
+	else:
+		_refresh_river_background(false)
+	if not is_inside_tree() or not GameState.show_champion_celebration:
+		_champion_intro_active = false
+		return
+	_show_champion_dialogue()
+
+
+func _show_champion_dialogue() -> void:
+	_ensure_celebration_backdrop()
+	_celebration_backdrop.visible = true
+	if champion_dialogue_body != null:
+		champion_dialogue_body.text = CHAMPION_DIALOGUE_TEXT
+	if champion_dialogue != null:
+		champion_dialogue.visible = true
+		champion_dialogue.z_index = 50
+		champion_dialogue.mouse_filter = Control.MOUSE_FILTER_STOP
+	if celebration != null:
+		celebration.visible = false
+	move_child(_celebration_backdrop, get_child_count() - 1)
+	if champion_dialogue != null:
+		move_child(champion_dialogue, get_child_count() - 1)
+
+
+func _hide_champion_dialogue() -> void:
+	if champion_dialogue != null:
+		champion_dialogue.visible = false
+		champion_dialogue.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func _on_champion_dialogue_dismiss() -> void:
+	_hide_champion_dialogue()
+	_champion_intro_active = false
+	_present_champion_celebration_if_needed()
+
+
+func _animate_river_background_switch(target_tex: Texture2D) -> void:
+	if river == null:
+		return
+	if _river_fade_tween != null and _river_fade_tween.is_valid():
+		_river_fade_tween.kill()
+	_river_fade_tween = create_tween()
+	_river_fade_tween.tween_property(river, "modulate:a", 0.0, RIVER_BG_FADE_OUT_SEC)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_river_fade_tween.tween_callback(func() -> void:
+		if is_instance_valid(river):
+			river.texture = target_tex
+	)
+	_river_fade_tween.tween_property(river, "modulate:a", 1.0, RIVER_BG_FADE_IN_SEC)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_river_fade_tween.tween_callback(func() -> void:
+		if is_instance_valid(river):
+			river.modulate = Color.WHITE
+	)
+
+
 func _on_badges_changed() -> void:
+	_refresh_river_background(true)
 	_refresh_badges()
 	if _orb_completion_active or not _badge_fly_reveal_orb_id.is_empty():
 		return
@@ -1233,6 +1414,7 @@ func _present_champion_celebration_if_needed() -> void:
 	if not GameState.show_champion_celebration:
 		_hide_champion_celebration()
 		return
+	_hide_champion_dialogue()
 	_ensure_celebration_backdrop()
 	_celebration_backdrop.visible = true
 	celebration.visible = true
@@ -1278,6 +1460,7 @@ func _on_celebration_dismiss() -> void:
 	GameState.show_champion_celebration = false
 	GameState.pending_champion_opponents = []
 	GameState.pending_champion_crown_index = 1
+	_hide_champion_dialogue()
 	_hide_champion_celebration()
 	_refresh_champion_crown_art()
 	_refresh_badges()

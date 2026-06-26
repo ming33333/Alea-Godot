@@ -184,10 +184,13 @@ func has_unearned_crown() -> bool:
 func award_dice_champion(crown_index: int = 1) -> void:
 	var idx: int = clampi(crown_index, 1, DiceCrownArt.crown_count())
 	var was_champion: bool = is_dice_champion()
-	var crowns: Array[int] = get_earned_crowns() if was_champion else []
+	var crowns: Array[int] = []
+	if was_champion:
+		crowns = get_earned_crowns()
 	var added: bool = not crowns.has(idx)
 	if not was_champion:
-		crowns = [idx]
+		crowns.clear()
+		crowns.append(idx)
 	elif added:
 		crowns.append(idx)
 		crowns.sort()

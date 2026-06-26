@@ -160,22 +160,24 @@ size_flags_vertical = 0
 [node name="DetailMargin" type="MarginContainer" parent="Margin/VBox/DetailWrap"]
 layout_mode = 2
 theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
+theme_override_constants/margin_top = 6
 theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_bottom = 6
 
-[node name="DetailLabel" type="Label" parent="Margin/VBox/DetailWrap/DetailMargin"]
-unique_name_in_owner = true
+[node name="DetailScroll" type="ScrollContainer" parent="Margin/VBox/DetailWrap/DetailMargin"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="DetailLabel" type="Label" parent="Margin/VBox/DetailWrap/DetailMargin/DetailScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.1, 0.14, 0.18, 0.92)
-theme_override_font_sizes/font_size = 12
-text = "Hover a power to see what it does."
+theme_override_font_sizes/font_size = 14
+text = "Hover a power to see what it does"
 horizontal_alignment = 1
-vertical_alignment = 1
 autowrap_mode = 3
-clip_text = true
-max_lines_visible = 5
 
 [connection signal="pressed" from="Margin/VBox/ActionHBox/Back" to="." method="_on_back"]
 [connection signal="pressed" from="Margin/VBox/ActionHBox/ConfirmBtn" to="." method="_on_confirm"]
