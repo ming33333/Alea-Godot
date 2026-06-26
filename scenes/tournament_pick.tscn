@@ -61,7 +61,8 @@ horizontal_alignment = 1
 
 [node name="Scroll" type="ScrollContainer" parent="Margin/VBox"]
 layout_mode = 2
-size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 420)
+size_flags_vertical = 0
 horizontal_scroll_mode = 0
 
 [node name="GridCenter" type="CenterContainer" parent="Margin/VBox/Scroll"]
@@ -75,15 +76,6 @@ layout_mode = 2
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 columns = 4
-
-[node name="DetailLabel" type="Label" parent="Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.1, 0.14, 0.18, 0.92)
-theme_override_font_sizes/font_size = 13
-text = "Hover a power to see what it does."
-horizontal_alignment = 1
-autowrap_mode = 3
 
 [node name="CrownSection" type="VBoxContainer" parent="Margin/VBox"]
 unique_name_in_owner = true
@@ -133,6 +125,31 @@ text = "Your three games"
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 4
+
+[node name="DetailWrap" type="PanelContainer" parent="Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_vertical = 8
+
+[node name="DetailMargin" type="MarginContainer" parent="Margin/VBox/DetailWrap"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 6
+
+[node name="DetailLabel" type="Label" parent="Margin/VBox/DetailWrap/DetailMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.1, 0.14, 0.18, 0.92)
+theme_override_font_sizes/font_size = 12
+text = "Hover a power to see what it does."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+max_lines_visible = 4
 
 [node name="HBox" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2

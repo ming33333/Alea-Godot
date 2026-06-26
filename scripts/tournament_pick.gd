@@ -18,6 +18,7 @@ const DETAIL_DEFAULT := "Hover a power to see what it does."
 @onready var bracket_section: Control = %BracketSection
 @onready var bracket_title: Label = %BracketTitle
 @onready var bracket_list: VBoxContainer = %BracketList
+@onready var detail_wrap: PanelContainer = %DetailWrap
 
 var _selected_powers: Array[String] = []
 var _power_tiles: Dictionary = {}
@@ -27,6 +28,7 @@ var _crown_pick_mode: bool = false
 
 
 func _ready() -> void:
+	_style_detail_wrap()
 	_crown_pick_mode = SaveService.has_any_crown()
 	options_box.columns = GRID_COLUMNS
 	options_box.add_theme_constant_override("h_separation", 12)
@@ -48,6 +50,19 @@ func _ready() -> void:
 		_roll_random_bracket()
 	_update_subtitle()
 	_refresh_confirm_state()
+
+
+func _style_detail_wrap() -> void:
+	if detail_wrap == null:
+		return
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.08, 0.1, 0.12, 0.32)
+	box.set_corner_radius_all(8)
+	box.content_margin_left = 4.0
+	box.content_margin_top = 2.0
+	box.content_margin_right = 4.0
+	box.content_margin_bottom = 2.0
+	detail_wrap.add_theme_stylebox_override("panel", box)
 
 
 func _setup_crown_pick() -> void:
