@@ -6,6 +6,7 @@ const CROWN_PICK_TILE: PackedScene = preload("res://scenes/crown_pick_tile.tscn"
 const GRID_COLUMNS := 4
 const CROWN_GRID_COLUMNS := 2
 const DETAIL_DEFAULT := "Hover a power to see what it does."
+const DETAIL_PANEL_HEIGHT := 90.0
 
 @onready var subtitle: Label = %Subtitle
 @onready var options_box: GridContainer = %OptionsBox
@@ -55,6 +56,8 @@ func _ready() -> void:
 func _style_detail_wrap() -> void:
 	if detail_wrap == null:
 		return
+	detail_wrap.custom_minimum_size = Vector2(0.0, DETAIL_PANEL_HEIGHT)
+	detail_wrap.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var box := StyleBoxFlat.new()
 	box.bg_color = Color(0.08, 0.1, 0.12, 0.32)
 	box.set_corner_radius_all(8)
@@ -63,6 +66,12 @@ func _style_detail_wrap() -> void:
 	box.content_margin_right = 4.0
 	box.content_margin_bottom = 2.0
 	detail_wrap.add_theme_stylebox_override("panel", box)
+	detail_wrap.clip_contents = true
+	if detail_label != null:
+		detail_label.clip_text = true
+		detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		detail_label.max_lines_visible = 5
+		detail_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 
 func _setup_crown_pick() -> void:
