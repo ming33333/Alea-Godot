@@ -49,6 +49,7 @@ var victory_badge_is_new: bool = false
 var menu_orb_celebration_pending: bool = false
 var max_owned_powers: int = 3
 var fail_heart_processed: bool = false
+var straight_switch_cap_bonus: int = 0
 var combo_reroll_used: bool = false
 var pending_row_swap_before: Array = []
 var pending_swap_before_from: DiceCellData
@@ -95,6 +96,7 @@ func _reset_meta() -> void:
 	power_charges = _empty_charges()
 	level_power_goal = ""
 	fail_heart_processed = false
+	straight_switch_cap_bonus = 0
 	victory_badge_is_new = false
 	menu_orb_celebration_pending = false
 
@@ -160,12 +162,16 @@ func _snapshot_charges() -> Dictionary:
 
 func get_limits() -> Dictionary:
 	var lim: Dictionary = LevelLimits.get_level_limits(level)
-	lim.max_switches = PowerLogic.max_switches_for_level(level, unlocked_powers)
+	lim.max_switches = PowerLogic.max_switches_for_level(
+		level, unlocked_powers, straight_switch_cap_bonus
+	)
 	return lim
 
 
 func switches_left() -> int:
-	return PowerLogic.switches_remaining(level, switches_used, unlocked_powers)
+	return PowerLogic.switches_remaining(
+		level, switches_used, unlocked_powers, straight_switch_cap_bonus
+	)
 
 
 func rerolls_left() -> int:
@@ -233,7 +239,8 @@ func is_level_failed() -> bool:
 		return false
 	return PowerLogic.is_level_stuck(
 		grid, level, switches_used, rerolls_used,
-		unlocked_powers, active_power_type, power_charges, awarded_rows
+		unlocked_powers, active_power_type, power_charges, awarded_rows,
+		straight_switch_cap_bonus
 	)
 
 
@@ -335,10 +342,15 @@ func _apply_passive_completion_rewards(rows_done: Array) -> void:
 		var row_item: Dictionary = item
 		if str(row_item.get("pattern", "")) != PatternCheck.STRAIGHT:
 			continue
-		switches_used = maxi(0, switches_used - 1)
+		var row_index: int = int(row_item.get("index", -1))
+		var key: String = PowerLogic.power_earn_key(row_index, "straightSwitch")
+		if power_earned_rows.has(key):
+			continue
+		power_earned_rows[key] = true
+		straight_switch_cap_bonus += 1
 		_log_power(
-			"straightSwitch +1 switch row=%d switches_left=%d"
-			% [int(row_item.get("index", -1)), switches_left()]
+			"straightSwitch +1 max switch cap row=%d max_switches=%d switches_left=%d"
+			% [row_index, get_limits().max_switches, switches_left()]
 		)
 
 

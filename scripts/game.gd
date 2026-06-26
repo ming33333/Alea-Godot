@@ -1200,36 +1200,47 @@ func _power_hint_color(power_type: String) -> Color:
 			return Color(0.2, 0.35, 0.55)
 
 
+func _power_label(power_type: String) -> String:
+	return str(GameData.get_power_def(power_type).get("label", power_type))
+
+
 func _power_hint_text(power_type: String) -> String:
+	var label: String = _power_label(power_type)
 	match power_type:
 		"switchRows":
 			if session.active_target_row >= 0:
 				return (
-					"Switch Rows - tap a die in the other row. "
+					"%s - tap a die in the other row. "
+					% label
 					+"Tap X on the marked die or active power die to cancel."
 				)
 			return (
-				"Switch Rows - tap a die in each row. "
+				"%s - tap a die in each row. "
+				% label
 				+"Tap X on the active power die to cancel."
 			)
 		"switchAnywhere":
 			if session.selected_row >= 0:
 				return (
-					"Switch - tap another unlocked die. "
+					"%s - tap another unlocked die. "
+					% label
 					+"Tap X on the selected die or active power die to cancel."
 				)
 			return (
-				"Switch - tap two unlocked dice to swap. "
+				"%s - tap two unlocked dice to swap. "
+				% label
 				+"Tap X on the active power die to cancel."
 			)
 		"chooseNumber":
 			return (
-				"5 of a Kind - tap a die on an incomplete row, then pick 1-6. "
+				"%s - tap a die on an incomplete row, then pick 1-6. "
+				% label
 				+"Tap X on the active power die to cancel."
 			)
 		"setAnyNumber":
 			return (
-				"Set Any Die - tap an unlocked die on an incomplete row, then pick 1-6. "
+				"%s - tap an unlocked die on an incomplete row, then pick 1-6. "
+				% label
 				+"Tap X on the active power die to cancel."
 			)
 		_:

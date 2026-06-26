@@ -14,7 +14,7 @@ var pending_badge_award_fly: bool = false
 var pending_portal_reveal: bool = false
 
 ## Set `true` for demo builds — only Vanilla and Safari Snap are playable.
-var demo_mode: bool = true
+var demo_mode: bool = false
 
 const _DEMO_ORB_IDS: Array[String] = ["vanilla", "countdownOne"]
 

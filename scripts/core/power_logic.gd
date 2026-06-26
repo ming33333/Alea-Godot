@@ -64,7 +64,7 @@ static func _fallback_charge_summary(power_type: String) -> String:
 	if power_type == "extraSwitches":
 		return "Always on while owned - adds +5 switches each level."
 	if power_type == "straightSwitch":
-		return "Always on while owned - +1 switch when you complete a Straight row."
+		return "Always on while owned - +1 to your switch cap permanently each time you complete a Straight row (kept for the run)."
 	if power_type == "comboReroll":
 		return "Always on while owned - doubles remaining rerolls once per level when you have both a Full House and a Straight."
 	if power_type == "extraLoadout":
@@ -97,17 +97,20 @@ static func extra_switch_bonus(unlocked: Dictionary) -> int:
 	return EXTRA_SWITCHES_BONUS if unlocked.has("extraSwitches") else 0
 
 
-static func max_switches_for_level(level: int, unlocked: Dictionary) -> int:
+static func max_switches_for_level(
+	level: int, unlocked: Dictionary, straight_cap_bonus: int = 0
+) -> int:
 	return (
 		LevelLimits.get_level_limits(level).max_switches
 		+ extra_switch_bonus(unlocked)
+		+ straight_cap_bonus
 	)
 
 
 static func switches_remaining(
-	level: int, switches_used: int, unlocked: Dictionary
+	level: int, switches_used: int, unlocked: Dictionary, straight_cap_bonus: int = 0
 ) -> int:
-	return max_switches_for_level(level, unlocked) - switches_used
+	return max_switches_for_level(level, unlocked, straight_cap_bonus) - switches_used
 
 
 static func can_vertical_jump(
@@ -145,9 +148,12 @@ static func has_usable_switch(
 	switches_used: int,
 	unlocked: Dictionary,
 	switch_anywhere_active: bool,
-	switch_anywhere_charges: int
+	switch_anywhere_charges: int,
+	straight_cap_bonus: int = 0
 ) -> bool:
-	if PowerLogic.switches_remaining(level, switches_used, unlocked) <= 0:
+	if PowerLogic.switches_remaining(
+		level, switches_used, unlocked, straight_cap_bonus
+	) <= 0:
 		return false
 	var unlocked_cells: Array = []
 	for r in range(grid.size()):
@@ -279,14 +285,15 @@ static func is_level_stuck(
 	unlocked: Dictionary,
 	active_type: String,
 	charges: Dictionary,
-	awarded_rows: Dictionary
+	awarded_rows: Dictionary,
+	straight_cap_bonus: int = 0
 ) -> bool:
 	var sw_ch: int = charges.get("switchAnywhere", 0)
 	return (
 		not has_usable_reroll(grid, level, rerolls_used)
 		and not has_usable_switch(
 			grid, level, switches_used, unlocked,
-			active_type == "switchAnywhere", sw_ch
+			active_type == "switchAnywhere", sw_ch, straight_cap_bonus
 		)
 		and not has_usable_set_any(
 			grid, awarded_rows, level, rerolls_used, unlocked, charges, active_type

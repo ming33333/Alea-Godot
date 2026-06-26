@@ -1,19 +1,21 @@
 class_name PowerDiceArt
 extends RefCounted
 
+const _NEW_ART := "res://assets/powerup_dice/new_art/"
+
 const TEXTURE_PATHS: Dictionary = {
-	"chooseNumber": "res://assets/powerup_dice/choose_number.png",
-	"switchAnywhere": "res://assets/powerup_dice/switch_anywhere.png",
-	"setAnyNumber": "res://assets/powerup_dice/set_any_die.png",
-	"switchRows": "res://assets/powerup_dice/switch_rows.png",
-	"switchHorizontal": "res://assets/powerup_dice/side_switch.png",
-	"verticalJump": "res://assets/powerup_dice/vertical_jump.png",
-	"secondChances": "res://assets/powerup_dice/second_chances.png",
-	"rerollTrade": "res://assets/powerup_dice/reroll_trade.png",
-	"extraSwitches": "res://assets/powerup_dice/side_switch.png",
-	"straightSwitch": "res://assets/powerup_dice/switch_anywhere.png",
-	"comboReroll": "res://assets/powerup_dice/reroll_trade.png",
-	"extraLoadout": "res://assets/powerup_dice/second_chances.png",
+	"chooseNumber": _NEW_ART + "dream_team.png",
+	"switchAnywhere": _NEW_ART + "fair_exchange.png",
+	"setAnyNumber": _NEW_ART + "be_who_you_are.png",
+	"switchRows": _NEW_ART + "trade_me_seats.png",
+	"switchHorizontal": _NEW_ART + "cha_cha.png",
+	"verticalJump": _NEW_ART + "leap_faith.png",
+	"secondChances": _NEW_ART + "encore.png",
+	"rerollTrade": _NEW_ART + "pawn_shop.png",
+	"extraSwitches": _NEW_ART + "bulk_up.png",
+	"straightSwitch": _NEW_ART + "main_char.png",
+	"comboReroll": _NEW_ART + "house_party.png",
+	"extraLoadout": _NEW_ART + "baggage_claim.png",
 }
 
 static var _cache: Dictionary = {}

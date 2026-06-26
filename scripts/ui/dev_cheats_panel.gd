@@ -154,6 +154,7 @@ func _build_ui() -> void:
 	_add_btn(vbox, "Refill switch + reroll", _on_refill)
 	_add_btn(vbox, "+1 heart", _on_add_heart)
 	_add_btn(vbox, "Award challenge orb badge", _on_award_badge)
+	_add_btn(vbox, "Award all badges", _on_award_all_badges)
 	_status_label = Label.new()
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status_label.custom_minimum_size = Vector2(156, 0)
@@ -296,3 +297,17 @@ func _on_award_badge() -> void:
 		_show_status("Awarded: %s (%s)" % [badge_name, challenge_orb_name])
 	else:
 		_show_status("Save failed - check Output")
+
+
+func _on_award_all_badges() -> void:
+	var added: int = SaveService.force_award_all_badges()
+	if added < 0:
+		_show_status("Save failed - check Output")
+		return
+	var total: int = SaveService.get_earned_badges().size()
+	var max_badges: int = GameData.menu_challenge_orbs.size()
+	if added == 0:
+		_show_status("All badges already earned (%d/%d)" % [total, max_badges])
+	else:
+		_show_status("Awarded %d badge(s). Now %d/%d" % [added, total, max_badges])
+	_update_badge_button()

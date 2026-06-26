@@ -75,6 +75,27 @@ func force_award_badge(challenge_orb_id: String) -> bool:
 	return true
 
 
+func force_award_all_badges() -> int:
+	var earned_set: Dictionary = {}
+	for badge_id in get_earned_badges():
+		earned_set[badge_id] = true
+	var ids: Array = []
+	var added: int = 0
+	for g in GameData.menu_challenge_orbs:
+		var gid: String = str(g.get("id", ""))
+		if gid.is_empty():
+			continue
+		if not earned_set.has(gid):
+			added += 1
+		ids.append(gid)
+	if not _write(BADGES_KEY, JSON.stringify(ids)):
+		DebugLog.log_error("SaveService", "force_award_all_badges: write failed")
+		return -1
+	badges_changed.emit()
+	DebugLog.log("SaveService", "force_award_all_badges: added %d" % added)
+	return added
+
+
 func award_challenge_orb_badge(challenge_orb_id: String) -> bool:
 	var gid: String = str(challenge_orb_id)
 	if not _is_valid_menu_challenge_orb(gid):

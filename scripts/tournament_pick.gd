@@ -1,112 +1,72 @@
 extends Control
 
 const PICK_COUNT := 3
+const POWER_PICK_TILE: PackedScene = preload("res://scenes/power_pick_tile.tscn")
+const GRID_COLUMNS := 4
+const DETAIL_DEFAULT := "Tap a die to add it to your loadout."
 
-@onready var options_box: VBoxContainer = %OptionsBox
+@onready var options_box: GridContainer = %OptionsBox
 @onready var confirm_btn: Button = %ConfirmBtn
 @onready var status_label: Label = %StatusLabel
+@onready var detail_label: Label = %DetailLabel
 @onready var bracket_section: Control = %BracketSection
 @onready var bracket_list: VBoxContainer = %BracketList
 
 var _selected: Array[String] = []
-var _checkboxes: Dictionary = {}
-var _unchecked_icon: ImageTexture
-var _checked_icon: ImageTexture
+var _tiles: Dictionary = {}
+var _hover_power_type: String = ""
 
 
 func _ready() -> void:
-	_ensure_checkbox_icons()
-	options_box.add_theme_constant_override("separation", 10)
+	options_box.columns = GRID_COLUMNS
+	options_box.add_theme_constant_override("h_separation", 12)
+	options_box.add_theme_constant_override("v_separation", 12)
 	for t in GameData.tournament_pickable:
-		var def: Dictionary = GameData.get_power_def(str(t))
-		var cb := CheckBox.new()
-		cb.text = "%s - %s" % [
-			def.get("label", t),
-			PowerLogic.format_power_short(def),
-		]
-		cb.toggled.connect(_on_toggle.bind(str(t)))
-		_style_power_checkbox(cb)
-		options_box.add_child(cb)
-		_checkboxes[str(t)] = cb
+		var power_type: String = str(t)
+		var def: Dictionary = GameData.get_power_def(power_type)
+		var tile: PowerPickTile = POWER_PICK_TILE.instantiate() as PowerPickTile
+		tile.setup(power_type, str(def.get("label", power_type)))
+		tile.pressed.connect(_on_tile_pressed.bind(power_type))
+		tile.hovered.connect(_on_tile_hovered)
+		tile.unhovered.connect(_on_tile_unhovered)
+		options_box.add_child(tile)
+		_tiles[power_type] = tile
+	detail_label.text = DETAIL_DEFAULT
 	confirm_btn.disabled = true
 	_roll_and_show_bracket()
 
 
-func _ensure_checkbox_icons() -> void:
-	if _unchecked_icon != null and _checked_icon != null:
-		return
-	_unchecked_icon = _make_checkbox_icon(false)
-	_checked_icon = _make_checkbox_icon(true)
-
-
-func _make_checkbox_icon(checked: bool) -> ImageTexture:
-	var size_px := 22
-	var img := Image.create(size_px, size_px, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var border := Color(0.94, 0.96, 1.0, 1.0)
-	var inner := Color(0.95, 0.82, 0.38, 1.0) if checked else Color(0.24, 0.26, 0.34, 1.0)
-	for x in size_px:
-		for y in size_px:
-			var edge: bool = x <= 1 or y <= 1 or x >= size_px - 2 or y >= size_px - 2
-			var inner_rect: bool = x >= 3 and y >= 3 and x < size_px - 3 and y < size_px - 3
-			if edge:
-				img.set_pixel(x, y, border)
-			elif inner_rect:
-				img.set_pixel(x, y, inner)
-	if checked:
-		var mark := Color(0.1, 0.12, 0.16, 1.0)
-		for i in 5:
-			img.set_pixel(5 + i, 11 + i, mark)
-			img.set_pixel(6 + i, 11 + i, mark)
-		for i in 7:
-			img.set_pixel(10 + i, 16 - i, mark)
-			img.set_pixel(11 + i, 16 - i, mark)
-	return ImageTexture.create_from_image(img)
-
-
-func _style_power_checkbox(cb: CheckBox) -> void:
-	cb.custom_minimum_size.y = 38
-	cb.add_theme_icon_override("unchecked", _unchecked_icon)
-	cb.add_theme_icon_override("checked", _checked_icon)
-	cb.add_theme_color_override("font_color", Color(0.94, 0.96, 0.99))
-	cb.add_theme_color_override("font_hover_color", Color(1.0, 0.96, 0.78))
-	cb.add_theme_color_override("font_pressed_color", Color(1.0, 0.9, 0.62))
-	cb.add_theme_color_override("font_focus_color", Color(0.94, 0.96, 0.99))
-	cb.add_theme_font_size_override("font_size", 14)
-	cb.add_theme_constant_override("h_separation", 12)
-	cb.add_theme_constant_override("outline_size", 0)
-	var row_normal := StyleBoxFlat.new()
-	row_normal.bg_color = Color(0.18, 0.2, 0.28, 0.72)
-	row_normal.border_color = Color(0.55, 0.6, 0.72, 0.55)
-	row_normal.set_border_width_all(1)
-	row_normal.set_corner_radius_all(6)
-	row_normal.content_margin_left = 10.0
-	row_normal.content_margin_top = 8.0
-	row_normal.content_margin_right = 10.0
-	row_normal.content_margin_bottom = 8.0
-	var row_hover := row_normal.duplicate() as StyleBoxFlat
-	row_hover.bg_color = Color(0.24, 0.26, 0.36, 0.88)
-	row_hover.border_color = Color(0.82, 0.86, 0.95, 0.9)
-	var row_pressed := row_hover.duplicate() as StyleBoxFlat
-	row_pressed.bg_color = Color(0.3, 0.28, 0.2, 0.95)
-	row_pressed.border_color = Color(0.95, 0.82, 0.38, 1.0)
-	cb.add_theme_stylebox_override("normal", row_normal)
-	cb.add_theme_stylebox_override("hover", row_hover)
-	cb.add_theme_stylebox_override("pressed", row_pressed)
-	cb.add_theme_stylebox_override("focus", row_hover)
-	cb.add_theme_stylebox_override("disabled", row_normal)
-
-
-func _on_toggle(checked: bool, power_type: String) -> void:
-	if checked:
-		if _selected.size() >= PICK_COUNT:
-			_checkboxes[power_type].button_pressed = false
-			return
-		_selected.append(power_type)
-	else:
+func _on_tile_pressed(power_type: String) -> void:
+	if _selected.has(power_type):
 		_selected.erase(power_type)
+	elif _selected.size() < PICK_COUNT:
+		_selected.append(power_type)
+	_refresh_tile_states()
 	status_label.text = "Selected %d / %d" % [_selected.size(), PICK_COUNT]
 	confirm_btn.disabled = _selected.size() != PICK_COUNT
+
+
+func _refresh_tile_states() -> void:
+	var full: bool = _selected.size() >= PICK_COUNT
+	for power_type in _tiles:
+		var tile: PowerPickTile = _tiles[power_type] as PowerPickTile
+		var is_sel: bool = _selected.has(power_type)
+		tile.set_tile_selected(is_sel)
+		tile.set_locked_out(full and not is_sel)
+
+
+func _on_tile_hovered(power_type: String) -> void:
+	_hover_power_type = power_type
+	var def: Dictionary = GameData.get_power_def(power_type)
+	detail_label.text = "%s — %s" % [
+		def.get("label", power_type),
+		PowerLogic.format_power_short(def),
+	]
+
+
+func _on_tile_unhovered(_power_type: String) -> void:
+	_hover_power_type = ""
+	detail_label.text = DETAIL_DEFAULT
 
 
 func _roll_and_show_bracket() -> void:

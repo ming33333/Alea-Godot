@@ -9,7 +9,7 @@
       "type": "chooseNumber",
       "earn_label": "5 of a Kind rows",
       "charge_summary": "Charges: +1 each time you complete a 5 of a Kind row (x on the die). Resets to 0 at the start of each level.",
-      "label": "Make 5 of a Kind",
+      "label": "Dream Team",
       "description": "Tap a die on an incomplete row and pick 1-6 - the whole row becomes that number. Costs 1 charge per use.",
       "permanent": false,
       "per_level": false
@@ -18,7 +18,7 @@
       "type": "switchAnywhere",
       "earn_label": "Straight rows",
       "charge_summary": "Charges: +1 each time you complete a Straight row (x on the die). Resets to 0 at the start of each level.",
-      "label": "Switch",
+      "label": "Fair Exchange",
       "description": "Tap two unlocked dice to swap them anywhere on the board. Costs 1 charge and 1 switch per use.",
       "permanent": false,
       "per_level": false
@@ -27,7 +27,7 @@
       "type": "setAnyNumber",
       "earn_label": "Full House rows",
       "charge_summary": "Charges: +1 each time you complete a Full House row (x on the die). Resets to 0 at the start of each level.",
-      "label": "Set Any Die",
+      "label": "Be who you are",
       "description": "Tap an unlocked die on an incomplete row, pick 1-6 - that die changes. Costs 1 charge and 1 reroll per use.",
       "permanent": false,
       "per_level": false
@@ -36,7 +36,7 @@
       "type": "switchHorizontal",
       "earn_label": "Always on",
       "charge_summary": "Always on while owned - no charges.",
-      "label": "Side Switch",
+      "label": "Cha Cha",
       "description": "Swap two adjacent dice left or right. Does not lock either die.",
       "permanent": true,
       "per_level": false
@@ -45,7 +45,7 @@
       "type": "verticalJump",
       "earn_label": "Always on",
       "charge_summary": "Always on while owned - no charges.",
-      "label": "Vertical Jump",
+      "label": "Leap of Faith",
       "description": "In a column, jump over locked rows to swap with the next unlocked die. Locks both dice after the swap.",
       "permanent": true,
       "per_level": false
@@ -54,7 +54,7 @@
       "type": "secondChances",
       "earn_label": "Always on",
       "charge_summary": "Always on while owned - no charges.",
-      "label": "Second Chances",
+      "label": "Encore",
       "description": "Each die can be vertically swapped twice before it locks (instead of once).",
       "permanent": true,
       "per_level": false
@@ -63,7 +63,7 @@
       "type": "rerollTrade",
       "earn_label": "Always on",
       "charge_summary": "Always available - no charges. Costs 2 rerolls per use.",
-      "label": "Reroll Trade",
+      "label": "Pawn Shop",
       "description": "Tap to spend 2 rerolls and gain 1 switch.",
       "permanent": true,
       "per_level": false
@@ -72,7 +72,7 @@
       "type": "switchRows",
       "earn_label": "1 per level",
       "charge_summary": "1 charge per level - refreshes when the level starts (x on the die). Unused charges don't carry over.",
-      "label": "Switch Rows",
+      "label": "Trade Me Seats",
       "description": "Tap a die in one row, then a die in another - swaps all dice between those rows (completed rows OK). Costs 1 charge per use.",
       "permanent": false,
       "per_level": true
@@ -81,7 +81,7 @@
       "type": "extraSwitches",
       "earn_label": "Always on",
       "charge_summary": "Always on while owned - adds +5 switches each level.",
-      "label": "+5 Switches",
+      "label": "Bulk Up",
       "description": "Your switch allowance each level is 5 higher while this power is in your loadout.",
       "permanent": true,
       "per_level": false
@@ -89,9 +89,9 @@
     {
       "type": "straightSwitch",
       "earn_label": "Straight rows",
-      "charge_summary": "Always on while owned - +1 switch when you complete a Straight row.",
-      "label": "Straight Switch",
-      "description": "Each time you lock in a Straight row, gain 1 extra switch for this level.",
+      "charge_summary": "Always on while owned - +1 to your switch cap permanently each time you complete a Straight row (kept for the run).",
+      "label": "Main Character",
+      "description": "Each Straight row you lock in raises your switch cap by 1 for the rest of the run. The bonus stays even if you drop this power later.",
       "permanent": true,
       "per_level": false
     },
@@ -99,7 +99,7 @@
       "type": "comboReroll",
       "earn_label": "Full House + Straight",
       "charge_summary": "Always on while owned - doubles remaining rerolls once per level when you have both a Full House and a Straight.",
-      "label": "Combo Reroll",
+      "label": "House Party",
       "description": "Once per level, when you have both a Full House and a Straight on the board, your remaining rerolls double.",
       "permanent": true,
       "per_level": false
@@ -108,7 +108,7 @@
       "type": "extraLoadout",
       "earn_label": "Always on",
       "charge_summary": "Always on while owned - +2 power slots in your loadout (this die uses one slot).",
-      "label": "+2 Loadout",
+      "label": "Baggage Claim",
       "description": "Raise your loadout cap by 2 while owned. This power takes one of those slots, so you can hold one more other power than before.",
       "permanent": true,
       "per_level": false

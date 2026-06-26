@@ -618,7 +618,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.75, 0.38, 0.1, 1)
 theme_override_font_sizes/font_size = 15
-text = "Set Any Die"
+text = "Be who you are"
 horizontal_alignment = 1
 
 [node name="NumberPickerPrompt" type="Label" parent="ModalNumber/Center/Card/CardMargin/VBox"]
