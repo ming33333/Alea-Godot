@@ -81,7 +81,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.1, 0.14, 0.18, 0.92)
 theme_override_font_sizes/font_size = 13
-text = "Tap a die to add it to your loadout."
+text = "Hover a power to see what it does."
 horizontal_alignment = 1
 autowrap_mode = 3
 

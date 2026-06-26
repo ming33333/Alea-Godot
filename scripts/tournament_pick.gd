@@ -5,7 +5,7 @@ const POWER_PICK_TILE: PackedScene = preload("res://scenes/power_pick_tile.tscn"
 const CROWN_PICK_TILE: PackedScene = preload("res://scenes/crown_pick_tile.tscn")
 const GRID_COLUMNS := 4
 const CROWN_GRID_COLUMNS := 2
-const DETAIL_DEFAULT := "Tap a die to add it to your loadout."
+const DETAIL_DEFAULT := "Hover a power to see what it does."
 
 @onready var subtitle: Label = %Subtitle
 @onready var options_box: GridContainer = %OptionsBox
@@ -106,10 +106,8 @@ func _refresh_power_tile_states() -> void:
 
 func _on_power_tile_hovered(power_type: String) -> void:
 	var def: Dictionary = GameData.get_power_def(power_type)
-	detail_label.text = "%s — %s" % [
-		def.get("label", power_type),
-		PowerLogic.format_power_short(def),
-	]
+	var label: String = str(def.get("label", power_type))
+	detail_label.text = "%s\n\n%s" % [label, PowerLogic.format_power_detail(def)]
 
 
 func _on_power_tile_unhovered(_power_type: String) -> void:
