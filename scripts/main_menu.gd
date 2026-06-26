@@ -11,6 +11,7 @@ const GAME_SCENE: PackedScene = preload("res://scenes/game.tscn")
 const BADGE_ICON_SIZE := 40.0
 const BADGE_BOX_SIZE := 56.0
 const BADGE_SILHOUETTE_COLOR := Color(0.12, 0.14, 0.18, 0.72)
+const CROWN_BADGE_BORDER_COLOR := Color(0.85, 0.72, 0.35, 0.82)
 const BADGE_SLIDE_DURATION := 0.55
 const BADGE_FLY_APPEAR_SEC := 0.22
 const BADGE_FLY_HOLD_SEC := 0.12
@@ -24,9 +25,12 @@ const CLOSED_BOX_TEX: Texture2D = preload("res://assets/textures/closed_box.png"
 const OPENED_BOX_TEX: Texture2D = preload("res://assets/textures/opened_box.png")
 const RIVER_DAY_TEX: Texture2D = preload("res://assets/textures/river_upscale.jpg")
 const RIVER_NIGHT_TEX: Texture2D = preload("res://assets/textures/river_night.jpg")
-const RIVER_BG_FADE_OUT_SEC := 1.5
-const RIVER_BG_FADE_IN_SEC := 1.5
-const CHAMPION_DIALOGUE_TEXT := "Good work... the stars have come out for you."
+const RIVER_BG_FADE_OUT_SEC := 5.0
+const RIVER_BG_FADE_IN_SEC := 5.0
+const CHAMPION_DIALOGUE_FIRST_TEXT := "Good work... the stars have come out for you."
+const CHAMPION_DIALOGUE_REPEAT_TEXT := (
+	"Nice work. When you are ready, pick your next crown challenge from the portal."
+)
 const DECK_PILLAR_HEIGHT := 360.0
 const DECK_PILLAR_WIDTH := 112.0
 const DECK_BOTTOM_SCREEN_FRACTION := 0.15
@@ -69,6 +73,12 @@ const DEMO_TITLE_SCALE_UP := 1.14
 @onready var tooltip_body: Label = %TooltipBody
 @onready var tooltip_footer: Label = %TooltipFooter
 @onready var title_demo: Label = %TitleDemo
+@onready var title_block: CenterContainer = %TitleBlock
+@onready var title_alea: Label = %TitleAlea
+@onready var menu_intro: MenuIntro = %IntroOverlay
+@onready var badge_block: VBoxContainer = $BadgeBlock
+@onready var menu_actions: VBoxContainer = $MenuActions
+@onready var margin_block: MarginContainer = $Margin
 @onready var river: TextureRect = %River
 var _hover_challenge_orb_id: String = ""
 var _hover_badge_box_icon: Control = null
@@ -89,11 +99,15 @@ var _portal_reveal_tween: Tween
 var _portal_was_visible_before_orb_celebration: bool = false
 var _badge_fly_layer: Control
 var _badge_fly_reveal_orb_id: String = ""
+var _crown_fly_reveal_index: int = 0
 var _title_demo_tween: Tween
 var _orb_idle_shine_timer: Timer
 var _orb_idle_shine_active: bool = false
 var _river_fade_tween: Tween
+var _river_fade_overlay: ColorRect
 var _champion_intro_active: bool = false
+var _menu_intro_active: bool = false
+var _orb_build_pending: bool = false
 const MAX_ORB_BUILD_ATTEMPTS := 60
 const MAX_PORTAL_LAYOUT_ATTEMPTS := 40
 const MAX_CELEBRATION_PLAY_ATTEMPTS := 120
@@ -123,7 +137,74 @@ func _ready() -> void:
 		SceneNav.change_failed.connect(_on_scene_nav_failed)
 	if not SaveService.badges_changed.is_connected(_on_badges_changed):
 		SaveService.badges_changed.connect(_on_badges_changed)
-	call_deferred("_build_orbs")
+	if _should_play_menu_intro():
+		_prepare_menu_intro_hidden()
+		call_deferred("_run_menu_boot_sequence")
+	else:
+		_finish_menu_ready()
+
+
+func _should_play_menu_intro() -> bool:
+	return (
+		not GameState.skip_menu_intro
+		and not AudioSettings.is_menu_intro_skipped()
+		and not GameState.show_champion_celebration
+		and menu_intro != null
+	)
+
+
+func _prepare_menu_intro_hidden() -> void:
+	_menu_intro_active = true
+	_set_menu_content_alpha(0.0)
+	if title_alea != null:
+		title_alea.visible = false
+
+
+func _menu_intro_content_nodes() -> Array[CanvasItem]:
+	var nodes: Array[CanvasItem] = []
+	for node in [river, deck_pillars, margin_block, badge_block, menu_actions, champion_portal]:
+		if node is CanvasItem:
+			nodes.append(node as CanvasItem)
+	return nodes
+
+
+func _set_menu_content_alpha(alpha: float, animate: bool = false) -> void:
+	var nodes := _menu_intro_content_nodes()
+	if not animate:
+		for node in nodes:
+			node.modulate.a = alpha
+		return
+	var tween := create_tween()
+	tween.set_parallel(true)
+	for node in nodes:
+		tween.tween_property(node, "modulate:a", alpha, 1.8)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+func _run_menu_boot_sequence() -> void:
+	if menu_intro == null or title_alea == null:
+		_menu_intro_active = false
+		GameState.skip_menu_intro = false
+		_finish_menu_ready()
+		return
+	if not menu_intro.menu_reveal_started.is_connected(_on_menu_intro_reveal):
+		menu_intro.menu_reveal_started.connect(_on_menu_intro_reveal)
+	await menu_intro.play(title_alea)
+	_menu_intro_active = false
+	GameState.skip_menu_intro = false
+	if title_alea != null:
+		title_alea.visible = true
+		title_alea.modulate = Color.WHITE
+	_finish_menu_ready()
+
+
+func _on_menu_intro_reveal() -> void:
+	if title_block != null:
+		title_block.modulate.a = 1.0
+	_set_menu_content_alpha(1.0, true)
+
+
+func _finish_menu_ready() -> void:
 	_layout_deck_pillars()
 	_setup_demo_title()
 	if (
@@ -137,7 +218,7 @@ func _ready() -> void:
 	if GameState.show_champion_celebration:
 		call_deferred("_begin_champion_return_sequence")
 	else:
-		_refresh_river_background(river != null and river.texture != _target_river_texture())
+		_refresh_river_background(false)
 	_refresh_badges()
 	_populate_how_to_play()
 	if how_to_play_overlay:
@@ -161,21 +242,48 @@ func _refresh_champion_crown_art() -> void:
 	DiceCrownArt.apply_texture_rect(celebration_icon, crown_idx, 48)
 
 
-func _make_crown_icon(crown_index: int, earned: bool) -> TextureRect:
+func _make_crown_icon(crown_index: int, earned: bool) -> PanelContainer:
+	var slot := PanelContainer.new()
+	slot.custom_minimum_size = Vector2(BADGE_ICON_SIZE, BADGE_ICON_SIZE)
+	slot.mouse_filter = Control.MOUSE_FILTER_STOP
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.1, 0.14, 0.28)
+	style.border_color = CROWN_BADGE_BORDER_COLOR
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(5)
+	slot.add_theme_stylebox_override("panel", style)
+	var pad := MarginContainer.new()
+	pad.add_theme_constant_override("margin_left", 3)
+	pad.add_theme_constant_override("margin_top", 3)
+	pad.add_theme_constant_override("margin_right", 3)
+	pad.add_theme_constant_override("margin_bottom", 3)
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(pad)
 	var icon := TextureRect.new()
-	icon.custom_minimum_size = Vector2(BADGE_ICON_SIZE, BADGE_ICON_SIZE)
+	icon.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	icon.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.texture = DiceCrownArt.get_texture(crown_index)
 	icon.modulate = Color.WHITE if earned else BADGE_SILHOUETTE_COLOR
 	icon.pivot_offset = Vector2(BADGE_ICON_SIZE * 0.5, BADGE_ICON_SIZE * 0.5)
-	icon.set_meta("crown_index", crown_index)
-	icon.set_meta("crown_earned", earned)
-	icon.mouse_filter = Control.MOUSE_FILTER_STOP
-	icon.mouse_entered.connect(_on_badge_box_icon_hover.bind(icon))
-	icon.mouse_exited.connect(_on_badge_box_icon_unhover.bind(icon))
-	return icon
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.add_child(icon)
+	slot.set_meta("crown_index", crown_index)
+	slot.set_meta("crown_earned", earned)
+	slot.mouse_entered.connect(_on_badge_box_icon_hover.bind(slot))
+	slot.mouse_exited.connect(_on_badge_box_icon_unhover.bind(slot))
+	return slot
+
+
+func _crown_slot_icon(slot: Control) -> TextureRect:
+	if slot == null or slot.get_child_count() == 0:
+		return null
+	var pad := slot.get_child(0) as MarginContainer
+	if pad == null or pad.get_child_count() == 0:
+		return null
+	return pad.get_child(0) as TextureRect
 
 
 func _map_area_ready() -> bool:
@@ -222,12 +330,12 @@ func _start_demo_title_bob() -> void:
 
 
 func _on_map_area_resized() -> void:
-	if _orb_completion_active:
+	if _orb_completion_active or _menu_intro_active:
 		return
 	if not _map_area_ready():
 		return
 	DebugLog.alea_log("MainMenu", "MapArea resized -> %s, rebuilding orbs" % map_area.size)
-	call_deferred("_build_orbs")
+	_schedule_build_orbs()
 
 
 func _layout_deck_pillars() -> void:
@@ -244,8 +352,8 @@ func _layout_deck_pillars() -> void:
 		if child is TextureRect:
 			var pillar := child as TextureRect
 			pillar.custom_minimum_size = Vector2(DECK_PILLAR_WIDTH, DECK_PILLAR_HEIGHT)
-	if _map_area_ready():
-		call_deferred("_build_orbs")
+	if _map_area_ready() and not _menu_intro_active:
+		_schedule_build_orbs()
 	if champion_portal != null and champion_portal.visible:
 		call_deferred("_layout_champion_portal")
 
@@ -339,9 +447,25 @@ func _wait_for_champion_portal_layout() -> bool:
 	return false
 
 
+func _schedule_build_orbs() -> void:
+	if _menu_intro_active or _orb_completion_active:
+		return
+	if _orb_build_pending:
+		return
+	_orb_build_pending = true
+	call_deferred("_run_scheduled_build_orbs")
+
+
+func _run_scheduled_build_orbs() -> void:
+	_orb_build_pending = false
+	_build_orbs()
+
+
 func _build_orbs() -> void:
 	if map_area == null:
 		push_error("MainMenu: MapArea missing")
+		return
+	if _menu_intro_active:
 		return
 	if _orb_completion_active:
 		return
@@ -353,7 +477,7 @@ func _build_orbs() -> void:
 			% [map_area.size, _orb_build_attempts, MAX_ORB_BUILD_ATTEMPTS]
 		)
 		if _orb_build_attempts < MAX_ORB_BUILD_ATTEMPTS:
-			call_deferred("_build_orbs")
+			_schedule_build_orbs()
 		else:
 			DebugLog.log_error("MainMenu", "MapArea never laid out; orbs may not be clickable")
 		return
@@ -419,6 +543,7 @@ func _can_orb_idle_shine() -> bool:
 		and not _orb_completion_active
 		and not _orb_idle_shine_active
 		and not _portal_reveal_active
+		and not _menu_intro_active
 		and not _champion_intro_active
 		and not GameState.show_champion_celebration
 		and GameState.pending_orb_completion_celebration.is_empty()
@@ -994,6 +1119,8 @@ func _refresh_badges() -> void:
 	if SaveService.has_any_crown():
 		for crown_idx in range(1, DiceCrownArt.crown_count() + 1):
 			var crown_earned: bool = SaveService.has_crown(crown_idx)
+			if crown_earned and crown_idx == _crown_fly_reveal_index:
+				crown_earned = false
 			badges_row.add_child(_make_crown_icon(crown_idx, crown_earned))
 	_size_badges_row()
 	_update_badge_box()
@@ -1149,20 +1276,56 @@ func _target_river_texture() -> Texture2D:
 	return RIVER_NIGHT_TEX if SaveService.has_any_crown() else RIVER_DAY_TEX
 
 
+func _river_textures_match(a: Texture2D, b: Texture2D) -> bool:
+	if a == b:
+		return true
+	if a == null or b == null:
+		return false
+	var path_a: String = a.resource_path
+	var path_b: String = b.resource_path
+	return not path_a.is_empty() and path_a == path_b
+
+
 func _refresh_river_background(animated: bool = false) -> void:
 	if river == null:
 		return
 	var target_tex: Texture2D = _target_river_texture()
-	if river.texture == target_tex:
+	if _river_textures_match(river.texture, target_tex):
 		river.modulate = Color.WHITE
 		return
 	if not animated:
-		if _river_fade_tween != null and _river_fade_tween.is_valid():
-			_river_fade_tween.kill()
+		_stop_river_fade_overlay()
 		river.texture = target_tex
 		river.modulate = Color.WHITE
 		return
 	_animate_river_background_switch(target_tex)
+
+
+func _ensure_river_fade_overlay() -> void:
+	if _river_fade_overlay != null or river == null:
+		return
+	_river_fade_overlay = ColorRect.new()
+	_river_fade_overlay.name = "RiverFadeOverlay"
+	_river_fade_overlay.color = Color.BLACK
+	_river_fade_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_river_fade_overlay.anchor_right = 1.0
+	_river_fade_overlay.anchor_bottom = 1.0
+	_river_fade_overlay.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_river_fade_overlay.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_river_fade_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_river_fade_overlay.z_index = 5
+	_river_fade_overlay.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	_river_fade_overlay.visible = false
+	add_child(_river_fade_overlay)
+
+
+func _stop_river_fade_overlay() -> void:
+	if _river_fade_tween != null and _river_fade_tween.is_valid():
+		_river_fade_tween.kill()
+	if _river_fade_overlay == null:
+		return
+	_river_fade_overlay.visible = false
+	_river_fade_overlay.modulate = Color(1.0, 1.0, 1.0, 0.0)
 
 
 func _animate_river_background_switch_async(target_tex: Texture2D) -> void:
@@ -1177,22 +1340,27 @@ func _begin_champion_return_sequence() -> void:
 	_champion_intro_active = true
 	_hide_champion_celebration()
 	_hide_champion_dialogue()
-	var target_tex: Texture2D = _target_river_texture()
-	if river != null and river.texture != target_tex:
-		await _animate_river_background_switch_async(target_tex)
+	if GameState.pending_champion_first_crown:
+		var target_tex: Texture2D = _target_river_texture()
+		if river != null and not _river_textures_match(river.texture, target_tex):
+			await _animate_river_background_switch_async(target_tex)
+		else:
+			_refresh_river_background(false)
 	else:
 		_refresh_river_background(false)
 	if not is_inside_tree() or not GameState.show_champion_celebration:
 		_champion_intro_active = false
 		return
-	_show_champion_dialogue()
+	_show_champion_dialogue(GameState.pending_champion_first_crown)
 
 
-func _show_champion_dialogue() -> void:
+func _show_champion_dialogue(first_crown: bool) -> void:
 	_ensure_celebration_backdrop()
 	_celebration_backdrop.visible = true
 	if champion_dialogue_body != null:
-		champion_dialogue_body.text = CHAMPION_DIALOGUE_TEXT
+		champion_dialogue_body.text = (
+			CHAMPION_DIALOGUE_FIRST_TEXT if first_crown else CHAMPION_DIALOGUE_REPEAT_TEXT
+		)
 	if champion_dialogue != null:
 		champion_dialogue.visible = true
 		champion_dialogue.z_index = 50
@@ -1213,35 +1381,48 @@ func _hide_champion_dialogue() -> void:
 func _on_champion_dialogue_dismiss() -> void:
 	_hide_champion_dialogue()
 	_champion_intro_active = false
+	GameState.pending_champion_first_crown = false
 	_present_champion_celebration_if_needed()
 
 
 func _animate_river_background_switch(target_tex: Texture2D) -> void:
 	if river == null:
 		return
+	_ensure_river_fade_overlay()
+	if _river_fade_overlay == null:
+		river.texture = target_tex
+		river.modulate = Color.WHITE
+		return
 	if _river_fade_tween != null and _river_fade_tween.is_valid():
 		_river_fade_tween.kill()
+	_river_fade_overlay.visible = true
+	_river_fade_overlay.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	_river_fade_tween = create_tween()
-	_river_fade_tween.tween_property(river, "modulate:a", 0.0, RIVER_BG_FADE_OUT_SEC)\
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_river_fade_tween.tween_property(
+		_river_fade_overlay, "modulate:a", 1.0, RIVER_BG_FADE_OUT_SEC
+	).set_trans(Tween.TRANS_LINEAR)
 	_river_fade_tween.tween_callback(func() -> void:
 		if is_instance_valid(river):
 			river.texture = target_tex
-	)
-	_river_fade_tween.tween_property(river, "modulate:a", 1.0, RIVER_BG_FADE_IN_SEC)\
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_river_fade_tween.tween_callback(func() -> void:
-		if is_instance_valid(river):
 			river.modulate = Color.WHITE
+	)
+	_river_fade_tween.tween_property(
+		_river_fade_overlay, "modulate:a", 0.0, RIVER_BG_FADE_IN_SEC
+	).set_trans(Tween.TRANS_LINEAR)
+	_river_fade_tween.tween_callback(func() -> void:
+		if is_instance_valid(_river_fade_overlay):
+			_river_fade_overlay.visible = false
+			_river_fade_overlay.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	)
 
 
 func _on_badges_changed() -> void:
-	_refresh_river_background(true)
+	if not _champion_intro_active and not GameState.show_champion_celebration:
+		_refresh_river_background(false)
 	_refresh_badges()
-	if _orb_completion_active or not _badge_fly_reveal_orb_id.is_empty():
+	if _orb_completion_active or not _badge_fly_reveal_orb_id.is_empty() or _crown_fly_reveal_index > 0:
 		return
-	call_deferred("_build_orbs")
+	_schedule_build_orbs()
 
 
 func _setup_badge_fly_layer() -> void:
@@ -1255,6 +1436,15 @@ func _setup_badge_fly_layer() -> void:
 	_badge_fly_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_badge_fly_layer.z_index = 60
 	add_child(_badge_fly_layer)
+
+
+func _get_crown_icon(crown_index: int) -> Control:
+	if badges_row == null:
+		return null
+	for child in badges_row.get_children():
+		if int(child.get_meta("crown_index", 0)) == crown_index:
+			return child as Control
+	return null
 
 
 func _get_badge_icon(challenge_orb_id: String) -> TextureRect:
@@ -1355,6 +1545,70 @@ func _play_badge_award_fly(orb: Control, orb_id: String) -> void:
 	_reveal_earned_badge_icon(orb_id)
 
 
+func _play_crown_award_fly(source_center: Vector2, crown_index: int) -> void:
+	if _badge_fly_layer == null or crown_index <= 0:
+		_reveal_earned_crown_icon(crown_index)
+		return
+	var tex: Texture2D = DiceCrownArt.get_texture(crown_index)
+	if tex == null:
+		_reveal_earned_crown_icon(crown_index)
+		return
+	await get_tree().create_timer(BADGE_FLY_PAUSE_BEFORE_SEC).timeout
+	await _ensure_badge_box_open_for_award()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var target_slot: Control = _get_crown_icon(crown_index)
+	var target: Vector2 = (
+		target_slot.get_global_rect().get_center()
+		if target_slot != null
+		else badge_box_btn.get_global_rect().get_center()
+	)
+	var size: float = BADGE_FLY_SIZE
+	var fly := TextureRect.new()
+	fly.texture = tex
+	fly.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	fly.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fly.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	fly.custom_minimum_size = Vector2(size, size)
+	fly.size = Vector2(size, size)
+	fly.pivot_offset = Vector2(size * 0.5, size * 0.5)
+	fly.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_badge_fly_layer.add_child(fly)
+	fly.global_position = source_center - fly.pivot_offset
+	fly.scale = Vector2.ZERO
+	var tween: Tween = create_tween()
+	tween.tween_property(
+		fly, "scale", Vector2(1.12, 1.12), BADGE_FLY_APPEAR_SEC
+	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(
+		fly, "scale", Vector2.ONE, BADGE_FLY_APPEAR_SEC * 0.55
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_interval(BADGE_FLY_HOLD_SEC)
+	tween.tween_property(
+		fly, "global_position", target - fly.pivot_offset, BADGE_FLY_TRAVEL_SEC
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tween.parallel().tween_property(
+		fly, "scale", Vector2(0.72, 0.72), BADGE_FLY_TRAVEL_SEC
+	)
+	await tween.finished
+	if is_instance_valid(fly):
+		fly.queue_free()
+	_reveal_earned_crown_icon(crown_index)
+
+
+func _reveal_earned_crown_icon(crown_index: int) -> void:
+	_crown_fly_reveal_index = 0
+	var slot: Control = _get_crown_icon(crown_index)
+	var icon: TextureRect = _crown_slot_icon(slot)
+	if slot == null or icon == null:
+		_refresh_badges()
+		return
+	slot.set_meta("crown_earned", true)
+	icon.modulate = Color.WHITE
+	_play_badge_arrival_pop(icon)
+	_play_badge_award_ding()
+
+
 func _reveal_earned_badge_icon(orb_id: String) -> void:
 	_badge_fly_reveal_orb_id = ""
 	GameState.pending_badge_award_fly = false
@@ -1425,6 +1679,7 @@ func _present_champion_celebration_if_needed() -> void:
 	if celebration_detail != null:
 		var opponents: Array = GameState.pending_champion_opponents
 		celebration_detail.text = DiceCrownArt.format_opponents_line(opponents)
+	_crown_fly_reveal_index = GameState.pending_champion_crown_index
 	_refresh_champion_crown_art()
 	_refresh_badges()
 	move_child(_celebration_backdrop, get_child_count() - 1)
@@ -1457,11 +1712,26 @@ func _hide_champion_celebration() -> void:
 
 
 func _on_celebration_dismiss() -> void:
+	var crown_idx: int = GameState.pending_champion_crown_index
+	var fly_center: Vector2 = Vector2.ZERO
+	var should_fly: bool = (
+		crown_idx > 0
+		and celebration_icon != null
+		and is_instance_valid(celebration_icon)
+	)
+	if should_fly:
+		fly_center = celebration_icon.get_global_rect().get_center()
 	GameState.show_champion_celebration = false
+	GameState.pending_champion_first_crown = false
 	GameState.pending_champion_opponents = []
 	GameState.pending_champion_crown_index = 1
 	_hide_champion_dialogue()
 	_hide_champion_celebration()
+	if should_fly:
+		if _crown_fly_reveal_index <= 0:
+			_crown_fly_reveal_index = crown_idx
+			_refresh_badges()
+		await _play_crown_award_fly(fly_center, crown_idx)
 	_refresh_champion_crown_art()
 	_refresh_badges()
 

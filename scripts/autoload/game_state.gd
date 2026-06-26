@@ -9,11 +9,13 @@ var tournament_opponents: Array = []
 var tournament_opponent_index: int = 0
 var tournament_stolen_power: String = ""
 var show_champion_celebration: bool = false
+var pending_champion_first_crown: bool = false
 var pending_champion_crown_index: int = 1
 var pending_champion_opponents: Array = []
 var pending_orb_completion_celebration: String = ""
 var pending_badge_award_fly: bool = false
 var pending_portal_reveal: bool = false
+var skip_menu_intro: bool = false
 
 ## Set `true` for demo builds — only Vanilla and Safari Snap are playable.
 var demo_mode: bool = false

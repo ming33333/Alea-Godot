@@ -12,7 +12,8 @@ const SETTINGS: PackedScene = preload("res://scenes/settings.tscn")
 var _change_seq: int = 0
 
 
-func go_to_main_menu() -> void:
+func go_to_main_menu(skip_intro: bool = true) -> void:
+	GameState.skip_menu_intro = skip_intro
 	_change(MAIN_MENU)
 
 

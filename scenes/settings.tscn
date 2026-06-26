@@ -75,6 +75,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Mute music"
 
+[node name="SkipMenuIntro" type="CheckBox" parent="Margin/Scroll/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Skip intro on launch"
+
 [node name="DiceStyleLabel" type="Label" parent="Margin/Scroll/VBox"]
 layout_mode = 2
 text = "Dice appearance"
@@ -164,6 +169,7 @@ dialog_text = "This clears challenge orb badges, Dice Master title, orb layout, 
 [connection signal="value_changed" from="Margin/Scroll/VBox/VolumeSlider" to="." method="_on_volume_changed"]
 [connection signal="value_changed" from="Margin/Scroll/VBox/MusicVolumeSlider" to="." method="_on_music_volume_changed"]
 [connection signal="toggled" from="Margin/Scroll/VBox/MusicMute" to="." method="_on_music_mute_toggled"]
+[connection signal="toggled" from="Margin/Scroll/VBox/SkipMenuIntro" to="." method="_on_skip_menu_intro_toggled"]
 [connection signal="item_selected" from="Margin/Scroll/VBox/DiceStyleOption" to="." method="_on_dice_style_selected"]
 [connection signal="toggled" from="Margin/Scroll/VBox/DiceFloat" to="." method="_on_dice_float_toggled"]
 [connection signal="item_selected" from="Margin/Scroll/VBox/DiceSoundOption" to="." method="_on_dice_sound_selected"]

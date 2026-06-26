@@ -3,6 +3,7 @@ extends Control
 @onready var volume_slider: HSlider = %VolumeSlider
 @onready var music_volume_slider: HSlider = %MusicVolumeSlider
 @onready var music_mute: CheckBox = %MusicMute
+@onready var skip_menu_intro: CheckBox = %SkipMenuIntro
 @onready var dice_style_option: OptionButton = %DiceStyleOption
 @onready var dice_float: CheckBox = %DiceFloat
 @onready var dice_sound_option: OptionButton = %DiceSoundOption
@@ -20,6 +21,9 @@ func _ready() -> void:
 	volume_slider.value = AudioSettings.get_master_volume_linear()
 	music_volume_slider.value = AudioSettings.get_music_volume_linear()
 	music_mute.button_pressed = AudioSettings.is_music_muted()
+	skip_menu_intro.set_block_signals(true)
+	skip_menu_intro.button_pressed = AudioSettings.is_menu_intro_skipped()
+	skip_menu_intro.set_block_signals(false)
 	_populate_dice_style_options()
 	dice_float.set_block_signals(true)
 	dice_float.button_pressed = DiceSprites.is_dice_float_enabled()
@@ -72,6 +76,10 @@ func _on_music_volume_changed(v: float) -> void:
 
 func _on_music_mute_toggled(pressed: bool) -> void:
 	AudioSettings.save_music_muted(pressed)
+
+
+func _on_skip_menu_intro_toggled(pressed: bool) -> void:
+	AudioSettings.save_menu_intro_skipped(pressed)
 
 
 func _on_dice_style_selected(index: int) -> void:
@@ -136,6 +144,9 @@ func _reload_settings_ui() -> void:
 	volume_slider.value = AudioSettings.get_master_volume_linear()
 	music_volume_slider.value = AudioSettings.get_music_volume_linear()
 	music_mute.button_pressed = AudioSettings.is_music_muted()
+	skip_menu_intro.set_block_signals(true)
+	skip_menu_intro.button_pressed = AudioSettings.is_menu_intro_skipped()
+	skip_menu_intro.set_block_signals(false)
 	_populate_dice_style_options()
 	dice_float.set_block_signals(true)
 	dice_float.button_pressed = DiceSprites.is_dice_float_enabled()

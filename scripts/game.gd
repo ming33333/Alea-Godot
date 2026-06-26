@@ -413,6 +413,7 @@ func _on_tournament_match_won() -> void:
 	if idx >= GameState.tournament_opponents.size():
 		var faced: Array = GameState.tournament_opponents.duplicate()
 		var crown_idx: int = DiceCrownArt.crown_index_for_opponents(faced)
+		GameState.pending_champion_first_crown = not SaveService.is_dice_champion()
 		SaveService.award_dice_champion(crown_idx)
 		GameState.pending_champion_crown_index = crown_idx
 		GameState.pending_champion_opponents = faced

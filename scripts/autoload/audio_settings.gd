@@ -13,6 +13,7 @@ const DICE_SOUND_PATHS: Dictionary = {
 
 const DICE_SOUND_ORDER: Array[String] = ["default", "roll_2", "roll_3"]
 const DICE_SWISH_PATH := "res://assets/sfx/thud.mp3"
+const FIRST_MUSIC_TRACK := "res://assets/music/Highlife Fusion.mp3"
 
 const MUSIC_TRACKS: Array[String] = [
 	"res://assets/music/pause_and_breathe.mp3",
@@ -159,8 +160,13 @@ func _setup_music_player() -> void:
 func start_background_music() -> void:
 	if MUSIC_TRACKS.is_empty():
 		return
-	_music_track_index = _pick_random_music_index()
+	_music_track_index = _index_for_music_track(FIRST_MUSIC_TRACK)
 	_play_current_music_track()
+
+
+func _index_for_music_track(path: String) -> int:
+	var idx: int = MUSIC_TRACKS.find(path)
+	return idx if idx >= 0 else 0
 
 
 func _play_current_music_track() -> void:
@@ -240,3 +246,16 @@ static func dice_sound_label(sound_id: String) -> String:
 			return "Roll 3"
 		_:
 			return sound_id
+
+
+func is_menu_intro_skipped() -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(CFG_PATH) != OK:
+		return false
+	return bool(cfg.get_value("game", "skip_menu_intro", false))
+
+
+func save_menu_intro_skipped(skip: bool) -> void:
+	var cfg := _load_or_create_cfg()
+	cfg.set_value("game", "skip_menu_intro", skip)
+	cfg.save(CFG_PATH)

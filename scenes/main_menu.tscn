@@ -1,6 +1,7 @@
-[gd_scene load_steps=9 format=3 uid="uid://bqx7mainmenu01"]
+[gd_scene load_steps=10 format=3 uid="uid://bqx7mainmenu01"]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
+[ext_resource type="Script" path="res://scripts/ui/menu_intro.gd" id="1_intro"]
 [ext_resource type="Texture2D" path="res://assets/textures/river_upscale.jpg" id="2_river"]
 [ext_resource type="Texture2D" path="res://assets/textures/pillars.png" id="3_pillars"]
 [ext_resource type="Texture2D" path="res://assets/textures/portal.png" id="4_portal"]
@@ -169,6 +170,7 @@ theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 12
 
 [node name="TitleBlock" type="CenterContainer" parent="."]
+unique_name_in_owner = true
 z_index = 3
 layout_mode = 1
 anchors_preset = 10
@@ -186,6 +188,7 @@ alignment = 1
 [node name="TitleAlea" type="Label" parent="TitleBlock/TitleRow"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
 theme_override_font_sizes/font_size = 64
 text = "Alea"
 horizontal_alignment = 1
@@ -409,6 +412,97 @@ theme_override_constants/separation = 10
 [node name="CloseBtn" type="Button" parent="HowToPlayOverlay/Center/Card/CardMargin/CardVBox"]
 layout_mode = 2
 text = "Close"
+
+[node name="IntroOverlay" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+z_index = 80
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_intro")
+
+[node name="IntroBackdrop" type="ColorRect" parent="IntroOverlay"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.04, 0.05, 0.08, 1)
+
+[node name="CenterStack" type="CenterContainer" parent="IntroOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="IntroTextViewport" type="SubViewportContainer" parent="IntroOverlay/CenterStack"]
+unique_name_in_owner = true
+layout_mode = 2
+stretch = true
+mouse_filter = 2
+
+[node name="IntroTextSubViewport" type="SubViewport" parent="IntroOverlay/CenterStack/IntroTextViewport"]
+unique_name_in_owner = true
+transparent_bg = true
+handle_input_locally = false
+size = Vector2i(900, 220)
+render_target_update_mode = 4
+
+[node name="IntroTextCenter" type="CenterContainer" parent="IntroOverlay/CenterStack/IntroTextViewport/IntroTextSubViewport"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="IntroQuoteBox" type="VBoxContainer" parent="IntroOverlay/CenterStack/IntroTextViewport/IntroTextSubViewport/IntroTextCenter"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="IntroQuote" type="Label" parent="IntroOverlay/CenterStack/IntroTextViewport/IntroTextSubViewport/IntroTextCenter/IntroQuoteBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.9, 0.82, 1)
+theme_override_font_sizes/font_size = 42
+text = "The die is cast"
+horizontal_alignment = 1
+
+[node name="IntroAttribution" type="Label" parent="IntroOverlay/CenterStack/IntroTextViewport/IntroTextSubViewport/IntroTextCenter/IntroQuoteBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.66, 0.72, 1)
+theme_override_font_sizes/font_size = 18
+text = "— Julius Caesar"
+horizontal_alignment = 1
+
+[node name="IntroLatinRow" type="HBoxContainer" parent="IntroOverlay/CenterStack/IntroTextViewport/IntroTextSubViewport/IntroTextCenter"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="IntroIactaPart" type="Label" parent="IntroOverlay/CenterStack/IntroTextViewport/IntroTextSubViewport/IntroTextCenter/IntroLatinRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.84, 0.76, 1)
+theme_override_font_sizes/font_size = 52
+text = " iacta est"
+horizontal_alignment = 1
 
 [node name="ChampionDialogue" type="PanelContainer" parent="."]
 unique_name_in_owner = true
