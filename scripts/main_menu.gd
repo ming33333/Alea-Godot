@@ -115,7 +115,17 @@ const MAX_PORTAL_LAYOUT_ATTEMPTS := 40
 const MAX_CELEBRATION_PLAY_ATTEMPTS := 120
 
 
+func _enter_tree() -> void:
+	if not _should_play_menu_intro():
+		return
+	var intro := get_node_or_null("IntroOverlay")
+	if intro != null and intro.has_method("show_backdrop"):
+		intro.call("show_backdrop")
+
+
 func _ready() -> void:
+	if _should_play_menu_intro():
+		_prepare_menu_intro_hidden()
 	DebugLog.alea_log("MainMenu", "========== MENU _ready ==========")
 	if not resized.is_connected(_layout_deck_pillars):
 		resized.connect(_layout_deck_pillars)
@@ -140,19 +150,19 @@ func _ready() -> void:
 	if not SaveService.badges_changed.is_connected(_on_badges_changed):
 		SaveService.badges_changed.connect(_on_badges_changed)
 	if _should_play_menu_intro():
-		_prepare_menu_intro_hidden()
 		call_deferred("_run_menu_boot_sequence")
-	else:
+	elif not _menu_intro_active:
 		_finish_menu_ready()
 
 
 func _should_play_menu_intro() -> bool:
-	return (
-		not GameState.skip_menu_intro
-		and not AudioSettings.is_menu_intro_skipped()
-		and not GameState.show_champion_celebration
-		and menu_intro != null
-	)
+	if (
+		GameState.skip_menu_intro
+		or AudioSettings.is_menu_intro_skipped()
+		or GameState.show_champion_celebration
+	):
+		return false
+	return menu_intro != null or has_node("IntroOverlay")
 
 
 func _prepare_menu_intro_hidden() -> void:
@@ -162,8 +172,7 @@ func _prepare_menu_intro_hidden() -> void:
 		title_block.modulate = Color.WHITE
 		title_block.z_index = TITLE_BLOCK_INTRO_Z
 	if title_alea != null:
-		title_alea.visible = true
-		title_alea.modulate = Color.WHITE
+		title_alea.visible = false
 	if title_demo != null and not GameState.demo_mode:
 		title_demo.visible = false
 	if menu_intro != null:
@@ -177,8 +186,8 @@ func _run_menu_boot_sequence() -> void:
 		_finish_menu_ready()
 		return
 	_menu_intro_active = false
-	await get_tree().process_frame
 	_finish_menu_ready()
+	await _cache_title_slot_for_intro()
 	await get_tree().process_frame
 	_menu_intro_active = true
 	await menu_intro.play(title_alea)
@@ -187,10 +196,22 @@ func _run_menu_boot_sequence() -> void:
 	if title_block != null:
 		title_block.z_index = TITLE_BLOCK_DEFAULT_Z
 	if title_alea != null:
-		title_alea.top_level = false
-		title_alea.position = Vector2.ZERO
+		if title_alea.top_level:
+			title_alea.top_level = false
 		title_alea.visible = true
 		title_alea.modulate = Color.WHITE
+
+
+func _cache_title_slot_for_intro() -> void:
+	if title_alea == null:
+		return
+	title_alea.visible = true
+	title_alea.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	title_alea.set_meta("intro_title_end_global", title_alea.global_position)
+	title_alea.visible = false
+	title_alea.modulate = Color.WHITE
 
 
 func _finish_menu_ready() -> void:

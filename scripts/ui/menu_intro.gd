@@ -4,23 +4,37 @@ extends Control
 signal intro_finished
 
 const INTRO_CONFIG := preload("res://scripts/ui/intros/menu_intro_config.gd")
+const IACTA_FADE_IN_SEC := 0.65
+const IACTA_HOLD_SEC := 1.15
+const IACTA_FADE_OUT_SEC := 0.85
+const ALEA_SOLO_CENTER_SEC := 1.05
 const TITLE_HOLD_SEC := 0.85
-const TITLE_RISE_SEC := 1.35
+const TITLE_RISE_SEC := 1.5
 const BACKDROP_FADE_SEC := 1.8
 
 @onready var _backdrop: ColorRect = %IntroBackdrop
+@onready var _text_viewport: SubViewportContainer = %IntroTextViewport
+@onready var _quote_box: VBoxContainer = %IntroQuoteBox
+@onready var _latin_row: HBoxContainer = %IntroLatinRow
+@onready var _iacta_part: Label = %IntroIactaPart
+
+
+func _get_backdrop() -> ColorRect:
+	if _backdrop == null:
+		_backdrop = %IntroBackdrop
+	return _backdrop
 
 
 func _ready() -> void:
-	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	%IntroTextViewport.visible = false
+	_text_viewport.visible = false
+	_latin_row.visible = false
 
 
 func show_backdrop() -> void:
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_backdrop.modulate = Color.WHITE
+	_get_backdrop().modulate = Color.WHITE
 
 
 func play(title_target: Label) -> void:
@@ -36,27 +50,48 @@ func play(title_target: Label) -> void:
 func _play_title_reveal(title_target: Label) -> void:
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_backdrop.modulate = Color.WHITE
-	await get_tree().process_frame
-	await get_tree().process_frame
+	_get_backdrop().modulate = Color.WHITE
 	if title_target == null:
 		await _fade_out_backdrop()
 		return
-	var end_global: Vector2 = title_target.global_position
-	var center_global: Vector2 = _screen_center_for(title_target)
-	title_target.top_level = true
-	title_target.z_index = 91
-	title_target.global_position = center_global
+	await _play_alea_iacta_phrase(title_target)
+	var end_global: Vector2 = await _resolve_title_end_global(title_target)
 	await get_tree().create_timer(TITLE_HOLD_SEC).timeout
 	var tween := create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(title_target, "global_position", end_global, TITLE_RISE_SEC)\
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(_backdrop, "modulate:a", 0.0, BACKDROP_FADE_SEC)\
+		.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(_get_backdrop(), "modulate:a", 0.0, BACKDROP_FADE_SEC)\
+		.set_delay(0.12)\
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await tween.finished
 	_settle_title(title_target)
-	_backdrop.modulate.a = 1.0
+	_get_backdrop().modulate.a = 1.0
+
+
+func _play_alea_iacta_phrase(title_target: Label) -> void:
+	_text_viewport.visible = false
+	_quote_box.visible = false
+	_attach_title_to_latin_row(title_target)
+	_iacta_part.text = " iacta est"
+	_iacta_part.visible = true
+	_iacta_part.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	_latin_row.visible = true
+	_latin_row.modulate = Color.WHITE
+	await get_tree().process_frame
+	var fade_in := create_tween()
+	fade_in.tween_property(_iacta_part, "modulate:a", 1.0, IACTA_FADE_IN_SEC)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	await fade_in.finished
+	await get_tree().create_timer(IACTA_HOLD_SEC).timeout
+	var fade_out := create_tween()
+	fade_out.tween_property(_iacta_part, "modulate:a", 0.0, IACTA_FADE_OUT_SEC)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	await fade_out.finished
+	_detach_title_for_rise(title_target)
+	_iacta_part.visible = false
+	_iacta_part.modulate.a = 1.0
+	await _tween_title_to_solo_center(title_target)
 
 
 func _screen_center_for(label: Control) -> Vector2:
@@ -67,18 +102,100 @@ func _screen_center_for(label: Control) -> Vector2:
 	)
 
 
-func _settle_title(title_target: Label) -> void:
+func _tween_title_to_solo_center(title_target: Label) -> void:
+	var center_global: Vector2 = _screen_center_for(title_target)
+	if title_target.global_position.distance_to(center_global) <= 1.0:
+		return
+	var recenter := create_tween()
+	recenter.tween_property(title_target, "global_position", center_global, ALEA_SOLO_CENTER_SEC)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await recenter.finished
+
+
+func _resolve_title_end_global(title_target: Label) -> Vector2:
+	var title_row: Node = title_target.get_meta("intro_title_row") as Node
+	if title_row == null:
+		return title_target.get_meta(
+			"intro_title_end_global",
+			title_target.global_position
+		) as Vector2
+	var saved_index: int = int(title_target.get_meta("intro_title_index", 0))
+	var end_font_size: int = int(title_target.get_meta("intro_title_font_size", 64))
+	var fly_global: Vector2 = title_target.global_position
+	title_target.reparent(title_row)
+	if saved_index >= 0:
+		title_row.move_child(title_target, saved_index)
 	title_target.top_level = false
 	title_target.z_index = 0
-	title_target.position = Vector2.ZERO
+	title_target.add_theme_font_size_override("font_size", end_font_size)
+	title_target.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	title_target.visible = true
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var end_global: Vector2 = title_target.global_position
+	title_target.reparent(self)
+	title_target.top_level = true
+	title_target.z_index = 91
+	title_target.global_position = fly_global
+	title_target.modulate = Color.WHITE
+	title_target.visible = true
+	return end_global
+
+
+func _attach_title_to_latin_row(title_target: Label) -> void:
+	var title_row: Node = title_target.get_parent()
+	if title_row == null:
+		return
+	title_target.set_meta("intro_title_row", title_row)
+	title_target.set_meta("intro_title_index", title_target.get_index())
+	title_target.set_meta(
+		"intro_title_font_size",
+		int(title_target.get_theme_font_size("font_size"))
+	)
+	title_target.reparent(_latin_row)
+	_latin_row.move_child(title_target, 0)
+	title_target.visible = true
+	title_target.modulate = Color.WHITE
+
+
+func _detach_title_for_rise(title_target: Label) -> void:
+	var hold_global: Vector2 = title_target.global_position
+	title_target.reparent(self)
+	title_target.top_level = true
+	title_target.z_index = 91
+	title_target.global_position = hold_global
+	_latin_row.visible = false
+
+
+func _settle_title(title_target: Label) -> void:
+	var title_row: Node = title_target.get_meta("intro_title_row") as Node
+	if title_row == null:
+		title_target.top_level = false
+		title_target.z_index = 0
+		title_target.remove_meta("intro_title_end_global")
+		return
+	var saved_index: int = int(title_target.get_meta("intro_title_index", 0))
+	var end_font_size: int = int(title_target.get_meta("intro_title_font_size", 64))
+	title_target.top_level = false
+	title_target.z_index = 0
+	title_target.reparent(title_row, true)
+	if saved_index >= 0:
+		title_row.move_child(title_target, saved_index)
+	title_target.visible = true
+	title_target.modulate = Color.WHITE
+	title_target.add_theme_font_size_override("font_size", end_font_size)
+	title_target.remove_meta("intro_title_row")
+	title_target.remove_meta("intro_title_index")
+	title_target.remove_meta("intro_title_font_size")
+	title_target.remove_meta("intro_title_end_global")
 
 
 func _fade_out_backdrop() -> void:
 	var tween := create_tween()
-	tween.tween_property(_backdrop, "modulate:a", 0.0, BACKDROP_FADE_SEC)\
+	tween.tween_property(_get_backdrop(), "modulate:a", 0.0, BACKDROP_FADE_SEC)\
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await tween.finished
-	_backdrop.modulate.a = 1.0
+	_get_backdrop().modulate.a = 1.0
 
 
 func _play_intro_1(title_target: Label) -> void:
