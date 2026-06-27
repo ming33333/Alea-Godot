@@ -187,6 +187,8 @@ func _run_menu_boot_sequence() -> void:
 	if title_block != null:
 		title_block.z_index = TITLE_BLOCK_DEFAULT_Z
 	if title_alea != null:
+		title_alea.top_level = false
+		title_alea.position = Vector2.ZERO
 		title_alea.visible = true
 		title_alea.modulate = Color.WHITE
 
