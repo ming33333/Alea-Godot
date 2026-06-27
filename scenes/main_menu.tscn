@@ -467,13 +467,49 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="IntroQuoteBox" type="VBoxContainer" parent="IntroOverlay/CenterStack/IntroTextViewport/IntroTextSubViewport/IntroTextCenter"]
+[node name="IntroRevealClip" type="Control" parent="IntroOverlay/CenterStack"]
 unique_name_in_owner = true
+visible = false
+clip_contents = true
+custom_minimum_size = Vector2(640, 96)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="IntroLatinRow" type="HBoxContainer" parent="IntroOverlay/CenterStack/IntroRevealClip"]
+unique_name_in_owner = true
+visible = true
+layout_mode = 0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 616.0
+offset_bottom = 80.0
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="IntroIactaPart" type="Label" parent="IntroOverlay/CenterStack/IntroRevealClip/IntroLatinRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.84, 0.76, 1)
+theme_override_font_sizes/font_size = 64
+text = " iacta est"
+horizontal_alignment = 1
+
+[node name="IntroRevealCurtain" type="ColorRect" parent="IntroOverlay/CenterStack/IntroRevealClip"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 640.0
+offset_bottom = 96.0
+mouse_filter = 2
+color = Color(0.04, 0.05, 0.08, 1)
+
+[node name="IntroQuoteBox" type="VBoxContainer" parent="IntroOverlay/CenterStack"]
+unique_name_in_owner = true
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="IntroQuote" type="Label" parent="IntroOverlay/CenterStack/IntroTextViewport/IntroTextSubViewport/IntroTextCenter/IntroQuoteBox"]
+[node name="IntroQuote" type="Label" parent="IntroOverlay/CenterStack/IntroQuoteBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.9, 0.82, 1)
@@ -481,27 +517,12 @@ theme_override_font_sizes/font_size = 42
 text = "The die is cast"
 horizontal_alignment = 1
 
-[node name="IntroAttribution" type="Label" parent="IntroOverlay/CenterStack/IntroTextViewport/IntroTextSubViewport/IntroTextCenter/IntroQuoteBox"]
+[node name="IntroAttribution" type="Label" parent="IntroOverlay/CenterStack/IntroQuoteBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.66, 0.72, 1)
 theme_override_font_sizes/font_size = 18
 text = "— Julius Caesar"
-horizontal_alignment = 1
-
-[node name="IntroLatinRow" type="HBoxContainer" parent="IntroOverlay/CenterStack"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-theme_override_constants/separation = 0
-alignment = 1
-
-[node name="IntroIactaPart" type="Label" parent="IntroOverlay/CenterStack/IntroLatinRow"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.88, 0.84, 0.76, 1)
-theme_override_font_sizes/font_size = 64
-text = " iacta est"
 horizontal_alignment = 1
 
 [node name="ChampionDialogue" type="PanelContainer" parent="."]

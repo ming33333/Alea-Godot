@@ -10,6 +10,7 @@ const CROWNS_KEY := "dice_champion_crowns"
 const LAYOUT_KEY := "challenge_orb_menu_layout"
 const LEGACY_LAYOUT_KEY := "gym_menu_layout"
 const BADGE_BOX_OPEN_KEY := "badge_box_open"
+const WELCOME_SEEN_KEY := "welcome_seen"
 
 
 func _ready() -> void:
@@ -209,6 +210,14 @@ func set_badge_box_open(open: bool) -> void:
 	_write(BADGE_BOX_OPEN_KEY, "1" if open else "0")
 
 
+func has_seen_welcome() -> bool:
+	return _read(WELCOME_SEEN_KEY) == "1"
+
+
+func mark_welcome_seen() -> void:
+	_write(WELCOME_SEEN_KEY, "1")
+
+
 func get_menu_layout() -> Dictionary:
 	var raw: String = _read_with_legacy(LAYOUT_KEY, LEGACY_LAYOUT_KEY)
 	if raw.is_empty():
@@ -231,7 +240,7 @@ func save_orb_position(challenge_orb_id: String, x: float, y: float) -> void:
 func reset_all_user_data() -> void:
 	for key in [
 		BADGES_KEY, LEGACY_BADGES_KEY, CHAMPION_KEY, CHAMPION_CROWN_KEY, CROWNS_KEY,
-		LAYOUT_KEY, LEGACY_LAYOUT_KEY, BADGE_BOX_OPEN_KEY
+		LAYOUT_KEY, LEGACY_LAYOUT_KEY, BADGE_BOX_OPEN_KEY, WELCOME_SEEN_KEY
 	]:
 		_delete_user_file("%s.dat" % key)
 	_delete_user_file("settings.cfg")

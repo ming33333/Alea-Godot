@@ -13,6 +13,7 @@ const DICE_SOUND_PATHS: Dictionary = {
 
 const DICE_SOUND_ORDER: Array[String] = ["default", "roll_2", "roll_3"]
 const DICE_SWISH_PATH := "res://assets/sfx/thud.mp3"
+const TEXT_DIALOGUE_PATH := "res://assets/sfx/text_dialogue.mp3"
 const FIRST_MUSIC_TRACK := "res://assets/music/Highlife Fusion.mp3"
 
 const MUSIC_TRACKS: Array[String] = [
@@ -27,8 +28,11 @@ var music_volume_linear: float = 1.0
 var music_muted: bool = false
 
 var _preview_player: AudioStreamPlayer
+var _dialogue_player: AudioStreamPlayer
 var _music_player: AudioStreamPlayer
 var _music_track_index: int = 0
+var _music_duck_depth: int = 0
+var _music_duck_factor: float = 1.0
 
 
 func _ready() -> void:
@@ -37,6 +41,9 @@ func _ready() -> void:
 	_preview_player = AudioStreamPlayer.new()
 	_preview_player.bus = &"Master"
 	add_child(_preview_player)
+	_dialogue_player = AudioStreamPlayer.new()
+	_dialogue_player.bus = &"Master"
+	add_child(_dialogue_player)
 	_setup_music_player()
 	start_background_music()
 
@@ -108,10 +115,76 @@ func apply_music_settings() -> void:
 	var idx: int = _music_bus_index()
 	if idx < 0:
 		return
-	AudioServer.set_bus_volume_db(idx, linear_to_db(music_volume_linear))
+	AudioServer.set_bus_volume_db(idx, linear_to_db(_effective_music_volume_linear()))
 	AudioServer.set_bus_mute(idx, music_muted)
 	if _music_player != null and music_muted:
 		_music_player.stop()
+
+
+func _effective_music_volume_linear() -> float:
+	if music_muted:
+		return 0.0
+	return music_volume_linear * _music_duck_factor
+
+
+func begin_music_duck(duck_factor: float = 0.3) -> void:
+	if _music_duck_depth == 0:
+		_music_duck_factor = clampf(duck_factor, 0.0, 1.0)
+	_music_duck_depth += 1
+	apply_music_settings()
+
+
+func end_music_duck() -> void:
+	_music_duck_depth = maxi(0, _music_duck_depth - 1)
+	if _music_duck_depth == 0:
+		_music_duck_factor = 1.0
+	apply_music_settings()
+
+
+func begin_dialogue_audio(duck_factor: float = 0.3) -> void:
+	begin_music_duck(duck_factor)
+	play_dialogue_sfx()
+
+
+func end_dialogue_audio() -> void:
+	stop_dialogue_sfx()
+	end_music_duck()
+
+
+func play_dialogue_sfx() -> void:
+	if _dialogue_player == null:
+		return
+	var stream: Resource = load(TEXT_DIALOGUE_PATH)
+	if not stream is AudioStream:
+		push_warning("AudioSettings: missing dialogue sfx at %s" % TEXT_DIALOGUE_PATH)
+		return
+	if stream is AudioStreamMP3:
+		(stream as AudioStreamMP3).loop = true
+	_dialogue_player.stream = stream as AudioStream
+	_dialogue_player.stream_paused = false
+	_dialogue_player.play()
+
+
+func pause_dialogue_sfx() -> void:
+	if _dialogue_player != null and _dialogue_player.playing:
+		_dialogue_player.stream_paused = true
+
+
+func resume_dialogue_sfx() -> void:
+	if _dialogue_player == null:
+		return
+	if _dialogue_player.playing:
+		_dialogue_player.stream_paused = false
+	else:
+		play_dialogue_sfx()
+
+
+func stop_dialogue_sfx() -> void:
+	if _dialogue_player == null:
+		return
+	_dialogue_player.stream_paused = false
+	if _dialogue_player.playing:
+		_dialogue_player.stop()
 
 
 func save_master_volume(linear: float) -> void:

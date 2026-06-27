@@ -31,6 +31,14 @@ const CHAMPION_DIALOGUE_FIRST_TEXT := "Good work... the stars have come out for 
 const CHAMPION_DIALOGUE_REPEAT_TEXT := (
 	"Nice work. When you are ready, pick your next crown challenge from the portal."
 )
+const WELCOME_DIALOGUE_TEXT := (
+	"Wow, you found us... Now you have the chance to become a dice master..."
+)
+const DIALOGUE_CHAR_SEC := 0.042
+const DIALOGUE_OPEN_PAUSE_SEC := 0.55
+const DIALOGUE_PUNCTUATION_PAUSE_SEC := 1.0
+const DIALOGUE_ELLIPSIS_PAUSE_SEC := 2.0
+const MUSIC_DUCK_FACTOR := 0.3
 const TITLE_BLOCK_INTRO_Z := 90
 const TITLE_BLOCK_DEFAULT_Z := 3
 const DECK_PILLAR_HEIGHT := 360.0
@@ -108,6 +116,8 @@ var _orb_idle_shine_active: bool = false
 var _river_fade_tween: Tween
 var _river_fade_overlay: ColorRect
 var _champion_intro_active: bool = false
+var _welcome_dialogue_active: bool = false
+var _dialogue_reveal_token: int = 0
 var _menu_intro_active: bool = false
 var _orb_build_pending: bool = false
 const MAX_ORB_BUILD_ATTEMPTS := 60
@@ -200,6 +210,18 @@ func _run_menu_boot_sequence() -> void:
 			title_alea.top_level = false
 		title_alea.visible = true
 		title_alea.modulate = Color.WHITE
+	_present_welcome_if_needed()
+
+
+func _present_welcome_if_needed() -> void:
+	if SaveService.has_seen_welcome():
+		return
+	if GameState.show_champion_celebration:
+		return
+	if _welcome_dialogue_active or _champion_intro_active:
+		return
+	_welcome_dialogue_active = true
+	_show_menu_dialogue(WELCOME_DIALOGUE_TEXT)
 
 
 func _cache_title_slot_for_intro() -> void:
@@ -239,6 +261,8 @@ func _finish_menu_ready() -> void:
 		_present_champion_celebration_if_needed()
 	if champion_portal:
 		champion_portal.tooltip_text = ""
+	if not _should_play_menu_intro():
+		call_deferred("_present_welcome_if_needed")
 
 
 func _champion_crown_index() -> int:
@@ -555,6 +579,7 @@ func _can_orb_idle_shine() -> bool:
 		and not _portal_reveal_active
 		and not _menu_intro_active
 		and not _champion_intro_active
+		and not _welcome_dialogue_active
 		and not GameState.show_champion_celebration
 		and GameState.pending_orb_completion_celebration.is_empty()
 		and _badge_fly_reveal_orb_id.is_empty()
@@ -1364,13 +1389,9 @@ func _begin_champion_return_sequence() -> void:
 	_show_champion_dialogue(GameState.pending_champion_first_crown)
 
 
-func _show_champion_dialogue(first_crown: bool) -> void:
+func _show_menu_dialogue(body_text: String) -> void:
 	_ensure_celebration_backdrop()
 	_celebration_backdrop.visible = true
-	if champion_dialogue_body != null:
-		champion_dialogue_body.text = (
-			CHAMPION_DIALOGUE_FIRST_TEXT if first_crown else CHAMPION_DIALOGUE_REPEAT_TEXT
-		)
 	if champion_dialogue != null:
 		champion_dialogue.visible = true
 		champion_dialogue.z_index = 50
@@ -1380,9 +1401,104 @@ func _show_champion_dialogue(first_crown: bool) -> void:
 	move_child(_celebration_backdrop, get_child_count() - 1)
 	if champion_dialogue != null:
 		move_child(champion_dialogue, get_child_count() - 1)
+	if champion_dialogue_body != null:
+		champion_dialogue_body.text = ""
+	_set_dialogue_continue_enabled(false)
+	_reveal_menu_dialogue(body_text)
+
+
+func _reveal_menu_dialogue(body_text: String) -> void:
+	_dialogue_reveal_token += 1
+	var token: int = _dialogue_reveal_token
+	await get_tree().create_timer(DIALOGUE_OPEN_PAUSE_SEC).timeout
+	if token != _dialogue_reveal_token or not is_inside_tree():
+		return
+	AudioSettings.begin_dialogue_audio(MUSIC_DUCK_FACTOR)
+	var display: String = ""
+	for i in body_text.length():
+		if token != _dialogue_reveal_token or not is_inside_tree():
+			_stop_menu_dialogue_audio()
+			return
+		var ch: String = body_text[i]
+		display += ch
+		if champion_dialogue_body != null:
+			champion_dialogue_body.text = display
+		var delay: float = DIALOGUE_CHAR_SEC
+		if display.ends_with("..."):
+			delay += DIALOGUE_ELLIPSIS_PAUSE_SEC
+		elif ch == "." and _dot_is_in_ellipsis(body_text, i):
+			pass
+		elif ch in ".!?":
+			delay += DIALOGUE_PUNCTUATION_PAUSE_SEC
+		elif ch == ",":
+			delay += DIALOGUE_PUNCTUATION_PAUSE_SEC * 0.55
+		if not await _await_dialogue_beat(delay, token):
+			_stop_menu_dialogue_audio()
+			return
+	if token != _dialogue_reveal_token or not is_inside_tree():
+		_stop_menu_dialogue_audio()
+		return
+	_stop_menu_dialogue_audio()
+	_set_dialogue_continue_enabled(true)
+
+
+func _await_dialogue_beat(delay: float, token: int) -> bool:
+	await get_tree().create_timer(DIALOGUE_CHAR_SEC).timeout
+	if token != _dialogue_reveal_token or not is_inside_tree():
+		return false
+	var extra_pause: float = delay - DIALOGUE_CHAR_SEC
+	if extra_pause <= 0.0:
+		return true
+	AudioSettings.pause_dialogue_sfx()
+	await get_tree().create_timer(extra_pause).timeout
+	if token != _dialogue_reveal_token or not is_inside_tree():
+		return false
+	AudioSettings.resume_dialogue_sfx()
+	return true
+
+
+func _dot_is_in_ellipsis(body_text: String, dot_index: int) -> bool:
+	if dot_index < 0 or dot_index >= body_text.length():
+		return false
+	if body_text[dot_index] != ".":
+		return false
+	var start: int = dot_index
+	while start > 0 and body_text[start - 1] == ".":
+		start -= 1
+	var end: int = dot_index
+	while end + 1 < body_text.length() and body_text[end + 1] == ".":
+		end += 1
+	return end - start + 1 >= 3
+
+
+func _dialogue_continue_button() -> Button:
+	if champion_dialogue == null:
+		return null
+	return champion_dialogue.get_node_or_null("VBox/Continue") as Button
+
+
+func _set_dialogue_continue_enabled(enabled: bool) -> void:
+	var btn: Button = _dialogue_continue_button()
+	if btn == null:
+		return
+	btn.disabled = not enabled
+	btn.modulate.a = 1.0 if enabled else 0.42
+
+
+func _stop_menu_dialogue_audio() -> void:
+	AudioSettings.end_dialogue_audio()
+
+
+func _show_champion_dialogue(first_crown: bool) -> void:
+	_show_menu_dialogue(
+		CHAMPION_DIALOGUE_FIRST_TEXT if first_crown else CHAMPION_DIALOGUE_REPEAT_TEXT
+	)
 
 
 func _hide_champion_dialogue() -> void:
+	_dialogue_reveal_token += 1
+	_stop_menu_dialogue_audio()
+	_set_dialogue_continue_enabled(true)
 	if champion_dialogue != null:
 		champion_dialogue.visible = false
 		champion_dialogue.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1390,6 +1506,12 @@ func _hide_champion_dialogue() -> void:
 
 func _on_champion_dialogue_dismiss() -> void:
 	_hide_champion_dialogue()
+	if _welcome_dialogue_active:
+		_welcome_dialogue_active = false
+		SaveService.mark_welcome_seen()
+		if _celebration_backdrop != null:
+			_celebration_backdrop.visible = false
+		return
 	_champion_intro_active = false
 	GameState.pending_champion_first_crown = false
 	_present_champion_celebration_if_needed()
