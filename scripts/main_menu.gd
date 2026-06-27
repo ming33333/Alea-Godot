@@ -31,6 +31,8 @@ const CHAMPION_DIALOGUE_FIRST_TEXT := "Good work... the stars have come out for 
 const CHAMPION_DIALOGUE_REPEAT_TEXT := (
 	"Nice work. When you are ready, pick your next crown challenge from the portal."
 )
+const TITLE_BLOCK_INTRO_Z := 90
+const TITLE_BLOCK_DEFAULT_Z := 3
 const DECK_PILLAR_HEIGHT := 360.0
 const DECK_PILLAR_WIDTH := 112.0
 const DECK_BOTTOM_SCREEN_FRACTION := 0.15
@@ -155,30 +157,17 @@ func _should_play_menu_intro() -> bool:
 
 func _prepare_menu_intro_hidden() -> void:
 	_menu_intro_active = true
-	_set_menu_content_alpha(0.0)
+	if title_block != null:
+		title_block.visible = true
+		title_block.modulate = Color.WHITE
+		title_block.z_index = TITLE_BLOCK_INTRO_Z
 	if title_alea != null:
-		title_alea.visible = false
-
-
-func _menu_intro_content_nodes() -> Array[CanvasItem]:
-	var nodes: Array[CanvasItem] = []
-	for node in [river, deck_pillars, margin_block, badge_block, menu_actions, champion_portal]:
-		if node is CanvasItem:
-			nodes.append(node as CanvasItem)
-	return nodes
-
-
-func _set_menu_content_alpha(alpha: float, animate: bool = false) -> void:
-	var nodes := _menu_intro_content_nodes()
-	if not animate:
-		for node in nodes:
-			node.modulate.a = alpha
-		return
-	var tween := create_tween()
-	tween.set_parallel(true)
-	for node in nodes:
-		tween.tween_property(node, "modulate:a", alpha, 1.8)\
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		title_alea.visible = true
+		title_alea.modulate = Color.WHITE
+	if title_demo != null and not GameState.demo_mode:
+		title_demo.visible = false
+	if menu_intro != null:
+		menu_intro.show_backdrop()
 
 
 func _run_menu_boot_sequence() -> void:
@@ -187,21 +176,19 @@ func _run_menu_boot_sequence() -> void:
 		GameState.skip_menu_intro = false
 		_finish_menu_ready()
 		return
-	if not menu_intro.menu_reveal_started.is_connected(_on_menu_intro_reveal):
-		menu_intro.menu_reveal_started.connect(_on_menu_intro_reveal)
+	_menu_intro_active = false
+	await get_tree().process_frame
+	_finish_menu_ready()
+	await get_tree().process_frame
+	_menu_intro_active = true
 	await menu_intro.play(title_alea)
 	_menu_intro_active = false
 	GameState.skip_menu_intro = false
+	if title_block != null:
+		title_block.z_index = TITLE_BLOCK_DEFAULT_Z
 	if title_alea != null:
 		title_alea.visible = true
 		title_alea.modulate = Color.WHITE
-	_finish_menu_ready()
-
-
-func _on_menu_intro_reveal() -> void:
-	if title_block != null:
-		title_block.modulate.a = 1.0
-	_set_menu_content_alpha(1.0, true)
 
 
 func _finish_menu_ready() -> void:
