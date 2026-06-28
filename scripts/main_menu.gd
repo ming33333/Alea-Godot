@@ -21,6 +21,7 @@ const BADGE_FLY_PAUSE_BEFORE_SEC := 0.18
 const BADGE_ARRIVAL_POP_SEC := 0.22
 const BADGE_AWARD_SFX: AudioStream = preload("res://assets/sfx/badge_award.mp3")
 const ORB_COMPLETION_SFX: AudioStream = preload("res://assets/sfx/orb_completion.mp3")
+const PORTAL_APPEARS_SFX: AudioStream = preload("res://assets/sfx/portal_appears.mp3")
 const CLOSED_BOX_TEX: Texture2D = preload("res://assets/textures/closed_box.png")
 const OPENED_BOX_TEX: Texture2D = preload("res://assets/textures/opened_box.png")
 const RIVER_DAY_TEX: Texture2D = preload("res://assets/textures/river_upscale.jpg")
@@ -33,6 +34,9 @@ const CHAMPION_DIALOGUE_REPEAT_TEXT := (
 )
 const WELCOME_DIALOGUE_TEXT := (
 	"Wow, you found us... Now you have the chance to become a dice master..."
+)
+const PORTAL_UNLOCK_DIALOGUE_TEXT := (
+	"You have collected all the badges... now you are able to take the Dice Master Test."
 )
 const DIALOGUE_CHAR_SEC := 0.042
 const DIALOGUE_OPEN_PAUSE_SEC := 0.55
@@ -56,7 +60,6 @@ const ORB_IDLE_SHINE_MIN_SEC := 2.0
 const ORB_IDLE_SHINE_MAX_SEC := 4.0
 const ORB_IDLE_SHINE_DURATION_SEC := 1.0
 const PORTAL_REVEAL_SEC := 1.15
-const PORTAL_REVEAL_PAUSE_SEC := 0.35
 const PORTAL_REVEAL_SHADER: Shader = preload("res://assets/shaders/portal_reveal.gdshader")
 const DEMO_TITLE_BOB_SEC := 0.42
 const DEMO_TITLE_SCALE_UP := 1.14
@@ -117,6 +120,7 @@ var _river_fade_tween: Tween
 var _river_fade_overlay: ColorRect
 var _champion_intro_active: bool = false
 var _welcome_dialogue_active: bool = false
+var _portal_unlock_dialogue_active: bool = false
 var _dialogue_reveal_token: int = 0
 var _menu_intro_active: bool = false
 var _orb_build_pending: bool = false
@@ -427,6 +431,12 @@ func _refresh_champion_portal() -> void:
 
 func _should_hide_portal_for_celebration() -> bool:
 	if GameState.pending_portal_reveal:
+		return true
+	if (
+		_orb_completion_active
+		and SaveService.has_all_menu_badges()
+		and not _portal_was_visible_before_orb_celebration
+	):
 		return true
 	if (
 		not GameState.pending_orb_completion_celebration.is_empty()
@@ -969,16 +979,17 @@ func _run_orb_completion_celebration(orb: PixelChallengeOrb, orb_id: String) -> 
 		orb.set_glow_ramp(1.0)
 		orb.set_display_diameter(completed_size)
 	DebugLog.alea_log("MainMenu", "orb completion celebration finished for %s" % orb_id)
+	var should_reveal_portal := (
+		not GameState.demo_mode
+		and SaveService.has_all_menu_badges()
+		and not _portal_was_visible_before_orb_celebration
+	)
+	if should_reveal_portal:
+		GameState.request_portal_reveal()
 	if GameState.pending_badge_award_fly and SaveService.has_badge(orb_id):
 		_badge_fly_reveal_orb_id = orb_id
 		_refresh_badges()
 		await _play_badge_award_fly(orb, orb_id)
-	if (
-		not GameState.demo_mode
-		and SaveService.has_all_menu_badges()
-		and not _portal_was_visible_before_orb_celebration
-	):
-		GameState.request_portal_reveal()
 	_finish_orb_completion_celebration()
 
 
@@ -1034,12 +1045,12 @@ func _run_champion_portal_reveal() -> void:
 	mat.set_shader_parameter("reveal_y", 0.0)
 	champion_portal.material = mat
 	await get_tree().process_frame
-	await get_tree().create_timer(PORTAL_REVEAL_PAUSE_SEC).timeout
 	if not is_instance_valid(champion_portal):
 		_finish_champion_portal_reveal()
 		return
 	if _portal_reveal_tween != null and _portal_reveal_tween.is_valid():
 		_portal_reveal_tween.kill()
+	_play_menu_sfx(PORTAL_APPEARS_SFX)
 	_portal_reveal_tween = create_tween()
 	_portal_reveal_tween.tween_method(
 		func(reveal: float) -> void:
@@ -1050,7 +1061,23 @@ func _run_champion_portal_reveal() -> void:
 		PORTAL_REVEAL_SEC
 	).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	await _portal_reveal_tween.finished
+	if not is_instance_valid(champion_portal):
+		_finish_champion_portal_reveal()
+		return
+	if champion_portal != null:
+		champion_portal.material = null
+	_refresh_champion_portal()
+	await _present_portal_unlock_dialogue()
 	_finish_champion_portal_reveal()
+
+
+func _present_portal_unlock_dialogue() -> void:
+	_portal_unlock_dialogue_active = true
+	if champion_portal != null:
+		champion_portal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_show_menu_dialogue(PORTAL_UNLOCK_DIALOGUE_TEXT)
+	while _portal_unlock_dialogue_active and is_inside_tree():
+		await get_tree().process_frame
 
 
 func _finish_champion_portal_reveal() -> void:
@@ -1376,6 +1403,7 @@ func _begin_champion_return_sequence() -> void:
 	_hide_champion_celebration()
 	_hide_champion_dialogue()
 	if GameState.pending_champion_first_crown:
+		AudioSettings.play_dice_master_music()
 		var target_tex: Texture2D = _target_river_texture()
 		if river != null and not _river_textures_match(river.texture, target_tex):
 			await _animate_river_background_switch_async(target_tex)
@@ -1509,6 +1537,11 @@ func _on_champion_dialogue_dismiss() -> void:
 	if _welcome_dialogue_active:
 		_welcome_dialogue_active = false
 		SaveService.mark_welcome_seen()
+		if _celebration_backdrop != null:
+			_celebration_backdrop.visible = false
+		return
+	if _portal_unlock_dialogue_active:
+		_portal_unlock_dialogue_active = false
 		if _celebration_backdrop != null:
 			_celebration_backdrop.visible = false
 		return

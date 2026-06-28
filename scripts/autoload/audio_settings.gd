@@ -15,6 +15,7 @@ const DICE_SOUND_ORDER: Array[String] = ["default", "roll_2", "roll_3"]
 const DICE_SWISH_PATH := "res://assets/sfx/thud.mp3"
 const TEXT_DIALOGUE_PATH := "res://assets/sfx/text_dialogue.mp3"
 const FIRST_MUSIC_TRACK := "res://assets/music/Highlife Fusion.mp3"
+const DICE_MASTER_MUSIC_TRACK := "res://assets/music/Echoes of the Crystal Path.mp3"
 
 const MUSIC_TRACKS: Array[String] = [
 	"res://assets/music/pause_and_breathe.mp3",
@@ -33,6 +34,7 @@ var _music_player: AudioStreamPlayer
 var _music_track_index: int = 0
 var _music_duck_depth: int = 0
 var _music_duck_factor: float = 1.0
+var _dice_master_music_active: bool = false
 
 
 func _ready() -> void:
@@ -210,8 +212,11 @@ func save_music_muted(muted: bool) -> void:
 	cfg.save(CFG_PATH)
 	apply_music_settings()
 	if was_muted and not music_muted:
-		_advance_music_track()
-		_play_current_music_track()
+		if _dice_master_music_active:
+			play_dice_master_music()
+		else:
+			_advance_music_track()
+			_play_current_music_track()
 
 
 func save_dice_roll_sound(sound_id: String) -> void:
@@ -233,8 +238,25 @@ func _setup_music_player() -> void:
 func start_background_music() -> void:
 	if MUSIC_TRACKS.is_empty():
 		return
+	_dice_master_music_active = false
 	_music_track_index = _index_for_music_track(FIRST_MUSIC_TRACK)
 	_play_current_music_track()
+
+
+func play_dice_master_music() -> void:
+	if _music_player == null or music_muted:
+		return
+	var stream: Resource = load(DICE_MASTER_MUSIC_TRACK)
+	if not stream is AudioStream:
+		push_warning(
+			"AudioSettings: missing dice master music at %s" % DICE_MASTER_MUSIC_TRACK
+		)
+		return
+	if stream is AudioStreamMP3:
+		(stream as AudioStreamMP3).loop = true
+	_dice_master_music_active = true
+	_music_player.stream = stream as AudioStream
+	_music_player.play()
 
 
 func _index_for_music_track(path: String) -> int:
@@ -244,6 +266,8 @@ func _index_for_music_track(path: String) -> int:
 
 func _play_current_music_track() -> void:
 	if _music_player == null or MUSIC_TRACKS.is_empty() or music_muted:
+		return
+	if _dice_master_music_active:
 		return
 	var path: String = MUSIC_TRACKS[_music_track_index]
 	var stream: Resource = load(path)
@@ -257,6 +281,8 @@ func _play_current_music_track() -> void:
 
 
 func _on_music_track_finished() -> void:
+	if _dice_master_music_active:
+		return
 	_advance_music_track()
 	_play_current_music_track()
 
