@@ -10,6 +10,7 @@ const PERMANENT: Array[String] = [
 ]
 const EXTRA_SWITCHES_BONUS := 5
 const LOADOUT_BONUS_AMOUNT := 2
+const DEFAULT_OFFER_WEIGHT := 1.0
 
 
 static func is_pattern_power(t: String) -> bool:
@@ -85,8 +86,35 @@ static func row_earns_goal(goal: String, pattern: String) -> bool:
 	return pattern == mapped
 
 
+static func offer_weight(power_type: String) -> float:
+	return float(GameData.get_power_def(power_type).get("offer_weight", DEFAULT_OFFER_WEIGHT))
+
+
+static func pick_weighted_offer_pool(candidates: Array, count: int) -> Array:
+	var pool: Array = candidates.duplicate()
+	var picked: Array = []
+	var n: int = mini(count, pool.size())
+	for _i in range(n):
+		var total_weight: float = 0.0
+		for t in pool:
+			total_weight += offer_weight(str(t))
+		if total_weight <= 0.0:
+			break
+		var roll: float = randf() * total_weight
+		var acc: float = 0.0
+		for j in range(pool.size()):
+			var power_type: String = str(pool[j])
+			acc += offer_weight(power_type)
+			if roll <= acc:
+				picked.append(power_type)
+				pool.remove_at(j)
+				break
+	return picked
+
+
 static func loadout_bonus(unlocked: Dictionary) -> int:
-	return LOADOUT_BONUS_AMOUNT if unlocked.has("extraLoadout") else 0
+	# Baggage Claim grants +2 slots; the die itself uses one (net +1 to owned cap).
+	return 1 if unlocked.has("extraLoadout") else 0
 
 
 static func effective_max_owned_powers(base_max: int, unlocked: Dictionary) -> int:

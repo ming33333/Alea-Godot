@@ -29,6 +29,7 @@
       "charge_summary": "Charges: +1 each time you complete a Full House row (x on the die). Resets to 0 at the start of each level.",
       "label": "Be who you are",
       "description": "Tap an unlocked die on an incomplete row, pick 1-6 - that die changes. Costs 1 charge and 1 reroll per use.",
+      "offer_weight": 0.3,
       "permanent": false,
       "per_level": false
     },
@@ -83,6 +84,7 @@
       "charge_summary": "Always on while owned - adds +5 switches each level.",
       "label": "Bulk Up",
       "description": "Your switch allowance each level is 5 higher while this power is in your loadout.",
+      "offer_weight": 0.3,
       "permanent": true,
       "per_level": false
     },
@@ -92,6 +94,7 @@
       "charge_summary": "Always on while owned - +1 to your switch cap permanently each time you complete a Straight row (kept for the run).",
       "label": "Main Character",
       "description": "Each Straight row you lock in raises your switch cap by 1 for the rest of the run. The bonus stays even if you drop this power later.",
+      "offer_weight": 0.3,
       "permanent": true,
       "per_level": false
     },
@@ -101,6 +104,7 @@
       "charge_summary": "Always on while owned - doubles remaining rerolls once per level when you have both a Full House and a Straight.",
       "label": "House Party",
       "description": "Once per level, when you have both a Full House and a Straight on the board, your remaining rerolls double.",
+      "offer_weight": 0.3,
       "permanent": true,
       "per_level": false
     },
@@ -110,6 +114,7 @@
       "charge_summary": "Always on while owned - +2 power slots in your loadout (this die uses one slot).",
       "label": "Baggage Claim",
       "description": "Raise your loadout cap by 2 while owned. This power takes one of those slots, so you can hold one more other power than before.",
+      "offer_weight": 0.3,
       "permanent": true,
       "per_level": false
     }

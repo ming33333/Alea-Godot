@@ -434,9 +434,8 @@ func _pick_level_up_pool() -> Array:
 		var t: String = str(p.get("type", ""))
 		if not unlocked_powers.has(t):
 			available.append(t)
-	available.shuffle()
 	var n: int = int(GameData.level_limits.get("level_up_offer_count", 2))
-	return available.slice(0, mini(n, available.size()))
+	return PowerLogic.pick_weighted_offer_pool(available, n)
 
 
 func _handle_fail() -> void:
@@ -911,10 +910,10 @@ func swap_out_power(replaced: String) -> void:
 	if pending_swap_in == "":
 		return
 	var gained: String = pending_swap_in
-	unlocked_powers.erase(replaced)
+	_clear_power_from_loadout(replaced)
+	if replaced == "extraLoadout":
+		_remove_random_owned_power("")
 	unlocked_powers[gained] = true
-	if active_power_type == replaced:
-		active_power_type = ""
 	if PowerLogic.is_pattern_power(gained):
 		level_power_goal = gained
 	pending_swap_in = ""
@@ -1122,6 +1121,23 @@ func dev_remove_power(power_type: String) -> String:
 	if not unlocked_powers.has(power_type):
 		var def: Dictionary = GameData.get_power_def(power_type)
 		return "Not in loadout: %s" % str(def.get("label", power_type))
+	_clear_power_from_loadout(power_type)
+	var cascade_label: String = ""
+	if power_type == "extraLoadout":
+		cascade_label = _remove_random_owned_power("")
+	_emit()
+	var removed: Dictionary = GameData.get_power_def(power_type)
+	var msg: String = "Removed %s (%d/%d)" % [
+		str(removed.get("label", power_type)),
+		unlocked_powers.size(),
+		effective_max_owned_powers(),
+	]
+	if not cascade_label.is_empty():
+		msg += " — also lost %s" % cascade_label
+	return msg
+
+
+func _clear_power_from_loadout(power_type: String) -> void:
 	unlocked_powers.erase(power_type)
 	power_charges[power_type] = 0
 	if active_power_type == power_type:
@@ -1136,13 +1152,21 @@ func dev_remove_power(power_type: String) -> String:
 		pending_swap_in = ""
 		if current_modal == Modal.SWAP_POWER:
 			current_modal = Modal.NONE
-	_emit()
-	var removed: Dictionary = GameData.get_power_def(power_type)
-	return "Removed %s (%d/%d)" % [
-		str(removed.get("label", power_type)),
-		unlocked_powers.size(),
-		effective_max_owned_powers(),
-	]
+
+
+func _remove_random_owned_power(except: String) -> String:
+	var candidates: Array[String] = []
+	for t in unlocked_powers:
+		var id: String = str(t)
+		if id != except:
+			candidates.append(id)
+	if candidates.is_empty():
+		return ""
+	candidates.shuffle()
+	var dropped: String = candidates[0]
+	_clear_power_from_loadout(dropped)
+	var def: Dictionary = GameData.get_power_def(dropped)
+	return str(def.get("label", dropped))
 
 
 func _maybe_fail_level() -> void:
